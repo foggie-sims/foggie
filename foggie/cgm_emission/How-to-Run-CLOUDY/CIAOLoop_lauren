@@ -1,0 +1,3814 @@
+#! /usr/bin/perl
+
+#####################################################################
+############################# CIAOLoop ##############################
+############# Cloudy Iterative Adaptively Organized Loop ############
+###                         Britton Smith                         ###
+###                     brittonsmith@gmail.com                    ###
+###                         January, 2006                         ###
+#####################################################################
+#####################################################################
+
+use strict;
+use File::Glob;
+
+# autoflush STDOUT
+$| = 1;
+
+##########################################################
+####################### Directory ########################
+##########################################################
+###                                                    ###
+### I.   VARIABLE DECLARATIONS                         ###
+###                                                    ###
+###      A. Parameters and Global Variables            ###
+###      B. Variables for running in parallel          ###
+###      C. Cooling Map Mode Parameters and Variables  ###
+###      D. Command Storage Objects                    ###
+###                                                    ###
+### II.  MAIN CODE EXECUTION                           ###
+###                                                    ###
+### III. SUBROUTINES                                   ###
+###                                                    ###
+###      A. General Subroutines                        ###
+###      B. Bare Mode Subroutine                       ###
+###      C. Cooling Map Mode Subroutines               ###
+###      D. Emissivity Map Mode Subroutines            ###
+###      D. Ion Fraction Map Mode Subroutines          ###
+###      E. Line Map Mode Subroutines                  ###
+###      F. Custom Cloudy Mode Subroutines             ###
+###                                                    ###
+##########################################################
+##########################################################
+##########################################################
+
+# Modes for running Cloudy.
+my @cloudyRunModes = (\&bareMode,           # bare mode (just run Cloudy with commands provided)
+		      \&coolingMapMode,     # cooling map mode
+		      \&emissivityMapMode,  # emissivity map mode
+		      \&ionFractionMapMode, # ion fraction map mode
+                      \&lineMapMode,        # line emissivity map mode
+		      \&newCustomMode);     # Your custom run mode here!
+
+# Initialization routines for the above running modes.
+my @initializeMode = (0,                              # no initialization required for bare mode
+		      \&coolingMapModeInitialize,     # set temperature ranges
+		      \&emissivityMapModeInitialize,  # set temperature, energy ranges
+		      \&ionFractionMapModeInitialize, # set temperature ranges, elements
+                      \&lineMapModeInitialize,        # set temperature ranges, ion labels
+		      \&newCustomModeIntialize);      # Your custom mode initialization routine.
+
+#####################################################################
+################# Parameters and Global Variables ###################
+#####################################################################
+
+# Cloudy executable path
+my $cloudyExe = "./cloudy.exe";
+
+# First time run or a restart
+my $restart = 0;
+
+# Resume mode: scan for incomplete maps and start there.
+my $resume = 0;
+
+# A reprocess run (using existing data)
+# or a run that will call Cloudy.
+my $reprocess_run = 0;
+
+# Restart Index
+my $restartIndex = 0;
+
+# Output file prefix
+my $outputFilePrefix = "CIAOLoop";
+
+# Output directory
+my $outputDir = "";
+
+# Run file path
+my $runFile = "";
+
+# Type of Cloudy run.
+my $cloudyRunMode = 0;
+
+# Save all output from Cloudy.
+my $saveCloudyOutputFiles = 1;
+
+# Save only the files necessary for table creation.
+my $saveMinimumOutputFiles = 0;
+
+# Exit program when Cloudy crashes
+my $exitOnCrash = 0;
+
+# Test run (don't run cloudy, just make run file)
+# 0 = actual run, 1 = test
+my $test = 0;
+
+# Total number of Cloudy runs
+my $totalRuns = 1;
+
+# Index of first run
+my $currentRunIndex = 1;
+
+#####################################################################
+################# Variables for running in parallel #################
+#####################################################################
+
+# Parallel on/off flag
+my $parallel = 0;
+
+# Array of PIDs for active children
+# If we don't wait for them to finish, they'll become zombies.
+my @pids = ();
+
+# User login (for remote login)
+my $login = getlogin() || (getpwuid($<))[0];
+
+# Remote login (rsh, ssh, etc.)
+my $remoteLogin = "rsh";
+$remoteLogin.= " -l $login" if ($login);
+
+# Machine file for parallel run
+my $machineFile = "";
+
+# Array with machine names for parallel run
+my @machines = ();
+
+# List of machines available for use
+my @machinesAvailable = ();
+
+# List of machines currently unvailable (because they're already running Cloudy)
+my @machinesUnavailable = ();
+
+# When child spawns to run Cloudy, this variable tells it which machine to run on
+my $myMachine = "";
+
+#####################################################################
+#### Variables for running multiple processors on local machine #####
+#####################################################################
+
+# Multiple processor on/off flag
+my $multiProcessor = 0;
+
+# Number of processors to use on machine
+my $numberMultiProcessors = 0;
+
+#####################################################################
+############### Variables for performing run in parts ###############
+#####################################################################
+
+# Multiple parts on/off flag
+my $multiParts = 0;
+
+# Total number of parts
+my $totalMultiParts;
+
+# This specific part
+my $thisMultiPart;
+
+# Starting index for this part
+my $multiPartStartIndex;
+
+# Ending index for this part
+my $multiPartEndIndex;
+
+#####################################################################
+############# Cooling Map Mode Parameters and Variables #############
+#####################################################################
+
+# minimum temperature of cooling map
+my $coolingMapTmin;
+
+# maximum temperature of cooling map
+my $coolingMapTmax;
+
+# linear temperature step for cooling map (unlikely to be used)
+my $coolingMapdT;
+
+# log temperature step for cooling map
+my $coolingMapdLogT;
+
+# number of temperature points in cooling map
+my $coolingMapTpoints;
+
+# temperature values for cooling map
+my @coolingMapTemperatures;
+
+# scaling of cooling values
+# 1: n_H^2
+# 2: n_H * n_e
+my $coolingScaleFactor = 1;
+
+# flag to attenuate radiation over a Jeans length
+my $coolingMapUseJeansLength = 0;
+
+# maximum length scale to use with radiation attenuation
+my $coolingMapMaximumJeansLength = 3.086e20; # 100 pc
+
+# decimal precision for temperature in cooling maps
+my $temperaturePrecision = 6;
+
+# decimal precision for heating in cooling maps
+my $heatingPrecision = 6;
+
+# decimal precision for cooling in cooling maps
+my $coolingPrecision = 6;
+
+# decimal precision for mean molecular weight in cooling maps
+my $mmwPrecision = 6;
+
+# atomic weights used for calculating mean molecular weights
+my @mass = ();
+
+#####################################################################
+########### Emissivity Map Mode Parameters and Variables ############
+#####################################################################
+
+# File name for file containing emissivity map energies
+my $emissivityMapEnergyFile;
+
+# Minimum energy for emissivity map
+my $emissivityMapEmin;
+
+# Maximum energy for emissivity map
+my $emissivityMapEmax;
+
+# Number of energy points for emissivity map
+my $emissivityMapEpoints;
+
+# Energy units for emissivity map
+my $emissivityMapEnergyUnits = "Rydbergs";
+
+# Flag for log energy bins
+my $emissivityMapLogEnergyBins;
+
+# Energy values for emissivity map (bin centers)
+my @emissivityMapEnergies;
+
+# Energy bin widths for emissivity map
+my @emissivityMapEnergyBins;
+
+# Decimal precision for emissivity in emissivity maps
+my $emissivityPrecision = 6;
+
+# Energy units conversion hash
+# conversions to Hz
+my %energyConversion = ('MHz'  =>     1e-6,
+			'eV'   =>     4.1356668e-15,
+			'keV'  =>     4.1356668e-18,
+			'Rydbergs' => 3.04093147e-16);
+
+#####################################################################
+########## Ion Fraction Map Mode Parameters and Variables ###########
+#####################################################################
+
+# Array of requested elements for ion fractions.
+my @ionFractionElements = ();
+
+# Float precision for output of log temperature.
+my $ionFractionLogTPrecision = 3;
+
+# Float precision for output of ion fraction vales.
+my $ionFractionPrecision = 3;
+
+# Hash of atomic numbers for elements.
+my %atomicNumber;
+
+# Hash of full atomic names.
+my %atomicName;
+
+#####################################################################
+############### Line Map Mode Parameters and Variables ##############
+#####################################################################
+
+# Array of lines for which to get emissivities.
+my @lineMapLines = ();
+
+# Array of ascii friendlier line labels.
+my @lineMapLineLabels = ();
+
+#####################################################################
+#################### Command Storage Objects ########################
+#####################################################################
+
+# commands to be issued every iteration
+my @constantCommands = ();
+
+# commands to be loop over
+my @loopCommands = ();
+
+#####################################################################
+#####################################################################
+#####################################################################
+
+
+#####################################################################
+####################### Main Code Execution #########################
+#####################################################################
+
+# parse command line
+my $parameterFile = "";
+
+while (my $arg = shift @ARGV) {
+
+  # print help
+  if ($arg =~ /^-h$/) {
+    &printHelp();
+  }
+
+    # restart an incomplete run
+    if ($arg =~ /^-r$/) {
+	$restart = 1;
+    }
+
+  # restart an incomplete run
+    if ($arg =~ /^-rx$/) {
+	$resume = 1;
+    }
+
+    # run in parallel
+    elsif ($arg =~ /^-m$/) {
+	$parallel = 1;
+	$machineFile = glob(shift @ARGV);
+	die "Machine file $machineFile does not exist.\n" unless (-e $machineFile);
+    }
+
+    # run in parts
+    elsif ($arg =~ /^-mp$/) {
+	$multiParts = 1;
+	$thisMultiPart = shift @ARGV;
+	die "First argument after -mp flag must be a positive integer.\n" if ($thisMultiPart =~ /\D/);
+	$totalMultiParts = shift @ARGV;
+	die "Second argument after -mp flag must be a positive integer.\n" if ($totalMultiParts =~ /\D/);
+	die "Multipart arguments cannot be zero.\n" if (($thisMultiPart == 0) || ($totalMultiParts == 0));
+	die "First argument must be less than or equal to second.\n" if ($thisMultiPart > $totalMultiParts);
+    }
+
+    # run on multiprocessor machine
+    elsif ($arg =~ /^-np$/) {
+	$multiProcessor = 1;
+	$parallel = 1;
+	$numberMultiProcessors = shift @ARGV;
+	die "Argument after -np flag should be a positive integer.\n" if (($numberMultiProcessors =~ /\D/) ||
+									  ($numberMultiProcessors <= 0));
+    }
+
+    # do not run cloudy, just reprocess existing output data
+    elsif ($arg =~ /^-x$/) {
+      $reprocess_run = 1;
+    }
+
+    # get parameter file name
+    else {
+	$parameterFile = glob($arg);
+    }
+}
+
+# read parameter file
+&readParameterFile($parameterFile);
+
+# add start index to total number of runs
+$totalRuns += $currentRunIndex - 1;
+
+# make header for run file
+if ($multiParts) {
+	# Lauren
+    #$runFile = $outputDir . $outputFilePrefix . ".run.part" . $thisMultiPart . "_" . $totalMultiParts;
+    $runFile = $outputFilePrefix . ".run.part" . $thisMultiPart . "_" . $totalMultiParts;
+}
+else {
+	# LAUREN
+    #$runFile = $outputDir . $outputFilePrefix . ".run";
+    $runFile = $outputFilePrefix . ".run";
+}
+
+# if running in multiple parts, calculate starting and ending indices
+if ($multiParts) {
+    my $mapsPerPart = ($totalRuns - $currentRunIndex + 1) / $totalMultiParts;
+    $mapsPerPart = int($mapsPerPart+1) if ($mapsPerPart != int($mapsPerPart));
+
+    $multiPartStartIndex = $mapsPerPart * ($thisMultiPart - 1) + $currentRunIndex;
+    $multiPartEndIndex = $multiPartStartIndex + $mapsPerPart - 1;
+
+    print "Running part $thisMultiPart of $totalMultiParts, maps $multiPartStartIndex to $multiPartEndIndex.\n";
+}
+
+print "Run started at " . scalar (localtime) . "\n";
+
+# restarting an incomplete run
+# find where the run left off
+if ($restart) {
+    &findRestartIndex($runFile);
+    print "Restarting run from index $restartIndex.\n";
+}
+
+# beginning a new run
+# write the header to the run file
+else {
+    &writeRunFileHeader($runFile);
+}
+
+# if this is a parallel job, get machines from machine file
+if ($parallel) {
+    &getMachines($machineFile);
+}
+
+# initialize run mode if necessary
+$initializeMode[$cloudyRunMode]->() if (ref($initializeMode[$cloudyRunMode]) eq 'CODE');
+
+# if loop commands were given, start recursive looping over commands
+if (@loopCommands) {
+    &recurse();
+}
+# if no loop commands given, run Cloudy with only constant commands
+else {
+    &runCloudyMode();
+}
+
+# if running in parallel, wait for children to finish before exiting
+while (@machinesUnavailable) {
+    my @machineListTemp = ();
+    while (my $machineRunning = shift @machinesUnavailable) {
+	# children communicate that they're done by deleting their .mach file
+	my $runningMachineFile;
+	if ($multiParts) {
+	    #$runningMachineFile = $outputDir . $outputFilePrefix .
+			$runningMachineFile = $outputFilePrefix .
+		".part" . $thisMultiPart . "_" . $totalMultiParts .
+		"_" . $machineRunning . ".mach";
+	}
+	else {
+	    #$runningMachineFile = $outputDir . $outputFilePrefix . "_" . $machineRunning . ".mach";
+		$runningMachineFile = $outputFilePrefix . "_" . $machineRunning . ".mach";
+	}
+
+	if  (-e $runningMachineFile) {
+	    push @machineListTemp,$machineRunning;
+	}
+	else {
+	    push @machinesAvailable,$machineRunning;
+	}
+
+    }
+    @machinesUnavailable = @machineListTemp;
+    sleep 10 if (@machinesUnavailable);
+}
+
+# The End
+print "Run completed successfully at " . scalar (localtime) . "\n";
+
+#####################################################################
+#####################################################################
+#####################################################################
+
+
+#####################################################################
+###################### General Subroutines ##########################
+#####################################################################
+## CONTENTS ##
+##
+##    printHelp - print helpful information on run time flags.
+##
+##    readParameterFile - Read all parameters and commands from file
+##
+##    writeRunFileHeader - Write header for run file, containing
+##                         general information on run and all files
+##                         made.
+##
+##    findRestartIndex - If run is being restarted with -r flag,
+##                       find where run left off and start there.
+##
+##    recurse - This is the recursive engine that loops over all
+##              values of all commands, generating commands to be
+##              run by Cloudy.
+##
+##    processCommands - Recurse creates a complicated data structure
+##                      of commands to be given to Cloudy.  This
+##                      subroutine turns that data structure into
+##                      a simple array with one Cloudy-ready command
+##                      in each element.
+##                      Also generates an array whose elements can
+##                      be used in a header file specific to each
+##                      iteration through the loop commands.
+##                      Also generates an array containing names of
+##                      any extra output files specified by the user.
+##                      Return value of this function is a set of
+##                      pointers to each of the three above arrays.
+##
+##    runCloudy - This subroutine makes the actual call to Cloudy.
+##                It takes in names of input and output files to be
+##                used with Cloudy, as well as an array containing
+##                all commands to be given, in the form provided by
+##                processCommands.  After Cloudy exits, this routine
+##                calls checkForCrash for any signs that Cloudy did
+##                not run successfully.  Return value is an array
+##                containing any warning produced by Cloudy.
+##
+##    runCloudyMode - Calls the specific run mode subroutine selected
+##                    by the user.
+##                    If in parallel mode, passes Cloudy calls out
+##                    to machines specified in machine file given
+##                    with -p flag.
+##                    Also, updates run file with information on
+##                    each iteration through commands.
+##
+##    checkForCrash - Parses through cloudy output, searching for
+##                    warnings and cautions.  Returns any that are
+##                    found.
+##
+##    getMachines - If parallel mode is enabled with the -p flag,
+##                  read in an mpirun-like machine file to get list
+##                  of available machines.
+##
+##    makeTempFile - If this is a reprocess run, make temp files
+##                   from the stored data files for use in the
+##                   post-processing.
+##
+##    pushFile - Appends contents of one file to another, adding
+##               contents of a string to the appended file.
+##
+##    check_point_completed - Check if a point in the map has been
+##                            completed.
+
+#####################################################################
+############################# printHelp #############################
+# Print flag information.
+
+sub printHelp {
+
+  print "CIAOLoop:\n";
+  print "Usage: ./CIAOLoop [flags] <parameter file>\n";
+  print "\t-h: print this help text.\n";
+  print "\t-m <filename>: supply machine file for running on multiple machines.\n";
+  print "\t-mp <this part> <total parts>: break run into parts to be run separately.\n";
+  print "\t-np <number of processors>: run on multiple cores on a single machine.\n";
+  print "\t-r: restart run from last file finished.\n";
+  print "\t-rx: resume mode: scan for incomplete files and restart where they left off.\n";
+  print "\t-x: reprocess existing output data instead of running Cloudy.\n";
+
+  exit(0);
+}
+
+#####################################################################
+########################## readParameterFile ########################
+# Open parameter file and get commands and options
+
+sub readParameterFile {
+    my ($parameterFile) = @_;
+    die "ERROR: Could not find parameter file: $parameterFile.\n" unless (-e $parameterFile);
+
+    # Parse parameter file.
+    my $lineNumber = 0;
+    open (PAR, "<$parameterFile") or die "ERROR: Could not open parameter file.\n";
+  PARLOAD: while (my $line = <PAR>) {
+      $lineNumber++;
+      chomp $line;
+      $line =~ s/^\s+//;
+      $line =~ s/\s+$//;
+      $line =~ s/\#.*//;
+
+      if (!$line) {
+	  next PARLOAD;
+      }
+
+
+      ##################################
+      ####### General parameters #######
+      ##################################
+
+      # get path to Cloudy executable
+      elsif ($line =~ /^cloudyExe(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  $value = glob($value);
+	  $value = "./" . $value unless ($value =~ /\//);
+
+	  # if this is a reprocess run, we don't care about the exe
+	  unless ($reprocess_run) {
+	    die "No output file prefix given on line $lineNumber of $parameterFile.\n"
+	      unless ($value);
+	    die "Invalid path to Cloudy executable specified on line $lineNumber of $parameterFile.\n"
+	      unless (-f $value);
+	  }
+	  $cloudyExe = $value;
+	  undef $value;
+      }
+
+      # get output file prefix
+      elsif ($line =~ /^outputFilePrefix(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "No output file prefix given on line $lineNumber of $parameterFile.\n"
+	      unless ($value);
+	  die "File prefix should not start with \'.\' on line $lineNumber of $parameterFile.\n"
+	      if ($value =~ /^\./);
+	  $value =~ s/\s/\_/g;
+	  die "Output file prefix contains bad characters on line $lineNumber of $parameterFile.\n"
+	      if ($value =~ /[^\w\-]/);
+	  $outputFilePrefix = $value;
+	  undef $value;
+      }
+
+      # get output directory
+      elsif ($line =~ /^outputDir(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "No output directory given on line $lineNumber of $parameterFile.\n"
+	      unless ($value);
+	  $value =~ s/\s/\_/g;
+	  ($outputDir) = glob($value);
+	  undef $value;
+
+	  mkdir $outputDir, 0755 or die "Couldn't create directory: $outputDir.\n" unless (-d $outputDir);
+	  $outputDir .= "/" unless ($outputDir =~ /\/$/);
+      }
+
+      # get cloudy run mode
+      elsif ($line =~ /^cloudyRunMode(\z|[\s\=])/) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "No cloudy run mode given on line $lineNumber of $parameterFile.\n"
+	      unless (defined($value));
+	  die "$value is not a valid run mode on line $lineNumber of $parameterFile.\n"
+	      unless (ref($cloudyRunModes[$value]) == 'CODE');
+	  $cloudyRunMode = $value;
+	  undef $value;
+      }
+
+      # get index of first run (default: 1)
+      elsif ($line =~ /^runStartIndex(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "runStartIndex must be a positive integer on line $lineNumber of $parameterFile.\n"
+	      if ($value =~ /\D/);
+	  $currentRunIndex = $value;
+	  undef $value;
+      }
+
+      # get option to save all Cloudy output
+      elsif ($line =~ /^saveCloudyOutputFiles(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "saveCloudyOutputFiles must be set to 0 or 1 on line $lineNumber of $parameterFile.\n"
+	      unless (($value eq '0') || ($value eq '1'));
+	  $saveCloudyOutputFiles = $value;
+	  undef $value;
+      }
+
+      # get option to save just the minimum output
+      elsif ($line =~ /^saveMinimumOutputFiles(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "saveMinimumOutputFiles must be set to 0 or 1 on line $lineNumber of $parameterFile.\n"
+	      unless (($value eq '0') || ($value eq '1'));
+	  $saveMinimumOutputFiles = $value;
+	  undef $value;
+      }
+
+      # get option to exit when Cloudy crashes
+      elsif ($line =~ /^exitOnCrash(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "exitOnCrash must be set to 0 or 1 on line $lineNumber of $parameterFile.\n"
+	      unless (($value eq '0') || ($value eq '1'));
+	  $exitOnCrash = $value;
+	  undef $value;
+      }
+
+      # get option to do test run (just make run file)
+      elsif ($line =~ /^test(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "test must be set to 0 or 1 on line $lineNumber of $parameterFile.\n"
+	      unless (($value eq '0') || ($value eq '1'));
+	  $test = $value;
+	  undef $value;
+      }
+
+
+      ######################################
+      ######## Commands For Cloudy #########
+      ######################################
+
+      # get Cloudy command to be executed every time
+      elsif ($line =~ /^command(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2 if ($line =~ /^command\s*\=/);
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "No Cloudy command given on line $lineNumber of $parameterFile.\n"
+	      unless ($value);
+	  ## assign command to something here
+	  push @constantCommands, $value."\n";
+	  undef $value;
+      }
+
+      # get file(s) containing commands for Cloudy
+      elsif ($line =~ /^file(\z|[\s\=])/i) {
+	  # create a subroutine to return anonymous subroutines to read lines from file
+	  sub returnGetFile {
+	      my $file = shift;
+	      my $fileContents = sub {
+		  my ($option) = @_;
+		  # return file contents
+		  if ($option) {
+		      open (FILE,"<$file") or die "Couldn't open $file.\n";
+		      my @fileLines = <FILE>;
+		      close (FILE);
+		      return @fileLines;
+		  }
+		  # or just return file name
+		  else {
+		      return $file;
+		  }
+	      };
+	      return $fileContents;
+	  }
+
+	  # get list of files to be looped over
+	  if ($line =~ /^file\s+loop/i) {
+	      my $number = 0;
+	      my $values = $'; #';
+	      die "No files given on line $lineNumber of $parameterFile.\n"
+		  unless ($values);
+	      $values =~ s/,/ /g;
+	      push @{$loopCommands[@loopCommands]{values}}, ();
+	      while ($values =~ /(\S+)/g) {
+		  my @files = glob($1);
+		  $number += @files;
+		  foreach my $file (@files) {
+		      die "Can't find file: $file.\n" unless (-e $file);
+		      ## assign loop files to something here
+		      push @{$loopCommands[-1]{values}}, returnGetFile($file);
+		  }
+	      }
+	      $totalRuns *= $number;
+	  }
+
+	  # get only one file, possibly more with * operator, all are opened
+	  # on every iteration
+	  else {
+	      my (undef,$value) = split /=/, $line, 2;
+	      (undef,$value) = split " ", $line, 2 unless (defined($value));
+	      $value =~ s/^\s+//;
+	      die "No file given on line $lineNumber of $parameterFile.\n"
+		  unless ($value);
+	      my @files = glob($value);
+	      foreach my $file (@files) {
+		  die "Can't find file: $file.\n"
+		      unless (-e $file);
+		  ## assign files to something here
+		  push @constantCommands, returnGetFile($file);
+	      }
+	  }
+      } # end file command
+
+      # get Cloudy command to be looped over
+      elsif ($line =~ /^loop(\z|[\s\[\{])/) {
+	  my $number = 0;
+
+	  # loop over one variable
+	  # loop over variable between brackets
+	  if ($line =~ /\[(.+)\]/) {
+	      $loopCommands[@loopCommands]{command} = $1;
+	      my $values = $'; #';
+	      die "No values given for command: $1 on line $lineNumber of $parameterFile.\n"
+		  unless ($values);
+
+	      # loop values given in for loop form
+	      if ($values =~ /\((-?\d*\.?\d*)\;(-?\d*\.?\d*)\;(-?\d*\.?\d*)\)/) {
+		  my $start = $1;
+		  my $end = $2;
+		  my $step = $3;
+		  ## assign loop commands to something here
+		  die "Infinite loop created with step size = 0 on line $lineNumber of $parameterFile.\n"
+		      if ($step == 0);
+		  die "Infinite loop created on line $lineNumber of $parameterFile.\n"
+		      if (($end-$start)/$step < 0);
+		  for (my $q = $start;(($start < $end) ? $q <= $end : $q >= $end);$q += $step) {
+		      push @{$loopCommands[-1]{values}}, $q;
+		      $number++;
+		  }
+	      }
+
+	      # loop values given in a list
+	      else {
+		  $values =~ s/,/ /g;
+		  while ($values =~ /(\S+)/g) {
+		      ## assign loop command to something here
+		      push @{$loopCommands[-1]{values}}, $1;
+		      $number++;
+		  }
+	      }
+	  }
+
+	  # loop over a set of variables
+	  if ($line =~ /\{/) {
+	      my @numbers = ();
+	      die "Improper syntax for loop set on line $lineNumber of $parameterFile.\n"
+		  if ($line =~ /\{\S/);
+	      $loopCommands[@loopCommands] = ();
+	    SET: while (my $line = <PAR>) {
+		$lineNumber++;
+		chomp $line;
+		$line =~ s/^\s+//;
+		$line =~ s/\s+$//;
+		$line =~ s/\#.+//;
+		if ($line =~ /\}/) {
+		    die "Improper syntax for ending loop set on line $lineNumber of $parameterFile.\n"
+			if ($line =~ /.+\}|\}.+/);
+		    last SET;
+		}
+
+		# loop over variable between brackets
+		elsif ($line =~ /\[(.+)\]/) {
+		    $loopCommands[-1][@{$loopCommands[-1]}]{command} = $1;
+		    my $values = $'; #';
+		    die "No values given for command: $1 on line $lineNumber of $parameterFile.\n"
+			unless ($values);
+
+		    # loop values given in for loop form
+		    if ($values =~ /\((-?\d*\.?\d*)\;(-?\d*\.?\d*)\;(-?\d*\.?\d*)\)/) {
+			my $start = $1;
+			my $end = $2;
+			my $step = $3;
+			## assign loop commands to something here
+			die "Infinite loop created with step size = 0 on line $lineNumber of $parameterFile.\n"
+			    if ($step == 0);
+			die "Infinite loop created on line $lineNumber of $parameterFile.\n"
+			    if (($end-$start)/$step < 0);
+			push @numbers, 0;
+			for (my $q = $start;(($start < $end) ? $q <= $end : $q >= $end);$q += $step) {
+			    push @{$loopCommands[-1][-1]{values}}, $q;
+			    $numbers[-1]++;
+			}
+		    }
+
+		    # loop values given in a list
+		    else {
+			$values =~ s/,/ /g;
+			push @numbers, 0;
+			while ($values =~ /(\S+)/g) {
+			    ## assign loop command to something here
+			    push @{$loopCommands[-1][-1]{values}}, $1;
+			    $numbers[-1]++;
+			}
+		    }
+		    die "Unequal number of values in loop set in line $lineNumber of $parameterFile.\n"
+			unless ($numbers[0] == $numbers[-1]);
+		}
+		elsif (!($line)) {
+		    next SET;
+		}
+		else {
+		    die "Improper commands inside loop set on line $lineNumber of $parameterFile.\n";
+		}
+	    }
+	      $number = $numbers[0];
+	  }
+	  $totalRuns *= $number;
+      } # end loop command
+
+
+      ######################################
+      #### Cooling Map Mode Parameters #####
+      ######################################
+
+      # cooling map mode options
+      # get minimum temperature
+      elsif ($line =~ /coolingMapTmin(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "No minimum temperature given on line $lineNumber of $parameterFile.\n"
+	      unless ($value);
+	  die "Invalid minimum temperature given on line $lineNumber of $parameterFile.\n"
+	      if ($value < 0);
+	  $coolingMapTmin = $value;
+      }
+
+      # get maximum temperature
+      elsif ($line =~ /coolingMapTmax(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "No maximum temperature given on line $lineNumber of $parameterFile.\n"
+	      unless ($value);
+	  die "Invalid maximum temperature given on line $lineNumber of $parameterFile.\n"
+	      if ($value < 0);
+	  $coolingMapTmax = $value;
+      }
+
+      # get coolingMapdT (temperature step size)
+      elsif ($line =~ /coolingMapdT(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "No dT given on line $lineNumber of $parameterFile.\n"
+	      unless ($value);
+	  die "Invalid dT given on line $lineNumber of $parameterFile.\n"
+	      if ($value < 0);
+	  $coolingMapdT = $value;
+      }
+
+      # get dLogT (temperature step size)
+      elsif ($line =~ /coolingMapdLogT(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "No dT given on line $lineNumber of $parameterFile.\n"
+	      unless ($value);
+	  die "Invalid dT given on line $lineNumber of $parameterFile.\n"
+	      if ($value < 0);
+	  $coolingMapdLogT = $value;
+      }
+
+      # get number of temperature steps
+      elsif ($line =~ /coolingMapTpoints(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "No value given for Tsteps on line $lineNumber of $parameterFile.\n"
+	      unless ($value);
+	  die "Invalid value given for Tsteps on line $lineNumber of $parameterFile.\n"
+	      if ($value < 0);
+	  $coolingMapTpoints = $value;
+      }
+
+      # get cooling scale factor flag
+      elsif ($line =~ /coolingScaleFactor(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "No value given for coolingScaleFactor on line $lineNumber of $parameterFile.\n"
+	      unless ($value);
+	  $coolingScaleFactor = $value;
+      }
+
+      # flag to use Jeans length as length scale
+      elsif ($line =~ /coolingMapUseJeansLength(\z|[\s\=])/i) {
+      	print "IN coolingMapUseJeansLength";
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "coolingMapUseJeansLength must be set to 0 or 1 on line $lineNumber of $parameterFile.\n"
+	      unless (($value eq '0') || ($value eq '1'));
+	  $coolingMapUseJeansLength = $value;
+      }
+
+      # maximum length scale to consider for Jeans length
+      elsif ($line =~ /coolingMapMaximumJeansLength(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "coolingMapMaximumJeansLength must be positive on line $lineNumber of $parameterFile.\n"
+	      unless ($value gt '0');
+	  $coolingMapMaximumJeansLength = $value;
+      }
+
+      ######################################
+      ### Emissivity Map Mode Parameters ###
+      ######################################
+
+      # emissivity map mode options
+      # get energies from a file
+      elsif ($line =~ /^emissivityMapEnergyFile(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "No file name given for emissivity map energy file on line $lineNumber of $parameterFile.\n"
+	      unless ($value);
+	  die "Emissivity map energy file, $value, does not exist.\n"
+	      unless (-e (glob($value))[0]);
+	  $emissivityMapEnergyFile = (glob($value))[0];
+      }
+
+      # get minimum energy
+      elsif ($line =~ /^emissivityMapEmin(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "No minimum energy given on line $lineNumber of $parameterFile.\n"
+	      unless ($value);
+	  die "Invalid minimum energy given on line $lineNumber of $parameterFile.\n"
+	      if ($value < 0);
+	  $emissivityMapEmin = $value;
+      }
+
+      # get maximum energy
+      elsif ($line =~ /^emissivityMapEmax(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "No maximum energy given on line $lineNumber of $parameterFile.\n"
+	      unless ($value);
+	  die "Invalid maximum energy given on line $lineNumber of $parameterFile.\n"
+	      if ($value < 0);
+	  $emissivityMapEmax = $value;
+      }
+
+      # get number of energy steps
+      elsif ($line =~ /^emissivityMapEpoints(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "No value given for Esteps on line $lineNumber of $parameterFile.\n"
+	      unless ($value);
+	  die "Invalid value given for Esteps on line $lineNumber of $parameterFile.\n"
+	      if ($value < 0);
+	  $emissivityMapEpoints = $value;
+      }
+
+      # get energy units
+      elsif ($line =~ /^emissivityMapEnergyUnits(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "No value given for energy units on line $lineNumber of $parameterFile.\n"
+	      unless ($value);
+	  $emissivityMapEnergyUnits = $value;
+      }
+
+      # get log energy bin flag
+      elsif ($line =~ /^emissivityMapLogEnergyBins(\z|[\s\=])/i) {
+	  my (undef,$value) = split /=/, $line, 2;
+	  (undef,$value) = split " ", $line, 2 unless (defined($value));
+	  $value =~ s/^\s+//;
+	  die "emissivityMapLogEnergyBins must be either 0 or 1 on line $lineNumber of $parameterFile.\n"
+	      unless (($value == 0) || ($value == 1));
+	  $emissivityMapLogEnergyBins = $value;
+      }
+
+      ######################################
+      ## Ion Fraction Map Mode Parameters ##
+      ######################################
+
+      # get elements for ion fraction maps
+      elsif ($line =~ /^ionFractionElements(\z|[\s\=])/i) {
+	my (undef,$value) = split /=/, $line, 2;
+	(undef,$value) = split " ", $line, 2 unless (defined($value));
+	@ionFractionElements = split " ", $value;
+	die "No elements given for ion fraction tables on line $lineNumber of $parameterFile.\n"
+	  unless (@ionFractionElements);
+      }
+
+      ##############################
+      ## Line Map Mode Parameters ##
+      ##############################
+
+      # get lines for line map mode
+
+      elsif ($line =~ /^lineMapLine(\z|[\s\=])/i) {
+	my (undef,$value) = split /=/, $line, 2;
+        die "No line given with lineMapLine command.\n" unless defined($value);
+        $value =~ s/^\s*//;
+        push @lineMapLines, $value;
+      }
+
+      else {
+	  die "Unrecognized line: $line on line $lineNumber of $parameterFile.\n";
+      }
+  }
+    close (PAR);
+}
+
+#####################################################################
+######################## writeRunFileHeader #########################
+# write header for run file
+
+sub writeRunFileHeader {
+    my ($runFile) = @_;
+
+    open (RUN, ">$runFile") or die "Couldn't open run file to write header.\n";
+    print RUN "# Run started " . scalar (localtime) . ".\n";
+    print RUN "#\n";
+    print RUN "# cloudyRunMode = $cloudyRunMode\n";
+    print RUN "# outputFilePrefix = $outputFilePrefix\n";
+    print RUN "# outputDir = $outputDir\n";
+    print RUN "#\n";
+    print RUN "# Commands to be executed everytime:\n";
+    foreach my $command (@constantCommands) {
+	if (ref($command) eq 'CODE') {
+	    print RUN "# Commands from file: " . $command->(0) . "\n";
+	}
+	else {
+	    print RUN "# $command";
+	}
+    }
+    print RUN "#\n";
+    print RUN "# Loop commands and values:\n";
+    my $runFileHeader = "#run\t";
+    for (my $q = 0;$q < @loopCommands;$q++) {
+	if (ref($loopCommands[$q]) eq 'HASH') {
+	    if (ref($loopCommands[$q]{values}[0]) eq 'CODE') {
+		$runFileHeader .= "file\t";
+		print RUN "# Commands from files:";
+		foreach my $file (@{$loopCommands[$q]{values}}) {
+		    print RUN " " . $file->(0);
+		}
+		print RUN "\n";
+	    }
+	    else {
+		$runFileHeader .= "$loopCommands[$q]{command}\t";
+		print RUN "# $loopCommands[$q]{command}: ";
+		print RUN join " ",@{$loopCommands[$q]{values}};
+		print RUN "\n";
+	    }
+	}
+	else {
+	    print RUN "# set {\n";
+	    foreach (my $w = 0;$w < @{$loopCommands[$q]};$w++) {
+		$runFileHeader .= "$loopCommands[$q][$w]{command},";
+		print RUN "#\t$loopCommands[$q][$w]{command}: ";
+		print RUN join " ",@{$loopCommands[$q][$w]{values}};
+		print RUN "\n";
+	    }
+	    $runFileHeader =~ s/,$/\t/;
+	    print RUN "# }\n";
+	}
+    }
+    $runFileHeader =~ s/\t$/\n/;
+    print RUN "#\n";
+    print RUN $runFileHeader;
+    close (RUN);
+    unlink $runFileHeader;
+}
+
+#####################################################################
+######################## findRestartIndex ###########################
+# read through run file, find place where run was interrupted
+
+sub findRestartIndex {
+    my ($runFile) = @_;
+
+    open (RUN, "<$runFile") or die "Couldn't open $runFile for reading.\n";
+    my @lines = <RUN>;
+    close (RUN);
+
+    if ($lines[-1] =~ /^(\d+)/) {
+	$restartIndex = $1;
+    }
+    else {
+	die "Could not find restart index in $runFile.\n";
+    }
+}
+
+#####################################################################
+############################# recurse ###############################
+# process the commands stored in the @loopCommands array
+# use recursion to loop over all the commands and their values
+
+sub recurse {
+    # array containing current round of loop commands to passed to Cloudy
+    my ($runFileString,@commands) = @_;
+    my $addToString = "";
+
+    # current level of recursion (keep going until we get to the bottom)
+    my $commandIndex = @commands;
+
+    # is the array element a hash?
+    if (ref($loopCommands[$commandIndex]) eq 'HASH') {
+	for (my $q = 0;$q < @{$loopCommands[$commandIndex]{values}};$q++) {
+
+	    # is the hash value 'values' an array of code references?
+	    # this is for taking commands from files
+	    if (ref($loopCommands[$commandIndex]{values}[$q]) eq 'CODE') {
+		$commands[$commandIndex] = $loopCommands[$commandIndex]{values}[$q];
+		$addToString = $loopCommands[$commandIndex]{values}[$q]->(0) . "\t";
+		$runFileString .= $addToString;
+	    }
+
+	    # or is it just a regular array?
+	    # this is for looping over regular commands
+	    else {
+		if ($loopCommands[$commandIndex]{command} =~ /\*/) {
+		    $commands[$commandIndex] = $loopCommands[$commandIndex]{command} . "\n";
+		    $commands[$commandIndex] =~ s/\*/$loopCommands[$commandIndex]{values}[$q]/;
+		}
+		else {
+		    $commands[$commandIndex] =
+			"$loopCommands[$commandIndex]{command} $loopCommands[$commandIndex]{values}[$q]\n";
+		}
+		$addToString = "$loopCommands[$commandIndex]{values}[$q]\t";
+		$runFileString .= $addToString;
+	    }
+
+	    # if we have descended through all the commands, it's time to run
+	    if (@commands == @loopCommands) {
+		### call Cloudy here
+		$addToString =~ s/\t$/\n/;
+		$runFileString =~ s/\t$/\n/;
+		&runCloudyMode($runFileString,@commands);
+	    }
+
+	    # if not, descend another level
+	    else {
+		recurse($runFileString,@commands);
+	    }
+            $runFileString = substr $runFileString, 0, -length($addToString);
+	}
+    }
+
+    # or is the array element another array
+    # this is for looping commands in sets
+    elsif (ref($loopCommands[$commandIndex]) eq 'ARRAY') {
+	$commands[$commandIndex] = ();
+
+	# loop over all values in the loop set
+	# should be same number of values for each command in the set
+	for (my $w = 0;$w < @{$loopCommands[$commandIndex][0]{values}};$w++) {
+
+	    # loop over all commands in the set
+	    $addToString = "";
+	    for (my $q = 0;$q < @{$loopCommands[$commandIndex]};$q++) {
+		if ($loopCommands[$commandIndex][$q]{command} =~ /\*/) {
+		    $commands[$commandIndex][$q] = $loopCommands[$commandIndex][$q]{command} . "\n";
+		    $commands[$commandIndex][$q] =~ s/\*/$loopCommands[$commandIndex][$q]{values}[$w]/;
+		}
+		else {
+		    $commands[$commandIndex][$q] =
+			"$loopCommands[$commandIndex][$q]{command} $loopCommands[$commandIndex][$q]{values}[$w]\n";
+		}
+		$addToString .= "$loopCommands[$commandIndex][$q]{values}[$w],";
+	    }
+	    $addToString =~ s/,$/\t/;
+	    $runFileString .= $addToString;
+
+	    # if we have descended through all the commands, it's time to run
+	    if (@commands == @loopCommands) {
+		### call Cloudy here
+		$addToString =~ s/\t$/\n/;
+		$runFileString =~ s/\t$/\n/;
+		&runCloudyMode($runFileString,@commands);
+	    }
+
+	    # if not, descend another level
+	    else {
+		recurse($runFileString,@commands);
+	    }
+	    $runFileString =~ s/$addToString//;
+	}
+    }
+
+    # array element is neither a hash or an array
+    # something is wrong
+    else {
+	die "Something went terribly wrong while processing the commands.\n";
+    }
+}
+
+#####################################################################
+#####################################################################
+# Process @loopCommands array into simple list containing Cloudy-ready commands.
+# Create array of lines that can be used as a header to any run specific output files.
+# Create list of any user specified files designated with the dollar sign '$' in the parameter file.
+# Return list containing pointers to the above three arrays.
+
+sub processCommands {
+    my @loopCommands = @_;
+
+    # base name for output files
+    my $keyName = $outputDir . $outputFilePrefix . "_run" . $currentRunIndex;
+
+    # list of command lines to be fed to Cloudy
+    my @commands = ();
+
+    # list of lines that can be printed as a header in a data file
+    my @headerCommands = ();
+
+    # list of user specified files
+    my @userFiles = ();
+
+    my %set_vars = ();
+
+    # first, go through list of commands given everytime
+    for (my $q = 0;$q < @constantCommands;$q++) {
+
+	# If the command is actually a file containing commands, it will appear
+	# as a CODE reference, which is actually a reference to a subroutine that
+	# will return the file's contents.  Got all that?
+	if (ref($constantCommands[$q]) eq 'CODE') {
+
+	    # call that subroutine and get that file's contents
+	    my @commandsFromCode = $constantCommands[$q]->(1);
+
+	    # add those commands to @commands array
+	    foreach my $commandFromCode (@commandsFromCode) {
+
+		my $tempCommand = $commandFromCode;
+
+		# If a dollar sign '$' appears in the command, that symbol will be replaced
+		# by the current run index.  This is useful for commands that produce
+		# output files.
+		if ($commandFromCode =~ /\$/) {
+		    $tempCommand =~ s/\$/$keyName/;
+
+		    # If there are double quotes, that's a file.
+		    # Add it to list of user specified files.
+		    push @userFiles, $1 if ($tempCommand =~ /\"(.+)\"/);
+		}
+
+		push @commands, $tempCommand;
+	    }
+	}
+
+	# Command is just a one-liner.
+	else {
+
+	    my $tempCommand = $constantCommands[$q];
+
+	    # If a dollar sign '$' appears in the command, that symbol will be replaced
+	    # by the current run index.  This is useful for commands that produce
+	    # output files.
+	    if ($constantCommands[$q] =~ /\$/) {
+
+		$tempCommand =~ s/\$/$keyName/;
+
+		# If there are double quotes, that's a file.
+		# Add it to list of user specified files.
+		push @userFiles, $1 if ($tempCommand =~ /\"(.+)\"/);
+
+	    }
+
+	    push @commands, $tempCommand;
+	}
+    } # end loop over constant commands
+
+    # go through list of current set of loop commands
+    while (my $command = shift @loopCommands) {
+
+	# If the command is actually a list of commands itself, go through that list.
+	# This would happen if you wanted to loop over a set of commands simultaneously.
+	if (ref($command) eq 'ARRAY') {
+
+	    my @commandsFromArray = @{$command};
+	    push @headerCommands, "# set {\n";
+	    foreach my $commandFromArray (@commandsFromArray) {
+
+		my $tempCommand = $commandFromArray;
+
+		# Replace dollar sign with run index, like above.
+		if ($commandFromArray =~ /\$/) {
+		    $tempCommand =~ s/\$/$keyName/;
+
+		    # If there are double quotes, that's a file.
+		    # Add it to list of user specified files.
+		    push @userFiles, $1 if ($tempCommand =~ /\"(.+)\"/);
+
+		}
+
+		push @commands, $tempCommand;
+		$headerCommands[-1] .= "#\t$tempCommand";
+	    }
+	    $headerCommands[-1] .= "# }\n";
+	}
+
+	# If the command is actually a file containing commands, it will appear
+	# as a CODE reference, which is actually a reference to a subroutine that
+	# will return the file's contents.  Just like above.
+	elsif (ref($command) eq 'CODE') {
+
+	    my @commandsFromCode = $command->(1);
+	    push @headerCommands, "# file: " . $command->(0) . "\n";
+	    foreach my $commandFromCode (@commandsFromCode) {
+
+		my $tempCommand = $commandFromCode;
+
+		# Do the dollar sign thing again.  See above.
+		if ($commandFromCode =~ /\$/) {
+		    $tempCommand =~ s/\$/$keyName/;
+
+		    # If there are double quotes, that's a file.
+		    # Add it to list of user specified files.
+		    push @userFiles, $1 if ($tempCommand =~ /\"(.+)\"/);
+		}
+
+		push @commands, $tempCommand;
+	    }
+	}
+
+        # Command is to set an internal variable.
+        # Keep track of it in a hash.
+        elsif ($command =~ /\%\<(.+)\>\ (.+)$/) {
+            my $set_var = $1;
+            my $set_val = $2;
+            $set_vars{$set_var} = $set_val;
+        }
+
+	# Normal command, check for dollar sign and add it.
+	else {
+
+	    my $tempCommand = $command;
+
+	    # Do the dollar sign thing again. See above.
+	    if ($command =~ /\$/) {
+		$tempCommand =~ s/\$/$keyName/;
+
+		# If there are double quotes, that's a file.
+		# Add it to list of user specified files.
+		push @userFiles, $1 if ($tempCommand =~ /\"(.+)\"/);
+	    }
+
+	    push @commands, $command;
+	    push @headerCommands, "# $command";
+	}
+    } # end loop over loop commands
+
+    # loop over commands one more time and set internal variables
+    for (my $q = 0;$q < @commands;$q++) {
+        if ($commands[$q] =~ /\%\<(.+)\>/) {
+            my $set_var = $1;
+            if (exists($set_vars{$set_var})) {
+                $commands[$q] =~ s/\%\<$set_var\>/$set_vars{$set_var}/g;
+            }
+        }
+    }
+
+    # return pointers to the arrays we made
+    return (\@commands,\@headerCommands,\@userFiles);
+
+}
+
+#####################################################################
+############################ runCloudy ##############################
+# create input file for Cloudy using array from commands
+# run Cloudy with input file created, writing output to output file
+
+sub runCloudy {
+    my ($inputFile,$outputFile,@commands) = @_;
+
+    # if this is a reprocess run, return success with no warnings
+    if ($reprocess_run) {
+      return (0, ());
+    }
+
+    open (INPUT, ">$inputFile") or die "Could not open $inputFile for writing.\n";
+    foreach my $command (@commands) {
+	print INPUT $command;
+    }
+    close (INPUT);
+
+    # if running in parallel, call Cloudy remotely
+    if ($parallel) {
+	if ($myMachine eq '(local)') {
+	    system("$cloudyExe < $inputFile > $outputFile");
+	}
+	else {
+	    system("$remoteLogin $myMachine $cloudyExe < $inputFile > $outputFile");
+	}
+    }
+    else {
+	system("$cloudyExe < $inputFile > $outputFile");
+    }
+
+    # check for warnings or a crash
+    my (@results) = &checkForCrash($outputFile);
+
+    return @results;
+}
+
+#####################################################################
+####################### runCloudyMode ###############################
+# call specific Cloudy mode subroutine
+# all the machinery for running in parallel is in here
+
+sub runCloudyMode {
+    my ($runFileString,@loopCommands) = @_;
+
+    # if this is a test, only update run file
+    unless ($test || ($restart && ($currentRunIndex < $restartIndex)) ||
+	    ($multiParts && ($currentRunIndex < $multiPartStartIndex)) ||
+	    ($multiParts && ($currentRunIndex > $multiPartEndIndex))) {
+
+	# if running in parallel, do it this way
+	if ($parallel) {
+
+	    # index in machine list of machine to be assigned
+	    my $machineToAssign = 0;
+
+	    # keep looping until there is a machine available to run Cloudy
+	  WAIT: while (1) {
+
+	      # if there's a machine available, put it to use
+	      if (@machinesAvailable) {
+
+		  # get first machine in line
+		  $machineToAssign = shift @machinesAvailable;
+
+		  # set that machine as unavailable
+		  push @machinesUnavailable, $machineToAssign;
+
+		  # signal that machine is in use by creating a unique file
+		  my $runningMachineFile;
+		  if ($multiParts) {
+		      $runningMachineFile = $outputDir . $outputFilePrefix .
+			  ".part" . $thisMultiPart . "_" . $totalMultiParts .
+			  "_" . $machineToAssign . ".mach";
+		  }
+		  else {
+		      $runningMachineFile = $outputDir . $outputFilePrefix . "_" . $machineToAssign . ".mach";
+		  }
+		  open (MACH, ">$runningMachineFile");
+		  print MACH "$machines[$machineToAssign-1] starting run $currentRunIndex at " . scalar (localtime) . "\n";
+		  close (MACH);
+
+		  # let's fork
+		  # Parent will do nothing, return to managing everything.
+		  # Child will make the call to Cloudy.
+		  if (my $pid = fork) {
+		      # This is the parent.
+		      # Get out of this loop.
+
+		      # keep track of PIDs for the children
+		      $pids[$machineToAssign] = $pid;
+
+		      last WAIT;
+		  }
+
+		  else {
+		      # This is the child.
+		      # Run Cloudy and then exit.
+
+		      # get the machine name to run on
+		      # machine numbers are 1 based
+		      $myMachine = $machines[$machineToAssign-1];
+
+		      my $tstart = time;
+		      print scalar(localtime) . " - ";
+		      print "$currentRunIndex/$totalRuns started on $myMachine.\n";
+
+		      # run
+		      $cloudyRunModes[$cloudyRunMode]->(@loopCommands);
+
+		      my $tend = time;
+		      print scalar(localtime) . " - ";
+		      print "$currentRunIndex/$totalRuns finished in " . ($tend - $tstart) . " s on $myMachine.\n";
+
+		      # signal that machine is no longer in use by deleting its file
+		      unlink $runningMachineFile;
+
+		      # Child's work is done, so exit.
+		      exit;
+		  }
+	      }
+
+	      #no machine was available, continue to check for machine availability
+	      else {
+
+		  my @machineListTemp = ();
+
+		  # go through all unavailable machines and check if they've become available
+		  while (my $machOut = shift @machinesUnavailable) {
+
+		      my $machineUnavailableFile;
+		      if ($multiParts) {
+			  $machineUnavailableFile = $outputDir . $outputFilePrefix .
+			      ".part" . $thisMultiPart . "_" . $totalMultiParts .
+			      "_" . $machOut . ".mach";
+		      }
+		      else {
+			  $machineUnavailableFile = $outputDir . $outputFilePrefix . "_" . $machOut . ".mach";
+		      }
+
+		      # if machine's file still exists, it's still unavailable
+		      if (-e $machineUnavailableFile) {
+			  push @machineListTemp,$machOut;
+		      }
+
+		      # if it doesn't exist, put it back into list of available machines
+		      else {
+			  push @machinesAvailable,$machOut;
+
+			  # wait for children to finish so they don't become zombies.
+			  waitpid($pids[$machOut],0);
+		      }
+
+		  }
+
+		  @machinesUnavailable = @machineListTemp;
+
+		  # wait a bit if no machine became available
+		  sleep 10 unless @machinesAvailable;
+	      }
+
+	  } # end while loop
+
+	} # end parallel mode branch
+
+	# if running in serial mode, do it this way
+	else {
+
+	    # run Cloudy
+	    my $tstart = time;
+	    print scalar(localtime) . " - ";
+	    print "$currentRunIndex/$totalRuns started.\n";
+
+	    $cloudyRunModes[$cloudyRunMode]->(@loopCommands);
+
+	    my $tend = time;
+	    print scalar(localtime) . " - ";
+	    print "$currentRunIndex/$totalRuns finished in " . ($tend - $tstart) . " s.\n";
+
+	} # end serial mode branch
+
+    } # end if ($test)
+
+
+    # update run file
+    # if this is a restart, only append if we've passed the restart index
+    # if running in multiple parts, only append if we're in range of this part
+    unless (($restart && ($currentRunIndex <= $restartIndex)) ||
+	    ($multiParts && ($currentRunIndex < $multiPartStartIndex)) ||
+	    ($multiParts && ($currentRunIndex > $multiPartEndIndex))) {
+
+	# append run file
+	open (RUN, ">>$runFile") or die "Couldn't open $runFile to append.\n";
+	print RUN "$currentRunIndex\t$runFileString";
+	close (RUN);
+    }
+
+    $currentRunIndex++;
+}
+
+#####################################################################
+######################### checkForCrash #############################
+# check Cloudy ouput to see if warnings were produced or a crash occurred
+
+sub checkForCrash {
+    my ($outputFile) = @_;
+    open (OUTPUT, "<$outputFile") or die "Couldn't open $outputFile to check Cloudy output.\n";
+    my @lines = <OUTPUT>;
+    close (OUTPUT);
+
+    # warning flags in Cloudy output
+    my @warningFlags = ("W-","C-");
+
+    # parse output file for warning flags
+    my @warnings = ();
+    my $cloudyCrashed = 0;
+    foreach my $line (@lines) {
+	$line =~ s/^\s+//;
+	foreach my $flag (@warningFlags) {
+	    if ($line =~ /^$flag/) {
+		push @warnings, $line;
+	    }
+	}
+    }
+
+    # check last output line to see if Cloudy crashed
+    # Cloudy versions 07.02 and earlier.
+    ## if (!($lines[-1] =~ /Stop in maincl/) || ($lines[-1] =~ /return value is 1/)) {
+    # Cloudy versions 08 and later.
+    if (!($lines[-1] =~ /Cloudy exited OK/) ||
+	($lines[-1] =~ /return value is 1/)) {
+	$cloudyCrashed = 1;
+
+	# don't exit if running in parallel
+	# If child exits here, that machine will never be used again.
+	unless ($parallel) {
+	    die "Cloudy has crashed!  Check $outputFile for details.\n"
+		if ($exitOnCrash);
+	}
+
+    }
+
+    return ($cloudyCrashed,@warnings);
+}
+
+#####################################################################
+########################### getMachines #############################
+# read mpirun-like machine file to get list of available machines for parallel mode.
+
+sub getMachines {
+    my ($machineFile) = @_;
+
+    my $q = 1;
+    if ($machineFile) {
+	open (MACH, "<$machineFile") or die "Couldn't open machine file $machineFile.\n";
+	my @lines = <MACH>;
+	close (MACH);
+	foreach my $line (@lines) {
+	    if ($line =~ /^(\w+):/) {
+		push @machines,$1;
+		push @machinesAvailable,$q;
+		$q++;
+	    }
+	}
+    }
+
+    if ($multiProcessor) {
+	for (my $w = 0;$w < $numberMultiProcessors;$w++) {
+	    push @machines, '(local)';
+	    push @machinesAvailable, $q;
+	    $q++;
+	}
+    }
+
+}
+
+#####################################################################
+########################### makeTempFile ############################
+# Make temp files from already made data.
+
+sub makeTempFile {
+  my ($filename, $separator) = @_;
+
+  my $perm_file = $filename;
+  $perm_file =~ s/\.temp$//;
+
+  open (IN, "<$perm_file") or die "Could not open $perm_file to make temp file.\n";
+  my @lines;
+  # trying to read directly into the array was hanging
+  while (my $line = <IN>) {
+      push @lines, $line;
+  }
+  close (IN);
+
+  chomp $separator;
+  my $start_line = -1;
+  my $end_line = scalar @lines;
+  my $general_separator;
+
+ LINES: for (my $line = 0;$line < @lines;$line++) {
+    chomp $lines[$line];
+    if ($start_line >= 0) {
+      if ($lines[$line] =~ /^$general_separator/) {
+	$end_line = $line;
+	last LINES;
+      }
+    }
+    else {
+      my $result = index($lines[$line], $separator);
+      if ($result > 0) {
+	$start_line = $line;
+	$general_separator = substr $lines[$line], 0, $result;
+      }
+    }
+  }
+
+  if ($start_line < 0) {
+      print "Could not find section in $filename containing $separator.\n";
+      return 1;
+  }
+
+  open (OUT, ">$filename");
+  print OUT join "\n", @lines[($start_line+1) .. ($end_line-1)];
+  print OUT "\n";
+  close (OUT);
+
+  return 0;
+}
+
+#####################################################################
+###################### check_point_completed ########################
+# check an output file to see if a given map point has been completed
+
+sub check_point_completed {
+  my ($filename, $separator) = @_;
+
+  unless (-f $filename) {
+      return 0;
+  }
+
+  open (IN, "<$filename") or die "Could not open $filename to make temp file.\n";
+  my @lines;
+  # trying to read directly into the array was hanging
+  while (my $line = <IN>) {
+      push @lines, $line;
+  }
+  close (IN);
+
+  chomp $separator;
+  my $start_line = -1;
+
+ LINES: for (my $line = 0;$line < @lines;$line++) {
+     chomp $lines[$line];
+     my $result = index($lines[$line], $separator);
+     if ($result > 0) {
+	 $start_line = $line;
+	 last LINES;
+     }
+ }
+
+  return ($start_line < 0) ? 0 : 1;
+}
+
+#####################################################################
+############################# pushFile ##############################
+# Append contents of littleFile to bigFile with separator string.
+
+sub pushFile {
+    my ($bigFile,$littleFile,$separator) = @_;
+
+    # don't do anything if this is a reprocess run
+    if ($reprocess_run) {
+      return;
+    }
+
+    open (IN, "<$littleFile") or die "Couldn't open $littleFile to add it to $bigFile.\n";
+    my @lines = <IN>;
+    close (IN);
+
+    open (APPEND, ">>$bigFile") or die "Couldn't open $bigFile for appending.\n";
+    print APPEND $separator;
+    print APPEND @lines;
+    close (APPEND);
+}
+
+#####################################################################
+#####################################################################
+#####################################################################
+
+
+#####################################################################
+####################### Bare Mode Subroutine ########################
+#####################################################################
+## CONTENTS ##
+##
+##    bareMode - run Cloudy with commands provided with no further
+##               data manipulation.
+
+#####################################################################
+###################### bareMode Cloudy ##############################
+# just run Cloudy with commands provided
+
+sub bareMode {
+    my $keyName = $outputDir . $outputFilePrefix . "_run" . $currentRunIndex;
+    my $inputFile = $keyName . ".cloudyIn";
+    my $outputFile = $keyName . ".cloudyOut";
+
+    # process commands into simple list
+    my $commandsPointer;
+
+    ($commandsPointer,undef,undef) = &processCommands(@_);
+
+    # commands for this run
+    my @commands = @$commandsPointer;
+
+    &runCloudy($inputFile,$outputFile,@commands);
+}
+
+#####################################################################
+#####################################################################
+#####################################################################
+
+
+#####################################################################
+################### Cooling Map Mode Subroutines ####################
+#####################################################################
+## CONTENTS ##
+##
+##    coolingMapMode - run Cloudy, looping over fixed temperatures,
+##                     extracting heating and cooling to create
+##                     tables of heating and cooling versus
+##                     temperature.
+##                     The output file also includes a calculation
+##                     of the mean molecular weight.  However, the
+##                     current mmw calculation does not include the
+##                     molecules.
+##                     Since Cloudy calculates equilibrium species
+##                     populations, it will arrive at solutions for
+##                     the molecular H abundance that are too high.
+##                     This is because equilibrium H2 abundance is
+##                     usuall only reach on timescale longer than the
+##                     age of the universe.
+##                     We correct for this by calculating H2
+##                     abundances externally and feeding them to
+##                     Cloudy.
+##                     Unfortunately, this wreaks havoc on Cloudy's
+##                     atomic H calculation, so we extract the H2
+##                     cooling and then add it to a model calculated
+##                     with no H2 molecules.
+##                     This option is enabled by specifying an
+##                     external H2 fraction table with the
+##                     coolingMapH2FractionTableFile parameter in
+##                     the parameter file.
+##                     Update: I never use the H2 fraction tables.
+##                     Instead, I simply create a normal cooling
+##                     grid and one with H/He only and subtract the
+##                     two to make metals-only cooling grids.
+##
+##    coolingMapModeInitialize - initializes cooling map mode.
+##                               Loads atomic weight data for mmw
+##                               calculation.
+##                               Reads external H2 fraction table,
+##                               if specified.
+##                               Checks that cooling map temperature
+##                               range is defined properly and
+##                               creates temperature list.
+##
+##    getCooling - retrieves total heating and cooling from Cloudy
+##                 ouput file created with the 'punch cooling'
+##                 command which is automatically given in cooling
+##                 map mode.
+##
+##    getCoolingContribution - retrieves cooling due to one specific
+##                             radiative process.  Currently, this
+##                             is used to get cooling due to
+##                             molecular hydrogen.
+##
+##    getHeatingContribution - Same as getCoolingContribution, but
+##                             for heating.
+##
+##    getMeanMolecularWeight - calculates the mean molecular weight
+##                             of the gas.  Parses through Cloudy
+##                             output produced with the 'punch
+##                             abundance' and 'punch ionization'
+##                             commands automatically given in
+##                             cooling map mode.
+##
+##    loadMassData - fills atomic weight array.
+##
+##    find_hydrogen_density - find h density value hidden in commands.
+##
+##    find_metallicity - find metallicity value hidden in commands.
+##
+##    check_for_coronal_equilibrium - check for a coronal equilibrium
+##                                    command.
+##
+##    set_electron_fraction - find command to specify electron fraction
+##                            and set appropriate Cloudy command.
+##
+##    calculate_jeans_length - calculate jeans length
+
+
+#####################################################################
+######################### coolingMapMode ############################
+# Run Cloudy, loop over specified temperature range, and produce tables
+# of heating, cooling, and mean molecular weight as a function of temperature.
+
+sub coolingMapMode {
+
+    # base name for output files
+    my $keyName = $outputDir . $outputFilePrefix . "_run" . $currentRunIndex;
+
+    # output files needed in cooling map mode
+    my $inputFile = $keyName . ".cloudyIn";
+    my $outputFile = $keyName . ".cloudyOut";
+    my $coolingFile = $keyName . ".cooling";
+    my $heatingFile = $keyName . ".heating";
+    my $abundanceFile = $keyName . ".abundance";
+    my $ionizationFile = $keyName . ".ionization";
+    my $physicalConditionsFile = $keyName . ".physical";
+    my $warningFile = $keyName . ".warnings";
+    my $dataOutputFile = $keyName . ".dat";
+
+    # suffix for temporary files
+    my $tempFileSuffix = ".temp";
+
+    # if this is a restart, and this is the interrupted file, delete old files
+    unless ($reprocess_run) {
+	unlink $inputFile if (-e $inputFile);
+	unlink $outputFile if (-e $outputFile);
+	unlink $coolingFile if (-e $coolingFile);
+	unlink $heatingFile if (-e $heatingFile);
+	unlink $abundanceFile if (-e $abundanceFile);
+	unlink $ionizationFile if (-e $ionizationFile);
+	unlink $physicalConditionsFile if (-e $physicalConditionsFile);
+	unlink $warningFile if (-e $warningFile);
+	unlink $dataOutputFile if (-e $dataOutputFile);
+    }
+
+    # process commands into simple list
+    my $commandsPointer;
+    my $headerCommandsPointer;
+    my $userFilesPointer;
+
+    ($commandsPointer,$headerCommandsPointer,$userFilesPointer) = &processCommands(@_);
+
+    # commands for this run
+    my @commands = @$commandsPointer;
+
+    # list of lines to throw into output file
+    my @headerCommands = @$headerCommandsPointer;
+
+    # list of user specified files
+    my @userFiles = @$userFilesPointer;
+
+    # check for a coronal equilibrium command
+    my $coronalEquilibrium = &check_for_coronal_equilibrium(@commands);
+
+    # find h density value hidden in commands
+    my $hden = &find_hydrogen_density(@commands);
+
+    # find metallicity value hidden in commands
+    my $metals = &find_metallicity(@commands);
+
+    # find command to specify electron fraction (not an actual cloudy command)
+    @commands = &set_electron_fraction(@commands);
+
+    # temporary files
+    my $tempInputFile = $inputFile . $tempFileSuffix;
+    my $tempOutputFile = $outputFile . $tempFileSuffix;
+    my $tempCoolingFile = $coolingFile . $tempFileSuffix;
+    my $tempHeatingFile = $heatingFile . $tempFileSuffix;
+    my $tempAbundanceFile = $abundanceFile . $tempFileSuffix;
+    my $tempIonizationFile = $ionizationFile . $tempFileSuffix;
+    my $tempPhysicalConditionsFile = $physicalConditionsFile . $tempFileSuffix;
+
+    # create file header
+    open (OUT, ">$dataOutputFile") or die "Can't open $dataOutputFile to write the header.\n";
+    print OUT "# " . scalar (localtime) . "\n";
+    print OUT "#\n";
+    print OUT "# Cooling Map File\n";
+    print OUT "#\n";
+    print OUT "# Loop values:\n";
+    print OUT @headerCommands;
+    print OUT "#\n";
+    print OUT "# Data Columns:\n";
+    print OUT "# Te [K]\n";
+    print OUT "# Heating [erg s^-1 cm^3]\n";
+    print OUT "# Cooling [erg s^-1 cm^3]\n";
+    print OUT "# Mean Molecular Weight [amu]\n";
+    print OUT "#\n";
+    print OUT "#Te\t\tHeating\t\tCooling\t\tMMW\n";
+    close (OUT);
+
+    # loop over specified temperature range, collecting heating, cooling, and ionization state
+    my $endingCriterion = defined($coolingMapdT) ? $coolingMapTmax+$coolingMapdT  : $coolingMapTmax*(10**$coolingMapdLogT);
+
+    # heating, cooling, and mean molecular weight variables
+    my $heating;
+    my $cooling;
+    my $mmw;
+
+    foreach my $temperature (@coolingMapTemperatures) {
+
+	$temperature = sprintf "%f", $temperature;
+	$cooling = $heating = $mmw = 0;
+
+	my @runCommands = @commands;
+
+        # calculate Jeans length and give to Cloudy as a cloud depth
+	if ($coolingMapUseJeansLength == 1) {
+	    my $jeans_length = &calculate_jeans_length($hden, $temperature);
+	    push @runCommands, "radius 1e30 $jeans_length linear\n";
+	}
+
+	# add either constant temperature or coronal equilibrium command
+	if ($coronalEquilibrium >= 0) {
+	    delete $runCommands[$coronalEquilibrium];
+	    push @runCommands, "coronal equilibrium T = $temperature linear\n";
+	}
+	else {
+	    push @runCommands, "constant temperature $temperature K linear\n";
+	}
+
+	# add cooling map mode commands
+	push @runCommands, "punch last cooling file = \"$tempCoolingFile\"\n";
+	push @runCommands, "punch last heating file = \"$tempHeatingFile\"\n";
+	push @runCommands, "punch last abundance file = \"$tempAbundanceFile\"\n";
+	push @runCommands, "punch last ionization means file = \"$tempIonizationFile\"\n";
+	push @runCommands, "punch last physical conditions file = \"$tempPhysicalConditionsFile\"\n";
+
+	# run Cloudy once or twice, depending on below
+	my $cloudyCrashed = 0;
+	my @warnings = ();
+
+	# run Cloudy and get warnings and crash flag
+	($cloudyCrashed,@warnings) = &runCloudy($tempInputFile,$tempOutputFile,@runCommands);
+
+	# if there were warnings, add them to a file
+	if (@warnings) {
+	    open (WARN, ">>$warningFile") or die "Couldn't open $warningFile to add warnings.\n";
+	    printf WARN "## Warnings produced for T = %.3e.\n", $temperature;
+	    print WARN @warnings;
+	    close (WARN);
+	}
+
+        # Create the separator string for combining all the output files.
+        my $separator = sprintf "for T = %.3e.\n", $temperature;
+
+        # Look for a crash in a reprocess run.
+        if ($reprocess_run) {
+            if (&makeTempFile($tempPhysicalConditionsFile, $separator)) {
+                $cloudyCrashed = 1;
+            }
+        }
+
+	# warn if there was a crash
+	if ($cloudyCrashed) {
+
+	    # if running in parallel and supposed to exit on crash, catch it here.
+	    if (($parallel) && ($exitOnCrash)) {
+		# return out of subroutine so child can exit properly
+		return;
+	    }
+
+	    printf "Cloudy crashed for T = %.3e of run $currentRunIndex.  If this continues, think about exiting.\n", $temperature;
+	}
+
+	# if no crash, get the stuff we want
+	else {
+	    # get H and e- number density
+	    my ($hden,$eden) = &getPhysicalConditions($tempPhysicalConditionsFile,
+						      $separator);
+
+	    # get heating and cooling
+	    ($heating,$cooling) = &getCooling($tempCoolingFile,
+					      $separator);
+
+	    # scale heating and cooling values
+	    my $scaleFactor;
+	    if ($coolingScaleFactor == 1) {
+		$scaleFactor = $hden * $hden;
+	    }
+	    elsif ($coolingScaleFactor == 2) {
+		$scaleFactor = $hden * $eden;
+	    }
+	    else {
+		die "Error: coolingScaleFactor must be either 1 or 2.\n";
+	    }
+
+	    # divide heating and cooling by n^2
+	    $heating /= $scaleFactor;
+	    $cooling /= $scaleFactor;
+
+	    # get ionization fractions
+	    # take molecules into account some day
+	    $mmw = &getMeanMolecularWeight($tempAbundanceFile,$tempIonizationFile,
+					   $separator);
+
+	    # append temp file contents to larger file, if someone wants to keep this stuff
+	    if ($saveCloudyOutputFiles) {
+		&pushFile($inputFile,$tempInputFile,(sprintf "## Input for T = %.3e.\n", $temperature));
+		&pushFile($outputFile,$tempOutputFile,(sprintf "## Output for T = %.3e.\n", $temperature));
+		&pushFile($coolingFile,$tempCoolingFile,(sprintf "## Cooling punch for T = %.3e.\n", $temperature));
+		&pushFile($heatingFile,$tempHeatingFile,(sprintf "## Heating punch for T = %.3e.\n", $temperature));
+		&pushFile($abundanceFile,$tempAbundanceFile,(sprintf "## Abundance punch for T = %.3e.\n", $temperature));
+		&pushFile($ionizationFile,$tempIonizationFile,(sprintf "## Ionization punch for T = %.3e.\n", $temperature));
+		&pushFile($physicalConditionsFile,$tempPhysicalConditionsFile,
+			  (sprintf "## Physical conditions punch for T = %.3e.\n", $temperature))
+	    }
+
+	    # append user specified output files
+	    foreach my $userFile (@userFiles) {
+		&pushFile($userFile,"$userFile$tempFileSuffix",
+			  (sprintf "## User output punch for T = %.3e.\n",$temperature));
+	    }
+	  }
+
+	# output Te, heating, cooling, and mmw to file
+	open (OUT, ">>$dataOutputFile") or die "Can't open $dataOutputFile to write out data.\n";
+	printf OUT "%.".$temperaturePrecision."e\t%.".
+	  $heatingPrecision."e\t%.".$coolingPrecision."e\t%.".
+	    $mmwPrecision."f\n", $temperature, $heating, $cooling, $mmw;
+	close (OUT);
+
+    } # end loop over temperature
+
+    # delete temp files
+    unlink $tempInputFile,
+    $tempOutputFile,
+    $tempCoolingFile,
+    $tempHeatingFile,
+    $tempAbundanceFile,
+    $tempIonizationFile,
+    $tempPhysicalConditionsFile;
+
+    # delete Cloudy input/output files
+    unlink $inputFile,$outputFile;
+
+    # delete user specified temp files
+    foreach my $userFile (@userFiles) {
+	unlink "$userFile$tempFileSuffix";
+    }
+
+}
+
+#####################################################################
+##################### coolingMapModeInitialize ######################
+# Initialize cooling map mode by loading atomic mass data and
+# creating temperature list.
+
+sub coolingMapModeInitialize {
+
+    # load atomic mass data for mean molecular weight calculation
+    &loadMassData();
+
+    # check temperature settings for sanity
+    die "coolingMapdT and coolingMapdLogT cannot both be set.\n"
+	if (defined($coolingMapdT) && defined($coolingMapdLogT));
+
+    my $TValuesSet = int(defined($coolingMapTmin)) +
+	int(defined($coolingMapTmax)) +
+	int(defined($coolingMapdT) || defined($coolingMapdLogT)) +
+	int(defined($coolingMapTpoints));
+
+    die "Temperature loop overdefined: set only three values.\n"
+	if ($TValuesSet > 3);
+
+    die "Temperature loop not defined properly for cooling map mode.\n"
+	if ($TValuesSet < 3);
+
+    # linear step specified (who would do this?)
+    if (defined($coolingMapdT)) {
+	if (!(defined($coolingMapTmin))) {
+	    $coolingMapTmin = $coolingMapTmax - ($coolingMapdT*($coolingMapTpoints-1));
+	}
+	elsif (!(defined($coolingMapTmax))) {
+	    $coolingMapTmax = $coolingMapTmin + ($coolingMapdT*($coolingMapTpoints-1));
+	}
+	else {
+	    $coolingMapTpoints = ($coolingMapTmax - $coolingMapTmin)/$coolingMapdT + 1;
+	}
+    }
+    # log step specified
+    elsif (defined($coolingMapdLogT)) {
+	if (!(defined($coolingMapTmin))) {
+	    $coolingMapTmin = $coolingMapTmax / (10**($coolingMapdLogT*($coolingMapTpoints-1)));
+	}
+	elsif (!(defined($coolingMapTmax))) {
+	    $coolingMapTmax = $coolingMapTmin * (10**($coolingMapdLogT*($coolingMapTpoints-1)));
+	}
+	else {
+	    $coolingMapTpoints = log($coolingMapTmax/$coolingMapTmin)/log(10)/$coolingMapdLogT + 1;
+	}
+    }
+    # no step specified, assume log steps
+    else {
+	if ($coolingMapTpoints == 1) {
+	    # just make it something
+	    $coolingMapdLogT = 1;
+	}
+	else {
+	    $coolingMapdLogT = log($coolingMapTmax/$coolingMapTmin)/log(10)/($coolingMapTpoints-1);
+	}
+    }
+
+    # construct array of temperature points
+    my $temperature = $coolingMapTmin;
+    my $endingCriterion = defined($coolingMapdT) ? $coolingMapTmax+0.5*$coolingMapdT : $coolingMapTmax*(10**(0.5*$coolingMapdLogT));
+
+    while ($temperature < $endingCriterion) {
+
+	push @coolingMapTemperatures, (sprintf "%.6e",$temperature);
+
+	# increment temperature
+	if (defined($coolingMapdT)) {
+	    $temperature += $coolingMapdT;
+	}
+	else {
+	    $temperature *= 10**$coolingMapdLogT;
+	}
+    }
+}
+
+#####################################################################
+########################### getCooling ##############################
+# Parse through Cloudy output file made with 'punch cooling' command
+# and return total heating and cooling.
+
+sub getCooling {
+    my ($coolingFile, $separator) = @_;
+
+    # if this is a reprocess run, create a temp file from the data
+    if ($reprocess_run) {
+      &makeTempFile($coolingFile, $separator);
+    }
+
+    open (COOL, "<$coolingFile") or die "Couldn't open $coolingFile to get cooling.\n";
+    my @lines = <COOL>;
+    close (COOL);
+
+    # The line below works for Cloudy version 06 and earlier.
+    # my (undef,$heating,$cooling,undef) = split /\t/, $lines[-1];
+
+    # The line below works for Cloudy version 07 and later.
+    my (undef,undef,$heating,$cooling,undef) = split /\t/, $lines[-1];
+
+    return ($heating,$cooling);
+}
+
+#####################################################################
+####################### getCoolingContribution ######################
+# Parse through file made with 'punch cooling' file and return cooling
+# contribution of requested radiative process.
+
+sub getCoolingContribution {
+    my ($coolingFile,$coolingComponent, $separator) = @_;
+
+    # if this is a reprocess run, create a temp file from the data
+    if ($reprocess_run) {
+      &makeTempFile($coolingFile, $separator);
+    }
+
+    open (COOL, "<$coolingFile") or die "Couldn't open $coolingFile to get cooling.\n";
+    my @lines = <COOL>;
+    close (COOL);
+    my (@lineParts) = split /\t/, $lines[-1];
+    my $cooling = $lineParts[2];
+
+    # find cooling due to particular contribution
+    my $contribution = 0;
+  FIND: for (my $q = 0;$q < @lineParts;$q++) {
+      if ($lineParts[$q] =~ /$coolingComponent/) {
+	  $contribution = $lineParts[$q+1];
+	  last FIND;
+      }
+  }
+    $cooling *= $contribution;
+
+    return ($cooling);
+}
+
+#####################################################################
+####################### getHeatingContribution ######################
+# Parse through file made with 'punch heating' file and return heating
+# contribution of requested radiative process.
+
+sub getHeatingContribution {
+    my ($heatingFile,$heatingComponent, $separator) = @_;
+
+    # if this is a reprocess run, create a temp file from the data
+    if ($reprocess_run) {
+      &makeTempFile($heatingFile, $separator);
+    }
+
+    open (COOL, "<$heatingFile") or die "Couldn't open $heatingFile to get heating.\n";
+    my @lines = <COOL>;
+    close (COOL);
+    my (@lineParts) = split /\t/, $lines[-1];
+    my $heating = $lineParts[1];
+
+    # find heating due to particular contribution
+    my $contribution = 0;
+  FIND: for (my $q = 0;$q < @lineParts;$q++) {
+      if ($lineParts[$q] =~ /$heatingComponent/) {
+	  $contribution = $lineParts[$q+1];
+	  last FIND;
+      }
+  }
+    $heating *= $contribution;
+
+    return ($heating);
+}
+
+#####################################################################
+###################### getPhysicalConditions ########################
+# Parse through Cloudy output file made with 'punch physical
+# conditions' command and return H density and electron density.
+
+sub getPhysicalConditions {
+    my ($physicalConditionsFile, $separator) = @_;
+
+    # if this is a reprocess run, create a temp file from the data
+    if ($reprocess_run) {
+      &makeTempFile($physicalConditionsFile, $separator);
+    }
+
+    open (PHYS, "<$physicalConditionsFile") or die
+	"Couldn't open $physicalConditionsFile to get physicalConditions.\n";
+    my @lines = <PHYS>;
+    close (PHYS);
+
+    my @onLine = split /\t/, $lines[-1];
+
+    return ($onLine[2],$onLine[3]);
+}
+
+#####################################################################
+####################### getMeanMolecularWeight ######################
+# Parse through files made with 'punch abundance' and 'punch ionization'
+# commands to get atomic abundance and ionization fractions to calculate
+# mean molecular weight.
+
+sub getMeanMolecularWeight {
+    my ($abundanceFile,$ionizationFile, $separator) = @_;
+
+    # if this is a reprocess run, create a temp file from the data
+    if ($reprocess_run) {
+      &makeTempFile($abundanceFile, $separator);
+      &makeTempFile($ionizationFile, $separator);
+    }
+
+    # read abundances from file
+    open (ABUND, "<$abundanceFile") or die "Could not open $abundanceFile for reading abundances.\n";
+    my @lines = <ABUND>;
+    close (ABUND);
+    chomp @lines;
+    my @abundances = split /\t/, $lines[-1];
+
+    # read ionization fractions from file
+    open (ION, "<$ionizationFile") or die "Couldn't open $ionizationFile for reading ionization states.\n";
+    my @lines = <ION>;
+    close (ION);
+    chomp @lines;
+
+    my $headerLength = -1;
+    for (my $q = 0;$q < @lines;$q++) {
+	if ($lines[$q] =~ /Hydrogen/) {
+	    $headerLength = $q;
+	    # don't leave loop because this information is printed for every iteration
+	    # and we want the last iteration
+	}
+    }
+
+    die "Ionization file, $ionizationFile, does not have proper format.\n" if ($headerLength < 0);
+
+    my $shell = 0;
+    my $species = 0;
+    my @logIonizationFraction = ();
+    my @ionizationPointers = ();
+
+    # fill ionization fraction array
+  ION: for (my $q = $headerLength;$q < @lines;$q++) {
+	if ($lines[$q] =~ /^\s*[a-zA-z]+/) {
+	    $species++;
+	    $shell = 0;
+	}
+	last ION unless ($lines[$q]);
+	substr $lines[$q], 0, 11, "";
+
+	while ((my $fraction = substr $lines[$q],0,7,"") && ($shell <= $species)) {
+	    $logIonizationFraction[$species-1][$shell] = $fraction;
+	    $ionizationPointers[$species-1][$shell] = \$fraction;
+	    $shell++;
+	}
+    }
+
+    # fix round-off error so that total fraction is 1 (at least closer to 1 than before)
+    for (my $q = 0;$q < @ionizationPointers;$q++) {
+	@{$ionizationPointers[$q]} = sort { $$a <=> $$b } @{$ionizationPointers[$q]};
+	my $totalFraction = 0;
+	for (my $w = 0;$w < @{$ionizationPointers[$q]}-1;$w++) {
+	    if (${$ionizationPointers[$q][$w]} > -30){
+		$totalFraction += 10**(${$ionizationPointers[$q][$w]});
+	    }
+	}
+	# adjust most abundant ionization state so total fraction is 1
+	if ($totalFraction > 1) {
+	    ${$ionizationPointers[$q][-1]} = -30;
+	}
+	else {
+	    ${$ionizationPointers[$q][-1]} = log(1-$totalFraction)/log(10);
+	}
+    }
+
+    # calculate total mass and total particles
+    my $totalMass = 0;
+    my $totalParticles = 0;
+    for (my $q = 0;$q < @logIonizationFraction;$q++) {
+	if ($abundances[$q] > -30) {
+	    $totalMass += (10**($abundances[$q]-$abundances[0])) * $mass[$q];
+	    for (my $w = 0;$w < @{$logIonizationFraction[$q]};$w++) {
+		if ($logIonizationFraction[$q][$w] > -30) {
+		    $totalParticles += (10**($abundances[$q]-$abundances[0]+$logIonizationFraction[$q][$w]))*($w+1);
+		}
+	    }
+	}
+    }
+    return $totalMass/$totalParticles;
+}
+
+#####################################################################
+########################## loadMassData #############################
+# load in atomic weights of elements up to Zinc
+
+sub loadMassData {
+    $mass[0] = 1.00794;
+    $mass[1] = 4.002602;
+    $mass[2] = 6.941;
+    $mass[3] = 9.012182;
+    $mass[4] = 10.811;
+    $mass[5] = 12.0107;
+    $mass[6] = 14.0067;
+    $mass[7] = 15.9994;
+    $mass[8] = 18.9984032;
+    $mass[9] = 20.1797;
+    $mass[10] = 22.989770;
+    $mass[11] = 24.3050;
+    $mass[12] = 26.981538;
+    $mass[13] = 28.0855;
+    $mass[14] = 30.973761;
+    $mass[15] = 32.065;
+    $mass[16] = 35.453;
+    $mass[17] = 39.948;
+    $mass[18] = 39.0983;
+    $mass[19] = 40.078;
+    $mass[20] = 44.955910;
+    $mass[21] = 47.867;
+    $mass[22] = 50.9415;
+    $mass[23] = 51.9961;
+    $mass[24] = 54.938049;
+    $mass[25] = 55.845;
+    $mass[26] = 58.933200;
+    $mass[27] = 58.6934;
+    $mass[28] = 63.546;
+    $mass[29] = 65.409;
+}
+
+#####################################################################
+###################### find_hydrogen_density ########################
+# find h density value hidden in commands
+
+sub find_hydrogen_density {
+    my @commands = @_;
+
+    my $hden;
+  FIND: foreach my $command (@commands) {
+      if ($command =~ /^hden /) {
+	  $hden = $command;
+	  $hden =~ s/hden//;
+	  if ($hden =~ /linear/) {
+	      $hden =~ s/linear//;
+	  }
+	  elsif ($hden =~ /log/) {
+	      $hden =~ s/log//;
+	      $hden = 10**$hden;
+	  }
+	  else {
+	      $hden = 10**$hden;
+	  }
+	  last FIND;
+      }
+  }
+    return $hden;
+}
+
+#####################################################################
+######################### find_metallicity ##########################
+# find metallicity value hidden in commands
+
+sub find_metallicity {
+    my @commands = @_;
+
+    my $metals;
+  FIND: foreach my $command (@commands) {
+      if ($command =~ /^metals /) {
+	  $metals = $command;
+	  $metals =~ s/metals//;
+	  if ($metals =~ /linear/) {
+	      $metals =~ s/linear//;
+	  }
+	  elsif ($metals =~ /log/) {
+	      $metals =~ s/log//;
+	      $metals = 10**$metals;
+	  }
+	  last FIND;
+      }
+  }
+    return $metals;
+}
+
+#####################################################################
+################### check_for_coronal_equilibrium ###################
+# check for a coronal equilibrium command
+
+sub check_for_coronal_equilibrium {
+    my @commands = @_;
+
+    my $coronalEquilibrium = -1;
+  CHECK: for (my $q = 0;$q < @commands;$q++) {
+      if ($commands[$q] =~ /coronal\s+equilibrium/i) {
+	  $coronalEquilibrium = $q;
+	  last CHECK;
+      }
+  }
+    return $coronalEquilibrium;
+}
+
+#####################################################################
+####################### set_electron_fraction #######################
+# find command to specify electron fraction (not an actual cloudy command)
+
+sub set_electron_fraction {
+    my @commands = @_;
+
+    # find h density value hidden in commands
+    my $hden = &find_hydrogen_density(@commands);
+
+    # find metallicity value hidden in commands
+    my $metals = &find_metallicity(@commands);
+
+    my $electronFactor = 9.153959e-3;
+    my $hydrogenMassFraction = 10. / 14.;
+    my $electronMetalFreeMax = (1 + $hydrogenMassFraction) / (2 * $hydrogenMassFraction);
+  FIND: foreach my $command (@commands) {
+      if ($command =~ /^metal free electron fraction (.+)$/) {
+	my $electronFraction = $1;
+	my $electronDensity = $electronFraction + log(($electronMetalFreeMax + ($electronFactor * $metals)) * $hden) / log(10);
+	$command = "set eden $electronDensity\n";
+	last FIND;
+      }
+    }
+    return @commands;
+}
+
+#####################################################################
+###################### calculate_jeans_length #######################
+# calculate jeans length
+
+sub calculate_jeans_length {
+    my ($hden, $temperature) = @_;
+
+    my $gamma = 5. / 3.;
+    my $pi = 3.141592653589793;
+    my $kboltz = 1.3806488e-16; # erg/K
+    my $mh = 1.67373522381e-24; # g
+    my $G = 6.67384e-08; # cm**3/(g*s**2)
+    my $jeans_length_constant = $pi * (($gamma * $kboltz) / ($G * $mh))**0.5;
+
+    my $total_density = $hden * $mh / 0.76; # primordial H mass fraction
+    # assume mu = 1
+    my $jeans_length = $jeans_length_constant *
+	($temperature / $total_density)**(0.5);
+    $jeans_length = ($jeans_length > $coolingMapMaximumJeansLength) ?
+	$coolingMapMaximumJeansLength : $jeans_length;
+    return $jeans_length;
+}
+
+#####################################################################
+#####################################################################
+#####################################################################
+
+
+#####################################################################
+################## Emissivity Map Mode Subroutines ##################
+#####################################################################
+## CONTENTS ##
+##
+##    emissivityMapMode - similar to cooling map mode.  Loops over
+##                        both temperature and energy to create
+##                        maps of luminosity for the given loop
+##                        parameters.
+##
+##    emissivityMapModeInitialize - calls coolingMapModeInitialize
+##                                  to set up temperature bins,
+##                                  then does something similar to
+##                                  set up energy bins.
+##
+##    getContinuum - gets continuum and energy bins from Cloudy
+##                   output file.  Rebins Cloudy continuum to the
+##                   user specified energy bins.
+
+#####################################################################
+######################## emissivityMapMode ##########################
+
+sub emissivityMapMode {
+
+    # base name for output files
+    my $keyName = $outputDir . $outputFilePrefix . "_run" . $currentRunIndex;
+
+    # output files needed in emissivity map mode
+    my $inputFile = $keyName . ".cloudyIn";
+    my $outputFile = $keyName . ".cloudyOut";
+    my $warningFile = $keyName . ".warnings";
+    my $continuumFile = $keyName . ".continuum";
+    my $physicalConditionsFile = $keyName . ".physical";
+    my $binFile = $keyName . ".bin";
+    my $radiusFile = $keyName . ".radius";
+    my $dataOutputFile = $keyName . ".dat";
+
+    # suffix for temporary files
+    my $tempFileSuffix = ".temp";
+
+    # if this is a restart, and this is the interrupted file, delete old files
+    unless ($reprocess_run) {
+	unlink $inputFile,
+	$outputFile,
+	$warningFile,
+	$continuumFile,
+        $physicalConditionsFile,
+	$binFile,
+	$radiusFile,
+	$dataOutputFile;
+    }
+
+    # process commands into simple list
+    my $commandsPointer;
+    my $headerCommandsPointer;
+    my $userFilesPointer;
+
+    ($commandsPointer,$headerCommandsPointer,$userFilesPointer) = &processCommands(@_);
+
+    # commands for this run
+    my @commands = @$commandsPointer;
+
+    # list of lines to throw as a header into output file
+    my @headerCommands = @$headerCommandsPointer;
+
+    # list of user specified files
+    my @userFiles = @$userFilesPointer;
+
+    # check for a coronal equilibrium command
+    my $coronalEquilibrium = &check_for_coronal_equilibrium(@commands);
+
+    # temporary files
+    my $tempInputFile = $inputFile . $tempFileSuffix;
+    my $tempOutputFile = $outputFile . $tempFileSuffix;
+    my $tempContinuumFile = $continuumFile . $tempFileSuffix;
+    my $tempPhysicalConditionsFile = $physicalConditionsFile . $tempFileSuffix;
+    my $tempBinFile = $binFile . $tempFileSuffix;
+    my $tempRadiusFile = $radiusFile . $tempFileSuffix;
+
+    # find user specified files hidden in commands and add temp suffix to their names
+    foreach my $command (@commands) {
+	if ($command =~ /save|punch.*\"(.+)\"/) {
+	    my $tempUserFile = $1 . $tempFileSuffix;
+	    $command =~ s/$1/$tempUserFile/;
+	}
+    }
+
+    # create file header
+    open (OUT, ">$dataOutputFile") or die "Can't open $dataOutputFile to write the header.\n";
+    print OUT "# " . scalar (localtime) . "\n";
+    print OUT "#\n";
+    print OUT "# Emissivity Map File\n";
+    print OUT "#\n";
+    print OUT "# Loop values:\n";
+    print OUT @headerCommands;
+    print OUT "#\n";
+    print OUT "# Data Columns:\n";
+    print OUT "# Te [K]\n";
+    print OUT "# Emissivity [erg s^-1 cm^3 Hz^-1]\n";
+    print OUT "#\n";
+    print OUT "#E [$emissivityMapEnergyUnits]      " . join "  ",@emissivityMapEnergies;
+    print OUT "\n";
+    print OUT "#Te            em\n";
+    close (OUT);
+
+    # loop over specified temperature range, collecting heating, cooling, and ionization state
+    my $endingCriterion = defined($coolingMapdT) ? $coolingMapTmax+$coolingMapdT  : $coolingMapTmax*(10**$coolingMapdLogT);
+
+    # used to write inverted data file
+    my $scaleFactor;
+    my @emissivityData = ();
+
+    foreach my $temperature (@coolingMapTemperatures) {
+
+	$temperature = sprintf "%f", $temperature;
+
+	my @runCommands = @commands;
+
+	# add either constant temperature or coronal equilibrium command
+	if ($coronalEquilibrium >= 0) {
+	    delete $runCommands[$coronalEquilibrium];
+	    push @runCommands, "coronal equilibrium T = $temperature linear\n";
+	}
+	else {
+	    push @runCommands, "constant temperature $temperature K linear\n";
+	}
+
+	# add cooling map mode commands
+	push @runCommands, "punch last continuum file = \"$tempContinuumFile\"\n";
+	push @runCommands, "punch last physical conditions file = \"$tempPhysicalConditionsFile\"\n";
+	push @runCommands, "punch last continuum bins file = \"$tempBinFile\"\n";
+	push @runCommands, "punch last radius file = \"$tempRadiusFile\"\n";
+
+	# run Cloudy once or twice, depending on below
+	my $cloudyCrashed = 0;
+	my @warnings = ();
+
+	# run Cloudy and get warnings and crash flag
+	($cloudyCrashed,@warnings) = &runCloudy($tempInputFile,$tempOutputFile,@runCommands);
+
+	# if there were warnings, add them to a file
+	if (@warnings) {
+	    open (WARN, ">>$warningFile") or die "Couldn't open $warningFile to add warnings.\n";
+	    printf WARN "## Warnings produced for T = %.3e.\n", $temperature;
+	    print WARN @warnings;
+	    close (WARN);
+	}
+
+        # Create the separator string for combining all the output files.
+        my $separator = sprintf "for T = %.3e.\n", $temperature;
+
+        # Look for a crash in a reprocess run.
+        if ($reprocess_run) {
+            if (&makeTempFile($tempPhysicalConditionsFile, $separator)) {
+                $cloudyCrashed = 1;
+            }
+        }
+
+	# warn if there was a crash
+	if ($cloudyCrashed) {
+
+	    # if running in parallel and supposed to exit on crash, catch it here.
+	    if (($parallel) && ($exitOnCrash)) {
+		# return out of subroutine so child can exit properly
+		return;
+	    }
+
+	    printf "Cloudy crashed for T = %.3e of run $currentRunIndex.  If this continues, think about exiting.\n", $temperature;
+	}
+
+	# if no crash, get the stuff we want
+	else {
+	    # get H and e- number density
+	    my ($hden,$eden) = &getPhysicalConditions($tempPhysicalConditionsFile,
+						      $separator);
+
+	    # scale heating and cooling values
+	    if ($coolingScaleFactor == 1) {
+		$scaleFactor = $hden * $hden;
+	    }
+	    elsif ($coolingScaleFactor == 2) {
+		$scaleFactor = $hden * $eden;
+	    }
+	    else {
+		die "Error: coolingScaleFactor must be either 1 or 2.\n";
+	    }
+
+	    # calculate continuum
+	    my @emissivityMapContinuum = &getContinuum($tempContinuumFile,$tempBinFile,
+                                                       $tempRadiusFile, $separator);
+
+ 	    # output Te and emissivities
+ 	    open (OUT, ">>$dataOutputFile") or die "Can't open $dataOutputFile to write out data.\n";
+ 	    printf OUT "%.".$temperaturePrecision."e",$temperature;
+
+	    foreach (my $q = 0;$q < @emissivityMapContinuum;$q++) {
+		printf OUT "  %.".$emissivityPrecision."e",($emissivityMapContinuum[$q] / $scaleFactor);
+	    }
+	    print OUT "\n";
+ 	    close (OUT);
+
+	    # add data to array
+	    @{$emissivityData[@emissivityData]} = @emissivityMapContinuum;
+
+	    # append temp file contents to larger file, if someone wants to keep this stuff
+	    if ($saveCloudyOutputFiles) {
+		&pushFile($inputFile,$tempInputFile,(sprintf "## Input for T = %.3e.\n", $temperature));
+		&pushFile($outputFile,$tempOutputFile,(sprintf "## Output for T = %.3e.\n", $temperature));
+ 		&pushFile($continuumFile,$tempContinuumFile,(sprintf "## Continuum punch for T = %.3e.\n", $temperature));
+                &pushFile($physicalConditionsFile,$tempPhysicalConditionsFile,
+			  (sprintf "## Physical conditions punch for T = %.3e.\n", $temperature));
+                &pushFile($binFile, $tempBinFile, (sprintf "## Continuum bin punch for T = %.3e.\n", $temperature));
+                &pushFile($radiusFile, $tempRadiusFile, (sprintf "## Radius punch for T = %.3e.\n", $temperature));
+	    }
+
+	    # append user specified output files
+	    foreach my $userFile (@userFiles) {
+		&pushFile($userFile,"$userFile$tempFileSuffix",(sprintf "## User output punch for T = %.3e.\n",$temperature));
+	    }
+	}
+
+    } # end loop over temperature
+
+    # make inverted data file (better for plotting spectra)
+    my $invertedDataFile = $keyName . ".inv";
+
+    open (OUT,">$invertedDataFile");
+    print OUT "#Te         ";
+    foreach my $temperature (@coolingMapTemperatures) {
+	printf OUT "  %.".$temperaturePrecision."e",$temperature;
+    }
+    print OUT "\n";
+    print OUT "#E            L_nu\n";
+    for (my $q = 0;$q < @emissivityMapEnergies;$q++) {
+	printf OUT "%.".$emissivityPrecision."e",$emissivityMapEnergies[$q];
+	for (my $w = 0;$w < @coolingMapTemperatures;$w++) {
+	    printf OUT "  %.".$emissivityPrecision."e",($emissivityData[$w][$q] / $scaleFactor);
+	}
+	print OUT "\n";
+    }
+    close (OUT);
+
+    # delete temp files
+    unlink $tempInputFile,
+    $tempOutputFile,
+    $tempContinuumFile,
+    $tempPhysicalConditionsFile,
+    $tempBinFile,
+    $tempRadiusFile;
+
+    # delete user specified temp files
+    foreach my $userFile (@userFiles) {
+	unlink "$userFile$tempFileSuffix";
+    }
+
+}
+
+#####################################################################
+################### emissivityMapModeInitialize #####################
+
+sub emissivityMapModeInitialize {
+
+    # Use coolingMapModeInitialize to initialize temperatures.
+    &coolingMapModeInitialize();
+
+    # Initialize energy bins.
+
+    # If energy file was given, get values from that
+    if ($emissivityMapEnergyFile) {
+	open (IN,"<$emissivityMapEnergyFile") or die "Couldn't open $emissivityMapEnergyFile.\n";
+	while (my $line = <IN>) {
+	    chomp $line;
+	    push @emissivityMapEnergies, sprintf "%.6e",$line;
+	}
+	close (IN);
+
+    }
+
+    # If no file, get them from parameters
+    else {
+
+	# Check for sufficient information.
+	die "Emissivity map energy lower bound not set.\n" unless ($emissivityMapEmin);
+	die "Emissivity map energy upper bound not set.\n" unless ($emissivityMapEmax);
+	die "Emissivity map number of bins not set.\n" unless ($emissivityMapEpoints);
+
+	my $energyStep;
+
+	if ($emissivityMapLogEnergyBins) {
+	    $energyStep = log($emissivityMapEmax/$emissivityMapEmin)/(log(10) * $emissivityMapEpoints);
+	}
+	else {
+	    $energyStep = ($emissivityMapEmax - $emissivityMapEmin) / $emissivityMapEpoints;
+	}
+
+	for (my $q = 0;$q < $emissivityMapEpoints;$q++) {
+	    if ($emissivityMapLogEnergyBins) {
+		push @emissivityMapEnergies, 10**($energyStep * ($q + 0.5) +
+						  log($emissivityMapEmin)/log(10));
+	    }
+	    else {
+		push @emissivityMapEnergies, $energyStep * ($q + 0.5) + $emissivityMapEmin;
+	    }
+	}
+    }
+
+    # calculate bin widths
+    for (my $q = 0;$q < @emissivityMapEnergies;$q++) {
+	if ($q == 0) {
+	    $emissivityMapEnergyBins[$q] = $emissivityMapEnergies[$q+1] - $emissivityMapEnergies[$q];
+	}
+	elsif ($q == @emissivityMapEnergies - 1) {
+	    $emissivityMapEnergyBins[$q] = $emissivityMapEnergies[$q] - $emissivityMapEnergies[$q-1];
+	}
+	else {
+	    $emissivityMapEnergyBins[$q] = 0.5 * ($emissivityMapEnergies[$q+1] -
+						  $emissivityMapEnergies[$q-1]);
+	}
+    }
+
+}
+
+#####################################################################
+########################## getContinuum #############################
+# Get Cloudy continuum and rebin to desired energy bins.
+
+sub getContinuum {
+    my ($continuumFile,$binFile,$radiusFile, $separator) = @_;
+
+    # if this is a reprocess run, create a temp file from the data
+    if ($reprocess_run) {
+        &makeTempFile($continuumFile, $separator);
+        &makeTempFile($binFile, $separator);
+        &makeTempFile($radiusFile, $separator);
+    }
+
+    # get Cloudy continuum
+    my @cloudyContinuum;
+
+    open (IN,"<$continuumFile") or die "Couldn't open contiuum file, $continuumFile, for reading.\n";
+    while (my $line = <IN>) {
+	if ($line !~ /^\s*\#/) {
+	    my @onLine = split /\t/,$line;
+	    push @cloudyContinuum, $onLine[3];
+	}
+    }
+    close (IN);
+
+    # get Cloudy energy bins
+    my @cloudyEnergies;
+    my @cloudyEnergyBins;
+
+    open (IN,"<$binFile") or die "Couldn't open energy bin file, $binFile, for reading.\n";
+    while (my $line = <IN>) {
+	if ($line !~ /^\s*\#/) {
+	    chomp $line;
+	    $line =~ s/^\s+//;
+	    $line =~ s/\s+/ /g;
+	    my @onLine = split " ",$line;
+	    push @cloudyEnergies, $onLine[0];
+	    push @cloudyEnergyBins, $onLine[2];
+	}
+    }
+    close (IN);
+
+    # get radius
+    my $radius;
+    my $depth;
+    my $dr;
+
+    open (IN,"<$radiusFile") or die "Couldn't open contiuum file, $radiusFile, for reading.\n";
+  RAD: while (my $line = <IN>) {
+      if ($line !~ /^\s*\#/) {
+	  my @onLine = split /\t/,$line;
+	  $radius = $onLine[1];
+	  $depth = $onLine[2];
+	  $dr= $onLine[3];
+	  last RAD;
+      }
+  }
+    close (IN);
+
+    # get frequencies from energies
+    die "Units: $emissivityMapEnergyUnits unavailable for conversion.\n"
+	unless (defined($energyConversion{$emissivityMapEnergyUnits}));
+    my @cloudyFrequencies;
+    my @cloudyFrequencyBins;
+    for (my $q = 0;$q < @cloudyEnergies;$q++) {
+	$cloudyFrequencies[$q] = $cloudyEnergies[$q] / $energyConversion{"Rydbergs"};
+	$cloudyFrequencyBins[$q] = $cloudyEnergyBins[$q] / $energyConversion{"Rydbergs"};
+    }
+    my @emissivityMapFrequencies;
+    my @emissivityMapFrequencyBins;
+    for (my $q = 0;$q < @emissivityMapEnergies;$q++) {
+	$emissivityMapFrequencies[$q] = $emissivityMapEnergies[$q] / $energyConversion{$emissivityMapEnergyUnits};
+	$emissivityMapFrequencyBins[$q] = $emissivityMapEnergyBins[$q] / $energyConversion{$emissivityMapEnergyUnits};
+    }
+
+    # convert nuF_nu to F_nu
+    for (my $q = 0;$q < @cloudyEnergies;$q++) {
+	$cloudyContinuum[$q] /= $cloudyFrequencies[$q];
+    }
+
+    # calculate rebinned continuum
+    my @emissivityMapContinuum;
+    my $indexLower;
+    my $indexUpper;
+    my $gotLowerBound;
+
+    for (my $q = 0;$q < @emissivityMapFrequencies;$q++) {
+	# get lower and upper bound Cloudy bins
+	$gotLowerBound = 0;
+      BIN: for (my $w = 0;$w < @cloudyFrequencies;$w++) {
+	  unless ($gotLowerBound) {
+	      if ($cloudyFrequencies[$w] - (0.5 * $cloudyFrequencyBins[$w]) >
+		  $emissivityMapFrequencies[$q] - (0.5 * $emissivityMapFrequencyBins[$q])) {
+		  $indexLower = $w - 1;
+		  $gotLowerBound = 1;
+	      }
+	  }
+
+	  if ($gotLowerBound) {
+	      if ($cloudyFrequencies[$w] + (0.5 * $cloudyFrequencyBins[$w]) >=
+		  $emissivityMapFrequencies[$q] + (0.5 * $emissivityMapFrequencyBins[$q])) {
+		  $indexUpper = $w;
+		  last BIN;
+	      }
+	  }
+      }
+
+	# perform rebinning
+	my $binLower;
+	my $binUpper;
+	for (my $w = $indexLower;$w <=$indexUpper;$w++) {
+	    $binLower = ($emissivityMapFrequencies[$q] - (0.5 * $emissivityMapFrequencyBins[$q]) >
+			 $cloudyFrequencies[$w] - (0.5 * $cloudyFrequencyBins[$w])) ?
+			 $emissivityMapFrequencies[$q] - (0.5 * $emissivityMapFrequencyBins[$q]) :
+			 $cloudyFrequencies[$w] - (0.5 * $cloudyFrequencyBins[$w]);
+
+	    $binUpper = ($emissivityMapFrequencies[$q] + (0.5 * $emissivityMapFrequencyBins[$q]) <
+			 $cloudyFrequencies[$w] + (0.5 * $cloudyFrequencyBins[$w])) ?
+			 $emissivityMapFrequencies[$q] + (0.5 * $emissivityMapFrequencyBins[$q]) :
+			 $cloudyFrequencies[$w] + (0.5 * $cloudyFrequencyBins[$w]);
+
+	    $emissivityMapContinuum[$q] += $cloudyContinuum[$w] * ($binUpper - $binLower);
+	}
+	$emissivityMapContinuum[$q] /= $emissivityMapFrequencyBins[$q];
+
+	# convert to emissivity
+	# L = 4 pi r^2 F
+	# em = L / (4/3 pi ((r+dr)^3 - r^3)
+	$emissivityMapContinuum[$q] *= (3.0 * ($radius)**2) /
+	    (($radius-$depth+$dr)**3 - ($radius-$depth)**3);
+
+    }
+
+    return @emissivityMapContinuum;
+}
+
+#####################################################################
+#####################################################################
+#####################################################################
+
+
+#####################################################################
+################# Ion Fraction Map Mode Subroutines #################
+#####################################################################
+## CONTENTS ##
+##
+##    ionFractionMapMode - extract tables of ionization fraction
+##                         for a given list of elements. Tables
+##                         span a temperature range (like cooling
+##                         tables) and the user-specified parameter
+##                         space.
+##
+##    ionFractionMapModeInitialize - similar to initialization for
+##                                   cooling maps, but also get the
+##                                   list of elements.
+##
+##    getIonFraction - parse the ionization output from Cloudy
+##                     to get ion fractions for a given element.
+##
+
+#####################################################################
+####################### ionFractionMapMode ##########################
+# Run Cloudy, loop over specified temperature range, and produce tables
+# of ion fractions for specified elements.
+
+sub ionFractionMapMode {
+
+    # base name for output files
+    my $keyName = $outputDir . $outputFilePrefix . "_run" . $currentRunIndex;
+
+    # output files needed in cooling map mode
+    my $inputFile = $keyName . ".cloudyIn";
+    my $outputFile = $keyName . ".cloudyOut";
+    my $ionizationFile = $keyName . ".ionization";
+    my $warningFile = $keyName . ".warnings";
+
+    # suffix for temporary files
+    my $tempFileSuffix = ".temp";
+
+    # if this is a restart, and this is the interrupted file, delete old files
+    unless ($reprocess_run || $resume) {
+      unlink $inputFile if (-e $inputFile);
+      unlink $outputFile if (-e $outputFile);
+      unlink $ionizationFile if (-e $ionizationFile);
+      unlink $warningFile if (-e $warningFile);
+    }
+
+    # process commands into simple list
+    my $commandsPointer;
+    my $headerCommandsPointer;
+    my $userFilesPointer;
+
+    ($commandsPointer,$headerCommandsPointer,$userFilesPointer) = &processCommands(@_);
+
+    # commands for this run
+    my @commands = @$commandsPointer;
+
+    # list of lines to throw into output file
+    my @headerCommands = @$headerCommandsPointer;
+
+    # list of user specified files
+    my @userFiles = @$userFilesPointer;
+
+    # check for a coronal equilibrium command
+    my $coronalEquilibrium = &check_for_coronal_equilibrium(@commands);
+
+    # find h density value hidden in commands
+    my $hden = &find_hydrogen_density(@commands);
+
+    # find metallicity value hidden in commands
+    my $metals = &find_metallicity(@commands);
+
+    # find command to specify electron fraction (not an actual cloudy command)
+    @commands = &set_electron_fraction(@commands);
+
+    # temporary files
+    my $tempInputFile = $inputFile . $tempFileSuffix;
+    my $tempOutputFile = $outputFile . $tempFileSuffix;
+    my $tempIonizationFile = $ionizationFile . $tempFileSuffix;
+
+    # find user specified files hidden in commands and add temp suffix to their names
+    foreach my $command (@commands) {
+        # only get output files (matching save or punch)
+	if ($command =~ /save|punch.*\"(.+)\"/) {
+	    my $tempUserFile = $1 . $tempFileSuffix;
+	    $command =~ s/$1/$tempUserFile/;
+	}
+    }
+
+    # save disk space by not creating the individual element tables
+    unless ($saveMinimumOutputFiles) {
+
+	# create files for each element requested
+	foreach my $element (@ionFractionElements) {
+	    my $dataOutputFile = sprintf "%s_%s.dat", $keyName, $element;
+	    unlink $dataOutputFile if (-e $outputFile);
+
+	    # creat file header
+	    open (OUT, ">$dataOutputFile") or die "Can't open $dataOutputFile to write the header.\n";
+	    print OUT "# " . scalar (localtime) . "\n";
+	    print OUT "#\n";
+	    printf OUT "# %s Ion Fraction File\n", $atomicName{$element};
+	    print OUT "#\n";
+	    print OUT "# Loop values:\n";
+	    print OUT @headerCommands;
+	    print OUT "#\n";
+	    print OUT "# Data Columns:\n";
+	    print OUT "# log(Te [K])\n";
+	    print OUT "# log(Ion Fractions)\n";
+	    print OUT "#\n";
+	    print OUT "#Te\t" . (join "\t", (1 .. $atomicNumber{$element}+1)) . "\n";
+	    close (OUT);
+	}
+
+    }
+
+    # loop over specified temperature range, collecting ionization state
+    my $endingCriterion = defined($coolingMapdT) ? $coolingMapTmax+$coolingMapdT  : $coolingMapTmax*(10**$coolingMapdLogT);
+
+    TLOOP: foreach my $temperature (@coolingMapTemperatures) {
+
+	$temperature = sprintf "%f", $temperature;
+	my $separator = sprintf "for T = %.3e.\n", $temperature;
+
+	my @runCommands = @commands;
+
+	# add either constant temperature or coronal equilibrium command
+	if ($coronalEquilibrium >= 0) {
+	    delete $runCommands[$coronalEquilibrium];
+	    push @runCommands, "coronal equilibrium T = $temperature linear\n";
+	}
+	else {
+	    push @runCommands, "constant temperature $temperature K linear\n";
+	}
+
+	# calculate Jeans length and give to Cloudy as a cloud depth
+	if ($coolingMapUseJeansLength == 1) {
+	    my $jeans_length = &calculate_jeans_length($hden, $temperature);
+	    push @runCommands, "radius 1e30 $jeans_length linear\n";
+	}
+
+	# add cooling map mode commands
+	push @runCommands, "punch last ionization means file = \"$tempIonizationFile\"\n";
+
+	# run Cloudy once or twice, depending on below
+	my $cloudyCrashed = 0;
+	my @warnings = ();
+
+	my $point_done = 0;
+	if ($resume) {
+	    $point_done = &check_point_completed($ionizationFile, $separator);
+	    next TLOOP if ($point_done);
+	}
+
+	# run Cloudy and get warnings and crash flag
+	if ($point_done) {
+	    ($cloudyCrashed,@warnings) = (0, ());
+	}
+	else {
+	    ($cloudyCrashed,@warnings) = &runCloudy($tempInputFile,$tempOutputFile,@runCommands);
+	}
+
+	# if there were warnings, add them to a file
+	if (@warnings) {
+	    open (WARN, ">>$warningFile") or die "Couldn't open $warningFile to add warnings.\n";
+	    printf WARN "## Warnings produced for T = %.3e.\n", $temperature;
+	    print WARN @warnings;
+	    close (WARN);
+	}
+
+	# warn if there was a crash
+	if ($cloudyCrashed) {
+
+	    # if running in parallel and supposed to exit on crash, catch it here.
+	    if (($parallel) && ($exitOnCrash)) {
+		# return out of subroutine so child can exit properly
+		return;
+	    }
+
+	    printf "Cloudy crashed for T = %.3e of run $currentRunIndex.  If this continues, think about exiting.\n", $temperature;
+	}
+
+	# if no crash, get the stuff we want
+	else {
+
+	  unless ($saveMinimumOutputFiles) {
+
+	      # Get ion fractions from output file.
+	      my %ionFractions = &getIonFraction($tempIonizationFile, $separator);
+
+	      foreach my $element (@ionFractionElements) {
+		  my $dataOutputFile = sprintf "%s_%s.dat", $keyName, $element;
+
+		  # Ouput ion fractions.
+		  open (OUT, ">>$dataOutputFile") or die "Can't open $dataOutputFile to write out data.\n";
+		  printf OUT "%.".$ionFractionLogTPrecision."f", (log($temperature)/log(10));
+		  for my $electron (0 .. $atomicNumber{$element}) {
+		      if ($electron >= @{$ionFractions{$element}}) {
+			  $ionFractions{$element}[$electron] = -30.0;
+		      }
+		      printf OUT "\t%.".$ionFractionPrecision."f", $ionFractions{$element}[$electron];
+		  }
+		  print OUT "\n";
+		  close (OUT);
+
+	      }
+
+	  }
+
+	  # append temp file contents to larger file, if someone wants to keep this stuff
+	  if ($saveCloudyOutputFiles) {
+	      &pushFile($inputFile,$tempInputFile,(sprintf "## Input %s", $separator));
+	      &pushFile($outputFile,$tempOutputFile,(sprintf "## Output %s", $separator));
+	  }
+
+	  if ($saveCloudyOutputFiles || $saveMinimumOutputFiles) {
+	      &pushFile($ionizationFile,$tempIonizationFile,(sprintf "## Ionization punch %s", $separator));
+	  }
+
+	  # append user specified output files
+	  foreach my $userFile (@userFiles) {
+	      &pushFile($userFile,"$userFile$tempFileSuffix",(sprintf "## User output punch %s", $separator));
+	  }
+	}
+
+    } # end loop over temperature
+
+    # delete temp files
+    unlink $tempInputFile,
+    $tempOutputFile,
+    $tempIonizationFile,
+
+    # delete Cloudy input/output files
+    unlink $inputFile,$outputFile;
+
+    # delete user specified temp files
+    foreach my $userFile (@userFiles) {
+	unlink "$userFile$tempFileSuffix";
+    }
+
+}
+
+#####################################################################
+################### ionFractionMapModeInitialize ####################
+# Initialize ion fraction map mode by loading atomic mass data and
+# creating temperature list.
+
+sub ionFractionMapModeInitialize {
+
+    # Use coolingMapModeInitialize to initialize temperatures.
+    &coolingMapModeInitialize();
+
+    # Load element data.
+    &loadElementData();
+
+    # Check for valid elements.
+    foreach my $element (@ionFractionElements) {
+      die "$element is not a valid element for ion fraction table."
+	unless (exists($atomicNumber{$element}));
+    }
+
+}
+
+#####################################################################
+########################### getIonFraction ##########################
+# Parse through files made with 'punch ionization' command to get
+# ion fractions.
+
+sub getIonFraction {
+    my ($ionizationFile, $separator) = @_;
+
+    # if this is a reprocess run, create a temp file from the data
+    if ($reprocess_run) {
+      &makeTempFile($ionizationFile, $separator);
+    }
+
+    # read ionization fractions from file
+    open (ION, "<$ionizationFile") or die "Couldn't open $ionizationFile for reading ionization states.\n";
+    my @lines = <ION>;
+    close (ION);
+    chomp @lines;
+
+    my $headerLength = -1;
+    for (my $q = 0;$q < @lines;$q++) {
+	if ($lines[$q] =~ /Hydrogen/) {
+	    $headerLength = $q;
+	    # don't leave loop because this information is printed for every iteration
+	    # and we want the last iteration
+	}
+    }
+
+    die "Ionization file, $ionizationFile, does not have proper format.\n" if ($headerLength < 0);
+
+    my $shell = 0;
+    my $species = 0;
+    my $target_element;
+    my %logIonFraction = ();
+    my @ionizationPointers = ();
+
+    # fill ionization fraction array
+    for (my $q = $headerLength;$q < @lines;$q++) {
+	if ($lines[$q] =~ /^\s*([a-zA-z]+)/) {
+	  my $element = $1;
+	  $species++;
+	  $shell = 0;
+	  $target_element = 0;
+	ATOM: foreach my $target (@ionFractionElements) {
+	    if ($element eq $atomicName{$target}) {
+	      $target_element = $target;
+	      @{$logIonFraction{$target_element}} = ();
+	      last ATOM;
+	    }
+	  }
+	}
+	substr $lines[$q], 0, 11, "";
+
+	while ((my $fraction = substr $lines[$q],0,7,"") && ($shell <= $species)) {
+	  if ($target_element) {
+	    $logIonFraction{$target_element}[$shell] = $fraction;
+	    $shell++;
+	  }
+	}
+    }
+
+    return %logIonFraction;
+}
+
+#####################################################################
+#####################################################################
+#####################################################################
+
+#####################################################################
+##################### Line Map Mode Subroutines #####################
+#####################################################################
+## CONTENTS ##
+##
+##    lineMapMode -
+##
+##    lineMapModeInitialize -
+##
+##    getLineEmissivities -
+##
+
+#####################################################################
+####################### lineMapMode ##########################
+# Run Cloudy, loop over specified temperature range, and produce tables
+# of line emissivities for specified lines.
+
+sub lineMapMode {
+
+    # base name for output files
+    # LAUREN
+    #my $keyName = $outputDir . $outputFilePrefix . "_run" . $currentRunIndex;
+    my $keyName = $outputFilePrefix . "_run" . $currentRunIndex;
+
+    # output files needed in cooling map mode
+    my $inputFile = $keyName . ".cloudyIn";
+    my $outputFile = $keyName . ".cloudyOut";
+    my $lineFile = $keyName . ".lines";
+    my $physicalConditionsFile = $keyName . ".physical";
+    my $warningFile = $keyName . ".warnings";
+    my $dataOutputFile = $keyName . ".dat";
+    ## added to track Jeans length
+    my $jeanOutputFile = $keyName . "_jeans.dat"
+
+    # suffix for temporary files
+    my $tempFileSuffix = ".temp";
+
+    # if this is a restart, and this is the interrupted file, delete old files
+    unless ($reprocess_run) {
+	unlink $inputFile if (-e $inputFile);
+	unlink $outputFile if (-e $outputFile);
+	unlink $lineFile if (-e $lineFile);
+        unlink $physicalConditionsFile if (-e $physicalConditionsFile);
+	unlink $warningFile if (-e $warningFile);
+	unlink $dataOutputFile if (-e $dataOutputFile);
+    }
+
+    # process commands into simple list
+    my $commandsPointer;
+    my $headerCommandsPointer;
+    my $userFilesPointer;
+
+    ($commandsPointer,$headerCommandsPointer,$userFilesPointer) = &processCommands(@_);
+
+    # commands for this run
+    my @commands = @$commandsPointer;
+
+    # list of lines to throw into output file
+    my @headerCommands = @$headerCommandsPointer;
+
+    # list of user specified files
+    my @userFiles = @$userFilesPointer;
+
+    # check for a coronal equilibrium command
+    my $coronalEquilibrium = &check_for_coronal_equilibrium(@commands);
+
+    # temporary files
+    my $tempInputFile = $inputFile . $tempFileSuffix;
+    my $tempOutputFile = $outputFile . $tempFileSuffix;
+    my $tempLineFile = $lineFile . $tempFileSuffix;
+    my $tempPhysicalConditionsFile = $physicalConditionsFile . $tempFileSuffix;
+
+    # create file header
+    open (OUT, ">$dataOutputFile") or die "Can't open $dataOutputFile to write the header.\n";
+    print OUT "# " . scalar (localtime) . "\n";
+    print OUT "#\n";
+    print OUT "# Cooling Map File\n";
+    print OUT "#\n";
+    print OUT "# Loop values:\n";
+    print OUT @headerCommands;
+    print OUT "#\n";
+    print OUT "# Data Columns:\n";
+    print OUT "# log10 Te [K]\n";
+    print OUT "# log10 Emissivities / n_H^2 [erg s^-1 cm^3]\n";
+    print OUT "#\n";
+    print OUT "#Te   ";
+    print OUT join "  ", @lineMapLineLabels;
+    print OUT "\n";
+    close (OUT);
+
+    # make header for Jeans Length tracking
+    open (OUT, ">$jeanOutputFile") or die "Can't open $jeanOutputFile to write the header.\n";
+    print OUT "# " . scalar (localtime) . "\n";
+    print OUT "#\n";
+    print OUT "# Jeans Length Tracking File\n";
+    print OUT "#\n";
+    print OUT "# Loop values:\n";
+    print OUT @headerCommands;
+    print OUT "#\n";
+    print OUT "# Data Columns:\n";
+    print OUT "# log10 Te [K]\n";
+    print OUT "# Jeans Length [cm] linear\n";
+    print OUT "#\n";
+    print OUT "#Te      L_J";
+    print OUT "\n";
+    close (OUT);
+
+    # loop over specified temperature range, collecting heating, cooling, and ionization state
+    my $endingCriterion = defined($coolingMapdT) ? $coolingMapTmax+$coolingMapdT  : $coolingMapTmax*(10**$coolingMapdLogT);
+
+    foreach my $temperature (@coolingMapTemperatures) {
+
+	$temperature = sprintf "%f", $temperature;
+        my @line_emissivities = ();
+
+	my @runCommands = @commands;
+
+	## ADD LAUREN
+	## Add function from CoolingMap that enables Jeans length command
+	# calculate Jeans length and give to Cloudy as a cloud depth
+	#print "Checking for Jeans Length\n";
+	#print $coolingMapUseJeansLength;
+	#print "\n";
+	#print "Commands \n";
+	#print @commands;
+	#print "\n";
+	# find h density value hidden in commands
+	my $hden = &find_hydrogen_density(@commands); #(@commands);
+	#print "hden is $hden \n";
+	if ($coolingMapUseJeansLength == 1) {
+		 #print "IN IF STATEMENT";
+		 my $jeans_length = &calculate_jeans_length($hden, $temperature);
+		 push @runCommands, "radius 1e30 $jeans_length linear\n";
+		 }
+
+	# add either constant temperature or coronal equilibrium command
+	if ($coronalEquilibrium >= 0) {
+	    delete $runCommands[$coronalEquilibrium];
+	    push @runCommands, "coronal equilibrium T = $temperature linear\n";
+	}
+	else {
+	    push @runCommands, "constant temperature $temperature K linear\n";
+	}
+
+        # add emissivity commands
+        push @runCommands, "save last lines, emissivity \"$tempLineFile\"\n";
+        foreach my $line (@lineMapLines) {
+            push @runCommands, "$line\n";
+        }
+        push @runCommands, "end of lines\n";
+        push @runCommands, "punch last physical conditions file = \"$tempPhysicalConditionsFile\"\n";
+
+	# run Cloudy once or twice, depending on below
+	my $cloudyCrashed = 0;
+	my @warnings = ();
+
+	# run Cloudy and get warnings and crash flag
+	($cloudyCrashed,@warnings) = &runCloudy($tempInputFile,$tempOutputFile,@runCommands);
+
+	# if there were warnings, add them to a file
+	if (@warnings) {
+	    open (WARN, ">>$warningFile") or die "Couldn't open $warningFile to add warnings.\n";
+	    printf WARN "## Warnings produced for T = %.3e.\n", $temperature;
+	    print WARN @warnings;
+	    close (WARN);
+	}
+
+        # Create the separator string for combining all the output files.
+        my $separator = sprintf "for T = %.3e.\n", $temperature;
+
+        # Look for a crash in a reprocess run.
+        if ($reprocess_run) {
+            if (&makeTempFile($tempPhysicalConditionsFile, $separator)) {
+                $cloudyCrashed = 1;
+            }
+        }
+
+	# warn if there was a crash
+	if ($cloudyCrashed) {
+
+	    # if running in parallel and supposed to exit on crash, catch it here.
+	    if (($parallel) && ($exitOnCrash)) {
+		# return out of subroutine so child can exit properly
+		return;
+	    }
+
+	    printf "Cloudy crashed for T = %.3e of run $currentRunIndex.  If this continues, think about exiting.\n", $temperature;
+	}
+
+	# if no crash, get the stuff we want
+	else {
+	    # get H and e- number density
+	    my ($hden,$eden) = &getPhysicalConditions($tempPhysicalConditionsFile,
+						      $separator);
+
+            # get line emissivities
+            @line_emissivities = &getLineEmissivities($tempLineFile, (sprintf "## Line punch for T = %.3e.\n", $temperature));
+
+            # normalize emissivities
+            ## LAUREN EDIT ##
+            for (my $q = 0;$q < @line_emissivities;$q++) {
+            	if ($line_emissivities[$q] == 0.0) {
+            		$line_emissivities[$q] = sprintf "-9999.";
+            	}
+            	else {
+                $line_emissivities[$q] = sprintf "%.4f", ( (log($line_emissivities[$q])/log(10.)) -
+                                                          (2 * log($hden) / log(10.)));
+            	}
+            }
+
+	    # append temp file contents to larger file, if someone wants to keep this stuff
+	    if ($saveCloudyOutputFiles) {
+		&pushFile($inputFile,$tempInputFile,(sprintf "## Input for T = %.3e.\n", $temperature));
+		&pushFile($outputFile,$tempOutputFile,(sprintf "## Output for T = %.3e.\n", $temperature));
+		&pushFile($lineFile,$tempLineFile,(sprintf "## Line punch for T = %.3e.\n", $temperature));
+	    }
+
+	    # append user specified output files
+	    foreach my $userFile (@userFiles) {
+		&pushFile($userFile,"$userFile$tempFileSuffix",
+			  (sprintf "## User output punch for T = %.3e.\n",$temperature));
+	    }
+	  }
+
+	# output Te, line emissivities to file.
+	open (OUT, ">>$dataOutputFile") or die "Can't open $dataOutputFile to write out data.\n";
+        printf OUT "%.".$ionFractionLogTPrecision."f  ", (log($temperature)/log(10));
+        print OUT join "  ", @line_emissivities;
+        print OUT "\n";
+	close (OUT);
+
+    } # end loop over temperature
+
+    # delete temp files
+    unlink $tempInputFile,
+    $tempOutputFile,
+    $tempLineFile,
+    $tempPhysicalConditionsFile;
+
+    # delete Cloudy input/output files
+    unlink $inputFile,$outputFile;
+
+    # delete user specified temp files
+    foreach my $userFile (@userFiles) {
+	unlink "$userFile$tempFileSuffix";
+    }
+
+}
+
+#####################################################################
+####################### lineMapModeInitialize #######################
+# Initialize line map mode by loading creating temperature list and
+# labels for the lines.
+
+sub lineMapModeInitialize {
+
+    # Use coolingMapModeInitialize to initialize temperatures.
+    &coolingMapModeInitialize();
+
+    # Create more ascii friendly line labels.
+    foreach my $line (@lineMapLines) {
+        $line =~ s/\s/_/g;
+        push @lineMapLineLabels, $line;
+    }
+
+}
+
+#####################################################################
+####################### getLineEmissivities #########################
+# Parse through Cloudy output file made with
+# 'save lines emissivity' command and return them
+
+sub getLineEmissivities {
+    my ($lineFile, $separator) = @_;
+
+    # if this is a reprocess run, create a temp file from the data
+    if ($reprocess_run) {
+      &makeTempFile($lineFile, $separator);
+    }
+
+    open (COOL, "<$lineFile") or die "Couldn't open $lineFile to get line emissivities.\n";
+    my @lines = <COOL>;
+    close (COOL);
+
+    chomp $lines[-1];
+    my (undef, @le) = split /\t/, $lines[-1];
+
+    return @le;
+}
+
+#####################################################################
+#####################################################################
+#####################################################################
+
+#####################################################################
+################### Custom Cloudy Mode Subroutines ##################
+#####################################################################
+## These subroutines can be used as a template to create new custom
+## Cloudy running modes.
+##
+## CONTENTS ##
+##
+##    newCustomMode - run Cloudy here and process any data produced.
+##
+##    newCustomModeInitialize - Any initialize of custom Cloudy mode
+##                              is done here.  Any processes that
+##                              only need to be performed once would
+##                              go here.
+
+#####################################################################
+######################### newCustomMode #############################
+
+sub newCustomMode {
+
+    # Run your custom mode here.
+
+    # base name for output files
+    my $keyName = $outputDir . $outputFilePrefix . "_run" . $currentRunIndex;
+
+    # any output files needed
+    my $inputFile = $keyName . ".cloudyIn";
+    my $outputFile = $keyName . ".cloudyOut";
+
+    # process commands into simple list
+    my $commandsPointer;
+    my $headerCommandsPointer;
+    my $userFilesPointer;
+
+    ($commandsPointer,$headerCommandsPointer,$userFilesPointer) = &processCommands(@_);
+
+    # commands for this run
+    my @commands = @$commandsPointer;
+
+    # list of lines to throw as a header into output file
+    my @headerCommands = @$headerCommandsPointer;
+
+    # list of user specified files
+    my @userFiles = @$userFilesPointer;
+
+    # call Cloudy with list of commands
+    &runCloudy($inputFile,$outputFile,@commands);
+
+    # Do whatever else you want to do.
+
+}
+
+#####################################################################
+##################### newCustomModeInitialize #######################
+
+sub newCustomModeInitialize {
+
+    # Initialize your custom mode.
+
+}
+
+#####################################################################
+#####################################################################
+#####################################################################
+
+#####################################################################
+########################### loadElementData #########################
+# Load element atomic number hash.
+
+sub loadElementData {
+
+%atomicNumber = ('H' => 1, 'He' => 2, 'Li' => 3,
+		 'Be' => 4, 'B' => 5, 'C' => 6,
+		 'N' => 7, 'O' => 8, 'F' => 9,
+		 'Ne' => 10, 'Na' => 11, 'Mg' => 12,
+		 'Al' => 13, 'Si' => 14, 'P' => 15,
+		 'S' => 16, 'Cl' => 17, 'Ar' => 18,
+		 'K' => 19, 'Ca' => 20, 'Sc' => 21,
+		 'Ti' => 22, 'V' => 23, 'Cr' => 24,
+		 'Mn' => 25, 'Fe' => 26, 'Co' => 27,
+		 'Ni' => 28, 'Cu' => 29, 'Zn' => 30);
+
+%atomicName = ('H' => 'Hydrogen', 'He' => 'Helium', 'Li' => 'Lithium',
+	       'Be' => 'Beryllium', 'B' => 'Boron', 'C' => 'Carbon',
+	       'N' => 'Nitrogen', 'O' => 'Oxygen', 'F' => 'Fluorine',
+	       'Ne' => 'Neon', 'Na' => 'Sodium', 'Mg' => 'Magnesium',
+	       'Al' => 'Aluminium', 'Si' => 'Silicon', 'P' => 'Phosphorus',
+	       'S' => 'Sulphur', 'Cl' => 'Chlorine', 'Ar' => 'Argon',
+	       'K' => 'Potassium', 'Ca' => 'Calcium', 'Sc' => 'Scandium',
+	       'Ti' => 'Titanium', 'V' => 'Vanadium', 'Cr' => 'Chromium',
+	       'Mn' => 'Manganese', 'Fe' => 'Iron', 'Co' => 'Cobalt',
+	       'Ni' => 'Nickel', 'Cu' => 'Copper', 'Zn' => 'Zinc');
+
+}
