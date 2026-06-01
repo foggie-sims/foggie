@@ -18,7 +18,6 @@ import argparse
 import re
 import subprocess
 import time
-import datetime
 import math
 import shutil
 import copy

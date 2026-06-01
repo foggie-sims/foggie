@@ -1123,6 +1123,7 @@ def clump_finder(args,ds,cut_region):
         #Set default arguments for disk finder
         args = set_default_disk_finder_arguments(args)
 
+
     trident_dict = { 'HI':'H I', 'CII':'C II','CIII':'C III',
                 'CIV':'C IV','OI':'O I','OII':'O II','OIII':'O III','OIV':'O IV','OV':'O V','OVI':'O VI',
                 'SiII':'Si II','SiIII':'Si III','SiIV':'Si IV','MgII':'Mg II'}
@@ -1133,7 +1134,7 @@ def clump_finder(args,ds,cut_region):
                                     'SiIV':'Si_p3_number_density','MgII':'Mg_p1_number_density',
                                     'HI':'H_p0_density', 'CII':'C_p1_density', 'CIII':'C_p2_density',
                                     'CIV':'C_p3_density','OI':'O_p0_density','OII':'O_p1_density','OIII':'O_p2_density','OIV':'O_p3_density','OV':'O_p4_density',
-                                    'OVI':'O_p5_density','SiII':'Si_p1density','SiIII':'Si_p2_density',
+                                    'OVI':'O_p5_density','SiII':'Si_p1_density','SiIII':'Si_p2_density',
                                     'SiIV':'Si_p3_density','MgII':'Mg_p1_density'}
     
     field_dict = {v: k for k, v in ions_number_density_dict.items()}
@@ -1417,7 +1418,37 @@ if __name__ == "__main__":
 
     add_cell_id_field(ds)
     cell_id_field = ('index','cell_id_2')
+    
+    trident_dict = { 'HI':'H I', 'CII':'C II','CIII':'C III',
+                'CIV':'C IV','OI':'O I','OII':'O II','OIII':'O III','OIV':'O IV','OV':'O V','OVI':'O VI',
+                'SiII':'Si II','SiIII':'Si III','SiIV':'Si IV','MgII':'Mg II'}
 
+    ions_number_density_dict = {'Lyalpha':'LyAlpha', 'HI':'H_p0_number_density', 'CII':'C_p1_number_density', 'CIII':'C_p2_number_density',
+                                'CIV':'C_p3_number_density','OI':'O_p0_number_density','OII':'O_p1_number_density','OIII':'O_p2_number_density','OIV':'O_p3_number_density','OV':'O_p4_number_density',
+                                    'OVI':'O_p5_number_density','SiII':'Si_p1_number_density','SiIII':'Si_p2_number_density',
+                                    'SiIV':'Si_p3_number_density','MgII':'Mg_p1_number_density'}
+    
+    ions_density_dict =        {'Lyalpha':'LyAlpha',
+                                    'HI':'H_p0_density', 'CII':'C_p1_density', 'CIII':'C_p2_density',
+                                    'CIV':'C_p3_density','OI':'O_p0_density','OII':'O_p1_density','OIII':'O_p2_density','OIV':'O_p3_density','OV':'O_p4_density',
+                                    'OVI':'O_p5_density','SiII':'Si_p1_density','SiIII':'Si_p2_density',
+                                    'SiIV':'Si_p3_density','MgII':'Mg_p1_density'}
+
+    field_dict = {v: k for k, v in ions_number_density_dict.items()}
+    field_dict_density = {v: k for k, v in ions_density_dict.items()}
+
+    if args.clumping_field[1] in trident_dict:
+        import trident
+        trident.add_ion_fields(ds, ions=[trident_dict[args.clumping_field[1]]])
+        args.clumping_field =ions_number_density_dict[args.clumping_field[1]]
+    elif args.clumping_field[1] in field_dict:
+        import trident
+        print("Adding ions:",[trident_dict[field_dict[args.clumping_field[1]]]])
+        trident.add_ion_fields(ds, ions=[trident_dict[field_dict[args.clumping_field[1]]]])
+    elif args.clumping_field[1] in field_dict_density:
+        import trident
+        print("Adding ions:",[trident_dict[field_dict_density[args.clumping_field[1]]]])
+        trident.add_ion_fields(ds, ions=[trident_dict[field_dict_density[args.clumping_field[1]]]])
 
     cut_region = refine_box
     if args.cut_radius is not None:

@@ -494,7 +494,8 @@ def save_clump_hierarchy(args,root_clump):
             grp.create_dataset('child_ids',data=child_ids)
             grp.create_dataset('tree_level',data=clump.tree_level)
             if clump.shell_cell_ids is not None:
-                grp.create_dataset('shell_cell_ids',data=clump.shell_cell_ids) #list of cell ids corresponding to the shells around each clump defined by n_dilation_iterations and n_cells_per_dilation
+                for idx_shell in range(len(clump.shell_cell_ids)):
+                    grp.create_dataset('shell_cell_ids_'+str(idx_shell),data=clump.shell_cell_ids[idx_shell]) #list of cell ids corresponding to the shells around each clump defined by n_dilation_iterations and n_cells_per_dilation
             if clump.center_disk_coords is not None: grp.create_dataset('center_disk_coords',data=clump.center_disk_coords)
 
 
@@ -564,7 +565,7 @@ def load_all_roots(ds,hierarchy_file,return_as_list=False):
 
     return roots
 
-def load_all_leaves(ds,hierarchy_file,return_as_list=False):
+def load_all_leaves(ds,hierarchy_file,return_as_list=False,n_shells=None,max_tree_level=None):
     '''
     Load all leaf clumps (clumps with no children) in a hierarchy file saved with save_clump_hierarchy() as yt cut regions
     Arguments are:
@@ -591,6 +592,23 @@ def load_all_leaves(ds,hierarchy_file,return_as_list=False):
             leaves.append(load_clump(ds,clump_cell_ids=hf[str(leaf_id)]['cell_ids'][...], skip_adding_cell_ids=skip_adding_cell_ids))
         else:
             all_cell_ids.append(hf[str(leaf_id)]['cell_ids'][...])
+            if max_tree_level is not None:
+                tree_level = hf[str(leaf_id)]['tree_level'][...]
+                if tree_level>max_tree_level:
+                    ancestor_id = leaf_id
+                    for dt in range(tree_level-max_tree_level):
+                        ancestor_id = hf[str(ancestor_id)]['parent_id'][...]
+                    all_cell_ids.append(hf[str(ancestor_id)]['cell_ids'][...])
+                    if n_shells is not None:
+                        for idx_shell in range(n_shells):
+                            shell_cell_ids = hf[str(ancestor_id)]['shell_cell_ids_'+str(idx_shell)][...]
+                            all_cell_ids.append(shell_cell_ids)
+            elif n_shells is not None:
+                for idx_shell in range(n_shells):
+                    shell_cell_ids = hf[str(leaf_id)]['shell_cell_ids_'+str(idx_shell)][...]
+                    all_cell_ids.append(shell_cell_ids)
+
+
 
 
         itr+=1
@@ -971,23 +989,29 @@ def GetClumpDistanceFromDisk(ds, source_cut, clump_ids, hierarchy_file, disk_fil
     return distance_dict
 
 
-def GetClumpDistanceFromClumpIds(ds, source_cut, clump_ids, hierarchy_file, clump_id_list, secondary_hierarchy_file):
+def GetClumpDistanceFromClumpIds(ds, source_cut, clump_ids, hierarchy_file, secondary_clump_ids, secondary_hierarchy_file,leaf_id_field=('gas','leaf_id')):
     '''
     Given a list of clump_ids, will identify the distance from the disk (0 if within disk)
     Arguments are:
-        clump_ids-List of clump ids you want to filter
-        hierarchy_file-File saved by save_clump_hierarchy() to search within
+        ds: yt dataset
+        source_cut: cut region of interest
+        clump_ids:List of clump ids you are interested in getting the clump distances for
+        hierarchy_file: File saved by save_clump_hierarchy() to search within
+        secondary_clump_ids: List of clump ids you want to calculate the distance to
+        secondary_hierarchy_file: File saved by save_clump_hierarchy() that contains the secondary_clump_ids
+        leaf_id_field: The field in source_cut that corresponds to the leaf ids in the hierarchy file. Defaults to ('gas','leaf_id'), but can be changed if you added the leaf id field with a different name or if you want to use a different field as the leaf ids.
+
     '''
     distance_dict = {}
 
     cell_id_list = np.array([])
     hf2 = h5py.File(secondary_hierarchy_file,'r')
-    for clump_id in clump_id_list:
+    for clump_id in secondary_clump_ids:
         cell_id_list = np.append(cell_id_list, hf2[str(clump_id)]['cell_ids'][...])
     hf2.close()
 
     hf = h5py.File(hierarchy_file,'r')
-    leaf_ids = source_cut['gas','leaf_id']
+    leaf_ids = source_cut[leaf_id_field]
     gas_mass = source_cut['gas','mass'].in_units('Msun')
     disk_x = source_cut['gas','x_disk']
     disk_y = source_cut['gas','y_disk']

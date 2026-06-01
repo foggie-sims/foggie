@@ -611,7 +611,8 @@ shell_ids_appended_to_all = True
 for leaf_id in leaf_clump_ids:
     all_leaf_cell_ids = np.append(all_leaf_cell_ids,hf[str(leaf_id)]['cell_ids'][...])
     try:
-        all_leaf_cell_ids = np.append(all_leaf_cell_ids,hf[str(leaf_id)]['shell_cell_ids'][...])
+        try: all_leaf_cell_ids = np.append(all_leaf_cell_ids,hf[str(leaf_id)]['shell_cell_ids'][...])
+        except: all_leaf_cell_ids = np.append(all_leaf_cell_ids,hf[str(leaf_id)]['shell_cell_ids_0'][...])
     except:
         shell_ids_appended_to_all=False
 
@@ -663,7 +664,17 @@ if args.do_tracer_fluids:
     #    args.do_tracer_fluids=False
 
 
-
+if args.add_emission:
+    emission_data['halpha']=emission_data['halpha'][initial_mask]
+    emission_data['lyalpha']=emission_data['lyalpha'][initial_mask]
+    emission_data['cii']=emission_data['cii'][initial_mask]
+    emission_data['ciii']=emission_data['ciii'][initial_mask]
+    emission_data['civ']=emission_data['civ'][initial_mask]
+    emission_data['ovi']=emission_data['ovi'][initial_mask]
+    emission_data['siii']=emission_data['siii'][initial_mask]
+    emission_data['siiii']=emission_data['siiii'][initial_mask]
+    emission_data['siiv']=emission_data['siiv'][initial_mask]
+    emission_data['mgii']=emission_data['mgii'][initial_mask]
 
 pbar = TqdmProgressBar("Calculating Leaf stats...",len(leaf_clump_ids),position=0)
 itr=0
@@ -674,7 +685,8 @@ for leaf_id in leaf_clump_ids:
     leaf_cell_ids = hf[str(leaf_id)]['cell_ids'][...]
     if itr==0: print(hf[str(leaf_id)].keys())
     try:
-        shell_cell_ids = hf[str(leaf_id)]['shell_cell_ids'][...]
+        try: shell_cell_ids = hf[str(leaf_id)]['shell_cell_ids'][...]
+        except: shell_cell_ids = hf[str(leaf_id)]['shell_cell_ids_0'][...]
     except:
         shell_cell_ids = None
 
