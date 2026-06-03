@@ -169,12 +169,12 @@ command failures 200 times map
 command iterate to convergence max=2 error=0.20
 
 # Set the CMB radiation field at the target redshift
-command CMB redshift 1.00
+command CMB redshift 0.0
 
 # Set the UV background radiation field (Haardt & Madau 2012 here; adjust as needed)
-command Table HM12 redshift 1.00
+command Table HM12 redshift 0.0
 
-# Numerical stability and physical approximations (from Bertone et al.)
+# Numerical stability and physical approximations 
 command set WeakHeatCool -20
 command no H2 molecule
 command no charge transfer
