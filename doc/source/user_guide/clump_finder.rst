@@ -94,15 +94,12 @@ The clump finder can then be run on any cut region defined in YT. An example for
 
 This algorithm can also be used to identify the main galaxy in a system. The easiest way to use this functionality is by setting the
  ``--auto_disk_finder`` argument. This will run the disk finder with the default arguments used in FOGGIE XII/XIII (Trapp+25a,b).
-This can be run from the command line as:
-::
+This can be run from the command line as:: 
     python clump_finder.py --auto_disk_finder --system cameron-local --output ./output/disk_test
 
-or as an importable module as:
-::
-    ds, refine_box = foggie_load(snap_name, trackname, halo_c_v_name=halo_c_v_name,
-                                 do_filter_particles=True, disk_relative=True)
-    disk_finder(ds, refine_box, output)
+or as an importable module as:: 
+   ds, refine_box = foggie_load(snap_name, trackname, halo_c_v_name=halo_c_v_name,do_filter_particles=True, disk_relative=True)
+   disk_finder(ds, refine_box, output)
 
 
 
