@@ -3456,7 +3456,7 @@ sub lineMapMode {
     my $warningFile = $keyName . ".warnings";
     my $dataOutputFile = $keyName . ".dat";
     ## added to track Jeans length
-    my $jeanOutputFile = $keyName . "_jeans.dat"
+    my $jeanOutputFile = $keyName . "_jeans.dat"; 
 
     # suffix for temporary files
     my $tempFileSuffix = ".temp";
