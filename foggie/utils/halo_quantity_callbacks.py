@@ -280,7 +280,7 @@ def halo_hot_cgm_gas_mass(halo, correct=True, rvir_factor=1.):
 
 def halo_total_star_mass(halo, correct=True, rvir_factor = 1.): 
     if (correct): 
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_factor, halo.quantities["corrected_rvir"])
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_factor*halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
