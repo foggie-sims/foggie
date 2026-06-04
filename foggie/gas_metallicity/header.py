@@ -23,6 +23,7 @@ import shutil
 import copy
 import glob
 import random
+import h5py
 import collections, itertools
 
 from matplotlib import pyplot as plt

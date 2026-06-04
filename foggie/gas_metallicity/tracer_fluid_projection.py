@@ -58,11 +58,10 @@ if __name__ == '__main__':
         # --------------setting up the projection plot parameters----------------------
         field_arr = [('enzo', f'TracerFluid0{item:0d}') for item in range(1, 4+1)]
         unit = 'Msun/pc**3'
-        cmap_arr = ['Reds', 'Blues', 'Greys', 'RdBu']
+        cmap_arr = ['plasma', 'Blues', 'Greys', 'RdBu']
         fontsize = args.fontsize
         
         fig, axes = plt.subplots(4, 3, figsize=(8, 8))
-        fig.subplots_adjust(right=0.85, top=0.95, bottom=0.12, left=0.15)
 
         # --------------making the projection plot----------------------
         for i, field in enumerate(field_arr):
@@ -72,14 +71,16 @@ if __name__ == '__main__':
                 prj.set_log(field, True)
                 #prj.set_unit(field, unit)
                 prj.set_cmap(field, cmap_arr[i])
-                prj.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)
+                if i == 0 and j == 0:
+                    prj.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)
 
                 # ------plotting onto a matplotlib figure--------------
                 ax = axes[i][j]
                 prj.plots[field].axes = ax
                 prj._setup_plots()
+                fig.subplots_adjust(right=0.85, top=0.95, bottom=0.12, left=0.15)
 
-                annotate_axes(ax, ax.get_xlabel(), ax.get_ylabel(), args=args, 
+                annotate_axes(ax, '', '', args=args, 
                             label='', clabel=prj.plots[field].cax.get_ylabel(), p=prj.plots[field].cb.mappable,
                             hide_xaxis=False, hide_yaxis=index, hide_cbar=index < 2, cticks_integer=False)
 

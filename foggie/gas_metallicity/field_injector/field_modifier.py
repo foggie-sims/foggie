@@ -1,7 +1,21 @@
 '''
-This file contains user inputs, which are stored in a dictionary for the sake of flexibility.
-Definitions of specific parameters are right above the dictionary entries.
+This code modifies pre-existing tracer fluid fields. As such, it is intended to be
+used on Enzo datasets that already have the tracer fluid fields in them.
+
+WARNING: This program will modify a dataset in-place, so you should absolutely make a
+         backup copy of your original Enzo dataset before you start and then verify
+         that the tracer fluids were correctly edited before you delete said backup copy.
+
+User arguments are immediately below the imports; the modify_tracer_fluids() routine
+will need to be edited by the user to make it do what they want it to.
+
+Author:  Brian O'Shea (oshea@msu.edu), Feb. 2025
 '''
+
+import yt
+import numpy as np
+import sys
+import time
 
 user_inputs = {
 
@@ -14,24 +28,18 @@ user_inputs = {
 
     # This is the name of the restart parameter file in the dataset directory
     # The code knows how to figure out the names of other files from that.
-    "filename_stem": "RD0027",
+    "filename_stem":"RD0027",
 
     # Number of tracer fluid fields.  Must be at least 1 and at most 8
     # (the "at most 8" comes from the Enzo tracer fluid code).
     "NumberOfTracerFluidFields": 4,
 
-    # This is the number of baryon fields that are in the ORIGINAL dataset.
-    # If you don't know offhand, look in the dataset's .hierarchy file - each
-    # grid entry has a line that says 'NumberOfBaryonFields', and it should be
-    # the same for every grid entry.  Use that number.
-    "NumberOfOriginalBaryonFields": 14,
-
     # This controls the level of verbosity of the outputs.  If you set it to True
     # you will get a lot of output, but it will also tell you what the code is doing.
     "DEBUG_OUTPUTS": True,  # True of False
 
-    # If True, this will actually write the tracer fields.
-    # If False, it does everything BUT write the tracer fields (dataset is unmodified)
+    # if True, this will actually write the tracer fields.
+    # if False, it does everything BUT write the tracer fields (dataset is unmodified)
     # It seems useful to have this feature because adding the fields is a bit tricky with
     # the various unit conversions, so you might want to do a dry run first.
     "MODIFY_FILES": True,
@@ -56,42 +64,32 @@ user_inputs = {
     "tiny_number": 1.0e-20
 }
 
-import yt
-import h5py
-import numpy as np
-import time
-
-def modify_grid_files(user_inputs):
+def modify_tracer_fields(user_inputs):
     '''
-    This is the routine that actually modifies the grid files.  This is much more annoying than any other part of this
-    particular code, because what it does is entirely problem-dependent, so this function will need to be modified.  The
-    example given here is meant to show users how to work with grids based on cell positions.
+    This is the routine that actually modifies the tracer fluid fields in Enzo grid (.cpu) files.  This is
+    entirely problem-dependent, so this function will need to be modified. The example given here is meant to
+    show users how to work with grids based on cell positions.
 
-    The general flow is:
+    The general process is:
 
     1. Use yt to get the basic grid information (it could be done with the hierarchy file, but no need to reinvent the wheel).
     2. Loop over all grids in the dataset.  For each grid:
          * Get the grid and cell positions and calculate some useful quantities
          * Open the HDF5 file the grid lives in
-         * Open up the density dataset (which always must exist)
          * Loop over the number of tracer fields that the user has specified.  For each tracer field:
-            * Create an array that's the same size/shape/precision as the density array
-            * Set it to tiny_number first (to have starting values for the dataset)
-            * Modify it to whatever values the user wants based on each cell's position. This will automatically be
-              saved in the file upon closing.
-         * Close the HDF5 file, which will save the datasets.
+            * Read in the tracer fluid field
+            * Modify it to whatever values the user wants based on each cell's position. This will then be saved to the file.
+         * Close the HDF5 file.
 
-    This specific example creates a set of nested spheres in the tracer fluids.  The user
-    specifies the number of tracer fluids to be created in the user_inputs dictionary and
+    This specific example creates a set of nested spheres in the tracer fluids.  Note that
+    the tracer fluids already exist, but the user may not wish to modify all of them, so the
+    user specifies the number of tracer fluids to be modified in the user_inputs dictionary and
     then sets the sphere center (sph_cen_x/y/z below) as well as the radius of the smallest
     sphere (for tracer fluid 1), which is sph_dr (below).  The second tracer fluid will occupy a
     sphere that is 2x the size of sph_dr, the third will occupy a sphere of radius 3x sph_dr,
     etc.  The tracer fluid is set to the value of the Density field.
 
     VERY IMPORTANT NOTES FOR USERS:
-      * The tracer fluid fields must be added to ALL grids, not just grids where you want to trace something.  This
-        is because Enzo requires that all grids have the same set of baryon fields.  Just set values in grids that
-        you aren't interested in to some small value.
       * This routine currently does everything in Enzo's internal coordinate system (which is 0-1 in all three spatial
         dimensions for cosmology simulations).
       * Enzo uses column-major array ordering in memory (z-dimension goes first: k, j, i) due to its solvers being
@@ -101,19 +99,52 @@ def modify_grid_files(user_inputs):
         in the ordering that it expects. The code below does all of this.
     '''
 
-    print("******** Modifying the grid files. ********")
+    print("******** Modifying the tracer fluid fields. ********")
 
     # sphere center (user sets this)
-    sph_cen_x = 0.52587891
-    sph_cen_y = 0.51708984
-    sph_cen_z = 0.48486328
+    # this is for Tempest RD0027
+    # sph_cen_x = 0.49248219
+    # sph_cen_y = 0.48288059
+    # sph_cen_z = 0.50463009
+
+    # this is for Tempest RD0014
+    sph_cen_x = 0.49248219
+    sph_cen_y = 0.48288059
+    sph_cen_z = 0.50463009
 
     # sphere radius - will be multiplied by tracer field number as a test (user sets this)
-    sph_dr = 0.015625
+    #sph_dr = 2.77999994e-05 # this corresponds to 2 kpc for RD0027
+    sph_dr = 2.77999994e-05 # this corresponds to 2 kpc for RD0014
 
     # load up the Enzo dataset we're interested in (from user inputs)
     enzo_param_file = user_inputs['dataset_directory'] + "/" + user_inputs['filename_stem']
     ds = yt.load(enzo_param_file)
+
+    # do some error checking to make sure that this dataset actually has tracer fluids in it
+    if 'UseTracerFluid' not in ds.parameters:
+        print("The parameter UseTracerFluid does not exist in the parameter file", enzo_param_file)
+        print("This dataset may not have tracer fluids in it.  You need to investigate this.")
+        print("Exiting.")
+        sys.exit()
+
+    # do some error checking to make sure that this dataset actually has tracer fluids in it
+    if 'NumberOfTracerFluidFields' not in ds.parameters:
+        print("The parameter NumberOfTracerFluidFields does not exist in the parameter file", enzo_param_file)
+        print("This dataset may not have tracer fluids in it.  You need to investigate this.")
+        print("Exiting.")
+        sys.exit()
+
+    # do some error checking to make sure that the number of tracer fluids the user has listed
+    # is NO MORE THAN the number of tracer fluids in the dataset.  This assumes that the tracer
+    # fields are being algorithmically modified in some way; if the user is doing something more
+    # manual this check may not actually be needed (i.e., if the user_inputs['NumberOfTracerFluidFields']
+    # is never used, this is not relevant).
+    if user_inputs['NumberOfTracerFluidFields'] > ds.parameters['NumberOfTracerFluidFields'] :
+        print("The number of tracer fluid fields you specified in user_inputs is more than the number in the dataset.")
+        print("Number you specified:", user_inputs['NumberOfTracerFluidFields'])
+        print("Number in the dataset:", ds.parameters['NumberOfTracerFluidFields'])
+        print("Exiting.")
+        sys.exit()
 
     # keeps track of the last file that was opened so that we can hold off
     # on re-opening it if necessary.
@@ -198,9 +229,10 @@ def modify_grid_files(user_inputs):
         # The 'r+' option allows both reading and writing to the file.
         f = h5py.File(ds.index.grids[i].filename,'r+')
 
-        # read density field (which should always be there) to get dataset dimensions
-        # (the tracer fluid fields must be the same size as the other baryon fields, so we're
-        # just going to be creatively lazy here)
+        # read density field (which should always be there) because we're going to use this
+        # to set values in the tracer fluid fields.  This is NOT required if you have other
+        # plans, but density is a convenient field to read because it always exists in a
+        # simulation that has baryons.
         dens_name = grid_name + "/Density"
 
         if user_inputs['DEBUG_OUTPUTS']:
@@ -219,7 +251,7 @@ def modify_grid_files(user_inputs):
         # Remember that tracer fluids need to be added to ALL grids or else it will break Enzo!
         for tfnum in range(1,user_inputs['NumberOfTracerFluidFields']+1):
 
-            # This will create a tracer fluid dataset name that is aligned with what Enzo expects
+            # Get the name of the tracer fluid field we're going to work with
             tracer_fluid_name = 'TracerFluid' + '{:02d}'.format(tfnum)
             tf_dset_name = grid_name + '/' + tracer_fluid_name
 
@@ -227,12 +259,18 @@ def modify_grid_files(user_inputs):
                 print("tracer fluid number, field name:", tfnum, tracer_fluid_name)
                 print("tracer fluid dataset name:", tf_dset_name)
 
-            # first create a tracer field of zeros
-            this_tracer_field = np.zeros_like(dens_dset)
+            # read this tracer fluid field, which is now a numpy array.
+            this_tracer_field = f[tf_dset_name]
 
-            # then set it to tiny_number (not necessary, but it's consistent with how Enzo
-            # generates initial uniform grids)
-            this_tracer_field[...] = user_inputs['tiny_number']
+            # Enzo uses column-major ordering in the internal datasets, so we have to transpose
+            # to work with them in matplotlib.  This means we have to transpose our tracer fields
+            # back to the correct ordering when we write them to the files!
+            this_tracer_field = np.transpose(this_tracer_field)
+
+            # then set it to tiny_number (not necessary, but this sets all cells to a uniform
+            # value to start up with)
+            if user_inputs['MODIFY_FILES']:
+                this_tracer_field[...] = user_inputs['tiny_number']
 
             # ***** And now we actually modify the tracer fluid in some spatially-aware way! *****
 
@@ -243,29 +281,42 @@ def modify_grid_files(user_inputs):
             # if the tracer fluid is within myrad, give it the same value as
             # the density field (this is arbitrary but convenient, you can do whatever
             # you want and don't have to be constrained to a sphere!)
-            this_tracer_field[radius<=myrad] = dens_dset[radius<=myrad]
+            if user_inputs['MODIFY_FILES']:
+                this_tracer_field[radius<=myrad] = dens_dset[radius<=myrad]
 
             # We now take the tracer fluid field and transpose it back into the
             # column-major order that Enzo expects so that we can write it to disk.
             this_tracer_field = np.transpose(this_tracer_field)
 
-            # Then actually write the dataset, if the user wants you to!
+            # we now copy the tracer fluid values from the numpy array back into the
+            # HDF5 file's buffers (note that the h5py docs imply this isn't necessary,
+            # but the modified datasets do not seem to get set correctly otherwise).
             if user_inputs['MODIFY_FILES']:
-                if user_inputs['DEBUG_OUTPUTS']:
-                    print("writing dataset", tf_dset_name, "for field", tfnum, "in grid", grid_name)
-                f.create_dataset(tf_dset_name,data=this_tracer_field)
+                f[tf_dset_name][...] = this_tracer_field
+
+            # this command forces h5py to flush dataset buffers to disk (i.e., it ensures
+            # that the modified dataset actually gets written to disk)
+            if user_inputs['MODIFY_FILES']:
+                f.flush()
 
             # do a bit of housekeeping in case Python is sloppy with memory management
             # this is not always necessary, but when you have a lot of grids/arrays being created
             # sometimes weird and annoying things happen
             del this_tracer_field
 
-        # memory housekeeping, as described immediately above.
-        del xcenters_1D, ycenters_1D, zcenters_1D, mesh_3D, xcenters_3D, ycenters_3D, zcenters_3D, radius, dens_dset
-
         # close HDF5 file, ensuring everything gets written to disk.
         f.close()
 
         last_file_opened = ds.index.grids[i].filename
 
+        # memory housekeeping, as described immediately above.
+        del xcenters_1D, ycenters_1D, zcenters_1D, mesh_3D, xcenters_3D, ycenters_3D, zcenters_3D, radius, dens_dset
+
     return
+
+def main():
+    print("Modifying Enzo data output -- .cpu files only!")
+    modify_tracer_fields(user_inputs)
+
+if __name__=="__main__":
+    main()
