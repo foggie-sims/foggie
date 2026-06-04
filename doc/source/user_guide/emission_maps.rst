@@ -49,11 +49,11 @@ Running the emission maps pipeline
 ----------------------------------
 **Running from command line:**
 
-To run the emission maps pipeline directly from command line, run ``emission_maps_dynamic.py`` with by your needed arguments. For example the below command
-will run the code for halo 4123 and make emission maps for CIV and OVI ions on vida_local system.
+To run the emission maps pipeline directly from command line, run ``emission_mass_maps_dynamic.py`` with by your needed arguments. For example the below command
+will run the code for halo 4123 at output RD0042 and make emission maps for CIV and OVI ions on vida_local system.
 ::
 
-    python emission_maps_dynamic.py --halo 4123 --system vida_local --plot emission_map 
+    python emission_mass_maps_dynamic.py --halo 4123 --output 42 --system vida_local --plot emission_map 
     --ions 'CIV,OVI'
 
 For a full list of arguments, see below.
@@ -88,7 +88,7 @@ Emission maps setting arguments:
 
 Cut regions arguments:
 
-* ``--filter_type``: What yt cut region you want the emission maps to be made for? Default: None. Options: inflow_outflow, disk_cgm, nodisk_nosatellite, no_clumps, clumps_only
+* ``--filter_type``: What yt cut region you want the emission maps to be made for? Default: None. Options: inflow_outflow, disk_cgm, nodisk_nosatellite, no_clumps, clumps_only.
 * ``--shell_count``: If you are using ``--filter_type disk_cgm`` then you can choose if you want shells around the disk to be removed 
                      as part of the disk removel and getting CGM.How many shells around the disk when using the disk_cgm filter? Default: 0.
 * ``--max_number_of_satellites``: If you are using ``--filter_type nodisk_nosatellite`` then you can choose how many satellite you want to be removed as part of the satellite removel and getting CGM. Default: 0.
@@ -124,10 +124,12 @@ Here how the edge on map looks like:
 
 
 An example for running the emission maps pipeline for halo 5036, output RD0042, and make emission maps without disk, only CGM, for CIV ion on vida_local system.
-Note: To make emission maps without disk you need to run clump_finder.py and make sure that the directory in the emission_mass_map.py for disk_file directory points to the disk file.
+
+**Note:** To make emission maps without disk you need to run clump_finder.py and make sure that the directory in the emission_mass_map.py for disk_file directory points to the currect disk file directory.
 Example command for running clump_finder.py used to make below map is:
 
 ::
+
     python clump_finder.py --refinement_level 11 --identify_disk --data_dir /Users/vidasaeedzadeh/Projects/foggie_data/ 
     --code_dir /Users/vidasaeedzadeh/Projects/repositories/foggie/foggie/ --output /Users/vidasaeedzadeh/Projects/foggie_outputs/plots_halo_005036/nref11c_nref9f/FOGGIE/RD0042/Disk/H1  
     --run nref11c_nref9f --snapshot RD0042 --halo 005036 --clumping_field H_p0_number_density --identify_satellites --max_number_of_satellites 10
