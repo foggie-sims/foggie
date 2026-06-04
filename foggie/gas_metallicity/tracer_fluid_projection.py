@@ -7,6 +7,8 @@
     Author :     Ayan Acharyya
     Started :    04-06-2026
     Examples :   run tracer_fluid_projection.py --system ayan_local --halo 8508 --output RD0027 --upto_kpc 20
+                 run tracer_fluid_projection.py --system ayan_pleiades --foggie_dir /nobackupp19/aachary2/tracer_fluid_runs/ --halo 8508 --output RD0014 --upto_kpc 20
+    
 """
 from header import *
 from util import *
@@ -58,10 +60,10 @@ if __name__ == '__main__':
         # --------------setting up the projection plot parameters----------------------
         field_arr = [('enzo', f'TracerFluid0{item:0d}') for item in range(1, 4+1)]
         unit = 'Msun/pc**3'
-        cmap_arr = ['plasma', 'Blues', 'Greys', 'RdBu']
+        cmap_arr = ['Reds', 'Blues', 'Greys', 'RdBu']
         fontsize = args.fontsize
         
-        fig, axes = plt.subplots(4, 3, figsize=(8, 8))
+        fig, axes = plt.subplots(4, 3, figsize=(8, 7))
 
         # --------------making the projection plot----------------------
         for i, field in enumerate(field_arr):

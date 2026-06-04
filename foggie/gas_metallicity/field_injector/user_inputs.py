@@ -10,11 +10,13 @@ user_inputs = {
     # add any file names here.
     # NOTE: Python seems to have problems with directories that have spaces in their names, even if
     #       you put backslashes in them.
-    "dataset_directory":"/Users/acharyya/models/simulation_output/foggie/halo_008508/nref11c_nref9f/RD0027",
+    #"dataset_directory":"/Users/acharyya/models/simulation_output/foggie/halo_008508/nref11c_nref9f/RD0027",
+    "dataset_directory":"/nobackupp19/aachary2/tracer_fluid_runs/RD0014",
 
     # This is the name of the restart parameter file in the dataset directory
     # The code knows how to figure out the names of other files from that.
-    "filename_stem": "RD0027",
+    #"filename_stem":"RD0027",
+    "filename_stem":"RD0014",
 
     # Number of tracer fluid fields.  Must be at least 1 and at most 8
     # (the "at most 8" comes from the Enzo tracer fluid code).
@@ -110,13 +112,13 @@ def modify_grid_files(user_inputs):
     # sph_cen_z = 0.50463009
 
     # this is for Tempest RD0014
-    sph_cen_x = 0.49248219
-    sph_cen_y = 0.48288059
-    sph_cen_z = 0.50463009
+    sph_cen_x = 0.49541579
+    sph_cen_y = 0.49414359
+    sph_cen_z = 0.49955474
 
     # sphere radius - will be multiplied by tracer field number as a test (user sets this)
     #sph_dr = 2.77999994e-05 # this corresponds to 2 kpc for RD0027
-    sph_dr = 2.77999994e-05 # this corresponds to 2 kpc for RD0014
+    sph_dr = 6.95e-05 # this corresponds to 2 kpc for RD0014
 
     # load up the Enzo dataset we're interested in (from user inputs)
     enzo_param_file = user_inputs['dataset_directory'] + "/" + user_inputs['filename_stem']
@@ -245,12 +247,13 @@ def modify_grid_files(user_inputs):
 
             # radius now depends on the tracer fluid number (variable tfnum), so the
             # spatial extent of each tracer fluid field is different
-            myrad = sph_dr*tfnum
+            inner_rad = 0 if tfnum == 1 else sph_dr * (tfnum - 1)
+            outer_rad = sph_dr*tfnum
 
-            # if the tracer fluid is within myrad, give it the same value as
+            # if the tracer fluid is within inner_rad and outer_rad, give it the same value as
             # the density field (this is arbitrary but convenient, you can do whatever
             # you want and don't have to be constrained to a sphere!)
-            this_tracer_field[radius<=myrad] = dens_dset[radius<=myrad]
+            this_tracer_field[(radius > inner_rad) & (radius <= outer_rad)] = dens_dset[(radius > inner_rad) & (radius <= outer_rad)]
 
             # We now take the tracer fluid field and transpose it back into the
             # column-major order that Enzo expects so that we can write it to disk.
