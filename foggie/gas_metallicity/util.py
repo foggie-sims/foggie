@@ -1236,10 +1236,13 @@ def setup_plots_for_talks():
     '''
     Function to setup plto themes etc for talks
     '''
+    print(f'Setting up plots for talks..')
+    
+    plt.style.use('cyberpunk')
     background_for_talks = 'cyberpunk'  # 'dark_background' #'Solarize_Light2' #
     plt.style.use(background_for_talks)
     new_foreground_color = '#FFF1D0'
-    plt.rcParams['grid.color'] = new_foreground_color
+    #plt.rcParams['grid.color'] = new_foreground_color
     plt.rcParams['text.color'] = new_foreground_color
     plt.rcParams['xtick.color'] = new_foreground_color
     plt.rcParams['ytick.color'] = new_foreground_color
@@ -1250,6 +1253,7 @@ def setup_plots_for_talks():
     plt.rcParams['figure.edgecolor'] = new_foreground_color
     plt.rcParams['savefig.edgecolor'] = new_foreground_color
     plt.rcParams['axes.linewidth'] = 2
+    plt.rcParams['savefig.dpi'] = 900
 
     new_background_color = '#120000'
     plt.rcParams['axes.facecolor'] = new_background_color
@@ -1258,8 +1262,95 @@ def setup_plots_for_talks():
     plt.rcParams['grid.alpha'] = 0.5
     plt.rcParams['grid.linewidth'] = 0.3
 
+    plt.rcParams['ytick.direction'] = 'in'
+    plt.rcParams['ytick.right'] = True
+    plt.rcParams['xtick.direction'] = 'in'
+    plt.rcParams['xtick.top'] = True
+
+# ----------------------------------------------------------------
+def setup_plot_style():
+    '''
+    Function to set default style for all plots made in this project
+    '''
+    plt.rcParams['pdf.fonttype']	= 42
+    plt.rcParams['ps.fonttype'] 	= 42
+    plt.rcParams['savefig.dpi'] 	= 600
+    plt.rcParams['font.family'] 	= 'sans-serif'
+    plt.rcParams['font.size']		= 8
+    plt.rcParams['ytick.direction'] = 'in'
+    plt.rcParams['ytick.right'] = True
+    plt.rcParams['xtick.direction'] = 'in'
+    plt.rcParams['xtick.top'] = True
+
+# --------------------------------------------------------------------------------------------------------------------
+def annotate_axes(ax, xlabel, ylabel, args=None, fontsize=10, fontfactor=1, label='', clabel='', hide_xaxis=False, hide_yaxis=False, hide_cbar=True, p=None, hide_cbar_ticks=False, cticks_integer=True, label_color='k', bbox=True, set_ticks=True):
+    '''
+    Annotates the axis of a given 2D image
+    Returns the axis handle
+    '''
+    if args is not None: fontsize, fontfactor = args.fontsize, args.fontfactor
+    ax.text(0.05, 0.9, label, c=label_color, fontsize=fontsize/fontfactor, ha='left', va='top', bbox=dict(facecolor='white', edgecolor='black', alpha=0.9) if bbox else None, transform=ax.transAxes)
+
+    if set_ticks:
+        ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=3, prune='both'))
+        ax.xaxis.set_minor_locator(ticker.AutoMinorLocator(4))
+         
+    if hide_xaxis:
+        ax.tick_params(axis='x', which='major', labelsize=fontsize, labelbottom=False)
+    else:
+        ax.set_xlabel(xlabel, fontsize=fontsize)
+        ax.tick_params(axis='x', which='major', labelsize=fontsize, labelbottom=True)
+
+    if set_ticks:
+        ax.yaxis.set_major_locator(ticker.MaxNLocator(nbins=3, prune='both'))
+        ax.yaxis.set_minor_locator(ticker.AutoMinorLocator(4))
+         
+    if hide_yaxis:
+        ax.tick_params(axis='y', which='major', labelsize=fontsize, labelleft=False)
+    else:
+        ax.set_ylabel(ylabel, fontsize=fontsize)
+        ax.tick_params(axis='y', which='major', labelsize=fontsize, labelleft=True)
+
+    if not hide_cbar and p is not None:
+        cax = inset_axes(ax, width="5%", height="100%", loc='right', bbox_to_anchor=(0.05, 0, 1, 1), bbox_transform=ax.transAxes, borderpad=0)
+        cbar = plt.colorbar(p, cax=cax, orientation='vertical')
+        cbar.set_label(clabel, fontsize=fontsize)
+
+        cbar.locator = ticker.MaxNLocator(integer=cticks_integer, nbins=4)#, prune='both')
+        cbar.update_ticks()
+        if hide_cbar_ticks:
+            cbar.ax.set_yticklabels([])
+        else:
+            cbar.ax.tick_params(labelsize=fontsize)
+
+    return ax
+
+# --------------------------------------------------------------------------------------------------------------------
+def save_fig(fig, fig_dir, figname, args=None, fortalk=False, silent=False, dpi=200):
+    '''
+    Saves a given figure handle as a given output filename
+    '''
+    if args is not None: fortalk = args.fortalk
+    if fortalk:
+        #mplcyberpunk.add_glow_effects()
+        #try: mplcyberpunk.make_lines_glow()
+        #except: pass
+        try: mplcyberpunk.make_scatter_glow()
+        except: pass
+
+    fig_dir.mkdir(exist_ok=True, parents=True)
+    figname = fig_dir / figname
+    if fortalk:
+         figname = Path(str(figname).replace('.pdf', '.png'))
+    fig.savefig(figname, transparent=fortalk, dpi=dpi)
+    if not silent: print(f'\nSaved figure as {figname}')
+    plt.show(block=False)
+
+    return
+
+
 # --------------------------------------------------------------------------------------------------------------
-def parse_args(haloname, RDname, fast=False):
+def parse_args(fast=False):
     '''
     Function to parse keyword arguments
     '''
@@ -1269,9 +1360,9 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--system', metavar='system', type=str, action='store', default='ayan_local', help='Which system are you on? Default is Jase')
     parser.add_argument('--do', metavar='do', type=str, action='store', default='gas', help='Which particles do you want to plot? Default is gas')
     parser.add_argument('--run', metavar='run', type=str, action='store', default='nref11c_nref9f', help='which run? default is natural')
-    parser.add_argument('--halo', metavar='halo', type=str, action='store', default=haloname, help='which halo? default is 8508 (Tempest)')
+    parser.add_argument('--halo', metavar='halo', type=str, action='store', default='8508', help='which halo? default is 8508 (Tempest)')
     parser.add_argument('--projection', metavar='projection', type=str, action='store', default='x', help='Which projection do you want to plot, i.e., which axis is your line of sight? Default is x')
-    parser.add_argument('--output', metavar='output', type=str, action='store', default=RDname, help='which output? default is RD0020')
+    parser.add_argument('--output', metavar='output', type=str, action='store', default='RD0042', help='which output? default is RD0020')
     parser.add_argument('--foggie_dir', metavar='foggie_dir', type=str, action='store', default=None, help='Specify which directory the dataset lies in, otherwise, by default it will use the args.system variable to determine the FOGGIE data location')
     parser.add_argument('--pwd', dest='pwd', action='store_true', default=False, help='Just use the current working directory?, default is no')
     parser.add_argument('--forcepath', dest='forcepath', action='store_true', default=False, help='Use given path variables regardless of "feedback" being present in them?, default is no')
@@ -1319,7 +1410,8 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--nooutliers', dest='nooutliers', action='store_true', default=False, help='discard outlier HII regions (according to D16 diagnostic)?, default is no')
     parser.add_argument('--xratio', metavar='xratio', type=str, action='store', default=None, help='ratio of lines to plot on X-axis; default is None')
     parser.add_argument('--yratio', metavar='yratio', type=str, action='store', default=None, help='ratio of lines to plot on Y-axis; default is None')
-    parser.add_argument('--fontsize', metavar='fontsize', type=int, action='store', default=25, help='fontsize of plot labels, etc.; default is 15')
+    parser.add_argument('--fontsize', metavar='fontsize', type=float, action='store', default=15, help='fontsize of plot labels, etc.; default is 15')
+    parser.add_argument('--fontfactor', metavar='fontfactor', type=float, action='store', default=1., help='fontsize * fontfactor of plot labels, etc.; default is 1')
     parser.add_argument('--plot_metgrad', dest='plot_metgrad', action='store_true', default=False, help='make metallicity gradient plot?, default is no')
     parser.add_argument('--plot_phase_space', dest='plot_phase_space', action='store_true', default=False, help='make P-r phase space plot?, default is no')
     parser.add_argument('--plot_obsv_phase_space', dest='plot_obsv_phase_space', action='store_true', default=False, help='overlay observed P-r phase space on plot?, default is no')
@@ -1575,13 +1667,13 @@ def parse_args(haloname, RDname, fast=False):
     args.Om_arr = [float(item) for item in args.Om_arr.split(',')]
     args.Om = args.Om_arr[0]
     args.halo_arr = [item for item in args.halo.split(',')]
-    args.halo = args.halo_arr[0] if len(args.halo_arr) == 1 else haloname
+    args.halo = args.halo_arr[0]
     if args.snapnumber is not None:
         if args.use_onlyDD: args.output = 'DD%04d' % (args.snapnumber)
         else: args.output = 'RD%04d' % (args.snapnumber)
     args.output_arr = get_output_range(args.output) if '-' in args.output else [item for item in args.output.split(',')]
     args.res_arr = [float(item) for item in args.res.split(',')]
-    args.output = args.output_arr[0] if len(args.output_arr) == 1 else RDname
+    args.output = args.output_arr[0]
     args.move_to = np.array([float(item) for item in args.move_to.split(',')])  # kpc
     args.center_wrt_halo = np.array([float(item) for item in args.center_wrt_halo.split(',')])  # kpc
     args.obs_wave_range = np.array([float(item) for item in args.obs_wave_range.split(',')])
