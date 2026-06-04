@@ -68,7 +68,8 @@ if __name__ == '__main__':
         # --------------making the projection plot----------------------
         for i, field in enumerate(field_arr):
             for j, proj in enumerate(['x', 'y', 'z']):
-                prj = yt.ProjectionPlot(ds, proj, field, center=center, data_source=box, width=2 * args.galrad * kpc, weight_field=None, fontsize=fontsize)
+                #prj = yt.ProjectionPlot(ds, proj, field, center=center, data_source=box, width=2 * args.galrad * kpc, fontsize=fontsize)
+                prj = yt.SlicePlot(ds, proj, field, center=center, data_source=box, width=2 * args.galrad * kpc, fontsize=fontsize)
 
                 prj.set_log(field, True)
                 #prj.set_unit(field, unit)

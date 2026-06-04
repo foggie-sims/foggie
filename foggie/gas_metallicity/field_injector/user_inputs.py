@@ -11,7 +11,7 @@ user_inputs = {
     # NOTE: Python seems to have problems with directories that have spaces in their names, even if
     #       you put backslashes in them.
     #"dataset_directory":"/Users/acharyya/models/simulation_output/foggie/halo_008508/nref11c_nref9f/RD0027",
-    "dataset_directory":"/nobackupp19/aachary2/tracer_fluid_runs/RD0014",
+    "dataset_directory":"/nobackupp19/aachary2/tracer_fluid_runs/halo_008508/nref11c_nref9f/RD0014",
 
     # This is the name of the restart parameter file in the dataset directory
     # The code knows how to figure out the names of other files from that.
