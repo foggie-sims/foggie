@@ -3,7 +3,7 @@ from multiprocessing import Pool
 
 # List of halos and resolutions
 halos = ['4123'] #['8508','5036','5016','4123','2392']
-resolutions = [2.7,4.5,5.7,6]#[round(r, 2) for r in [i * 0.3 for i in range(1, int(10 / 0.3) + 1)]]
+resolutions = [2.7,4.5,5.7,6]
 
 # Function to run a single job
 def run_job(args):
