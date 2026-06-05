@@ -38,6 +38,7 @@ as listed here:
 
 ::
 
+    // Basics of the problem and grid dimensions. Do not change!
     ProblemType                = 30      // cosmology simulation
     TopGridRank                = 3
     TopGridDimensions          = 256 256 256
@@ -49,8 +50,7 @@ as listed here:
     ComputePotential           = 1 
     WritePotential             = 1 
 
-    CosmologySimulationOmegaBaryonNow        = 0.0461
-    CosmologySimulationOmegaCDMNow           = 0.2389
+    // Initial conditions information
     CosmologySimulationDensityName           = GridDensity
     CosmologySimulationVelocity1Name         = GridVelocities_x
     CosmologySimulationVelocity2Name         = GridVelocities_y
@@ -63,6 +63,9 @@ as listed here:
     CosmologySimulationParticleDisplacement3Name = ParticleDisplacements_z
     CosmologySimulationParticleTypeName          = RefinementMask
     CosmologySimulationCalculatePositions    = 1
+
+    // These are dependent on which particular initial conditions you are using. Pull them from the sffb_gas+dm-L4.enzo parameter
+    // file that is in the same directory as the initial conditions files.
     CosmologySimulationNumberOfInitialGrids  = 5
     CosmologySimulationGridDimension[1]      =               30               42               36
     CosmologySimulationGridLeftEdge[1]       =          0.46875       0.45703125       0.46484375
@@ -81,8 +84,11 @@ as listed here:
     CosmologySimulationGridRightEdge[4]      =      0.513671875     0.5239257812     0.5185546875
     CosmologySimulationGridLevel[4]          = 4
 
+    // Other important parameters for cosmology. Do not change unless your ICs have different conditions!
     CosmologySimulationUseMetallicityField = 1
-
+    GravitationalConstant      = 1.0       // this must be true for cosmology
+    CosmologySimulationOmegaBaryonNow        = 0.0461
+    CosmologySimulationOmegaCDMNow           = 0.2389
     ComovingCoordinates        = 1       // Expansion ON
     CosmologyOmegaMatterNow    = 0.285
     CosmologyOmegaDarkMatterNow = 0.2389
@@ -90,17 +96,20 @@ as listed here:
     CosmologyHubbleConstantNow = 0.695
     CosmologyComovingBoxSize   = 100.0    // in Mpc/h = 100 Mpc comoving
     CosmologyMaxExpansionRate  = 0.01   // maximum allowed delta(a)/a
+
+    // Start and end point
     CosmologyInitialRedshift   = 99.0
     CosmologyFinalRedshift 	   = 15.0    // stop at z = 15 to turn on self-shielding
-    GravitationalConstant      = 1.0       // this must be true for cosmology
 
+    // Data output, do not change
     DataDumpDir      = DD
     DataDumpName     = DD
     RedshiftDumpName = RD
     RedshiftDumpDir  = RD
 
-    dtDataDump 	 = 5.0
+    dtDataDump 	 = 5.0  // Fine for the first very high-z outputs, will change later
 
+    // Output options, do not change
     OutputCoolingTime                        = 1
     OutputTemperature                        = 1
 
@@ -151,6 +160,7 @@ as listed here:
     StopCycle        = 100000
     StopCPUTime      = 3600000
 
+    // Hydro solver options, should be fine to leave as is
     HydroMethod                     = 0       // PPM
     RiemannSolver                   = 4       // HLLC
     Gamma                           = 1.6667
@@ -164,6 +174,7 @@ as listed here:
     CourantSafetyNumber             = 0.4
     ParticleCourantSafetyNumber     = 0.8
 
+    // Refinement options, feel free to change if needed
     StaticHierarchy                = 0    // dynamic hierarchy
     MaximumRefinementLevel         = 11   // 11 = 190/h comoving pc
     MaximumGravityRefinementLevel  = 11
@@ -190,30 +201,21 @@ as listed here:
     RebuildHierarchyCycleSkip[9] = 2
     RebuildHierarchyCycleSkip[10] = 2
 
+    // Cooling options
     RadiativeCooling                         = 1
     use_grackle                              = 1
     MultiSpecies                             = 2
     MetalCooling                             = 1
     UVbackground                             = 1
-    grackle_data_file                        = /nobackup/clochhaa/grackle/grackle_data_files/input/CloudyData_UVB=HM2012.h5 // change to your own grackle install path
+    grackle_data_file                        = /path/to/grackle/grackle_data_files/input/CloudyData_UVB=HM2012.h5 // change to your own grackle install path
     CMBTemperatureFloor                      = 1
 
-    StarParticleCreation                     = 2048
-    StarParticleFeedback                     = 64
-    WriteFeedbackLogFiles                    = 1
-    MomentumCancellationToThermal            = 1
-    MomentumMultiplier                       = 1.0
-    StarMakerOverDensityThreshold            = 1.0e+4
-    StarMakerMinimumMass                     = 1000.
-    StarMakerMinimumDynamicalTime            = 1.0e+6
-    StarMakerMassEfficiency                  = 0.2
-    StarMassEjectionFraction                 = 0.25
-    StarMetalYield                           = 0.025
-
-    H2StarMakerH2FractionMethod        = 1
-    H2StarMakerEfficiency              = 0.02
+    // Star maker options
+    StarParticleCreation                     = 2048 // H2-regulated SF
+    StarMakerMinimumMass                     = 10.    // This must be small to get star formation going at zero metallicity. Can be changed after first stars form
+    H2StarMakerH2FractionMethod        = 1      // This uses numerical method through Grackle, if = 0 then it uses analytic method
+    H2StarMakerEfficiency              = 0.02   // Default, but feel free to change if needed
     H2StarMakerNumberDensityThreshold  = 0
-    H2StarMakerMinimumMass             = 10
     H2StarMakerMinimumH2FractionForStarFormation = 0
     H2StarMakerStochastic              = 0
     H2StarMakerUseSobolevColumn        = 1
@@ -222,9 +224,35 @@ as listed here:
     H2StarMakerH2DissociationFlux_MW   = 1
     H2StarMakerH2FloorInColdGas        = 0
     H2StarMakerColdGasTemperature      = 10000
-    H2StarMakerUseLocalDensityMax      = 1
-    H2StarMakerWriteStarLogFiles       = 1
+    H2StarMakerUseLocalDensityMax      = 1      // This is absolutely necessary!
+    H2StarMakerWriteStarLogFiles       = 1      // This makes log files, can turn off if unneeded
+    StarFormationOncePerRootGridTimeStep  = 1   // This is absolutely necessary!
 
+
+    // Star feedback options
+    StarParticleFeedback                     = 64   // mechanical feedback
+    StarFeedbackMomentumMultiplier        = 1       // Increase to > 1 to increase strength of feedback
+    StarFeedbackUseTabularYields          = 1       // Turns on tabular feedback, required for stochastic SNe
+    StarFeedbackTabularFilename           = sygma_feedback_table_1000.h5    // Table for tabular feedback
+    StarFeedbackTabularSNIIEnergy         = 1e+51       // Any values other than 1e+51 are currently unsupported
+    StarFeedbackTabularSNIaEnergy         = 1e+51       // Any values other than 1e+51 are currently unsupported
+    StarFeedbackTrackMetalSources         = 1           // Turns on tracking metals from Type II and Type Ia independently
+    StarFeedbackStochasticSNe             = 1           // Turns on stochastic supernovae, requires tabular yields to be turned on
+    StarFeedbackSNePerTimestepLimit       = 1e-06       // If not using stochastic supernovae, restrict the minimum number of SNe per particle per timestep
+    StarFeedbackPreSNFeedback             = 1           // Turns on pre-SN mass and metal injection
+    StarFeedbackPreSNMomentum             = 1           // Turns on pre-SN momentum injection
+    StarFeedbackPreSNFilename             = preSN_feedback_SB99.hdf5        // Table used for pre-SN feedback, required for either mass and metal inj or momentum inj
+    StarFeedbackCapVelocityKick           = 1           // Caps the velocity increment from injected momentum at 1000 km/s, highly recommended to be turned on
+    WriteFeedbackLogFiles                 = 0           // Turn on to write log files. These files get very big very fast so only turn on for short periods if necessary
+    StarFeedbackDistRadius                = 1           // Radius (in number of cells) of injection zone
+    StarFeedbackDistCellStep              = 3           // Shape of injection zone, see documentation
+    
+    ApplyBoundsToBaryonFields             = 1           // Turns on limits so feedback does not get out of hand, highly recommended
+    RestrictDensity                       = 0           // No limit on density required
+    RestrictVelocity                      = 1           // Limits velocity magnitudes to less than 3000 km/s everywhere on grid
+    RestrictTemperature                   = 1           // Limits temperatures to less than 1e9 K everywhere on grid
+
+    // Load balancing options, should be fine to leave as is
     LoadBalancing               = 1
     ResetLoadBalancing     = 0
     SubgridSizeAutoAdjust       = 1
@@ -239,7 +267,8 @@ as listed here:
     ParallelParticleIO   = 1
 
 Submit this to run on the devel queue because it will only take 10-20 minutes
-to reach z = 15.
+to reach z = 15. See the page `Restarting an Existing FOGGIE Run <restart.html>`_
+for details on running enzo on Pleiades.
 
 Turning on Self-Shielding
 -------------------------
@@ -250,10 +279,13 @@ to change in the RD0006/RD0006 parameter file:
 
 ::
 
+    MaximumTopGridTimeStep = 0.046473   // Exactly 1 Myr in code units, necessary for star formation
+    dtDataDump          = 0.232365      // Exactly 5 Myr in code units, feel free to change as needed
+
     CosmologyFinalRedshift = 6          // stop at z = 6 to turn on track box
     self_shielding_method       = 3
     H2_self_shielding           = 1
-    grackle_data_file           = /nobackup/clochhaa/grackle/grackle_data_files/input/CloudyData_UVB=HM2012_shielded.h5  // use the path to your own grackle install. Note this time it is the shielded file
+    grackle_data_file           = /path/to/grackle/grackle_data_files/input/CloudyData_UVB=HM2012_shielded.h5  // use the path to your own grackle install. Note this time it is the shielded file
 
 With those changes made, you can now submit it to run again, and this time
 it will stop at z = 6. This will probably take an hour or two.
@@ -276,9 +308,8 @@ file, change these parameters:
     CoolingRefineRegionLeftEdge   = 0.495391 0.494903 0.499969 // take these values from the halo track
     CoolingRefineRegionRightEdge  = 0.497391 0.496903 0.501969 // take these values from the halo track
     CoolingRefineRegionTimeType   = 1
-    MustRefineRegionFile = halo_track
-    CoolingRefineRegionFile = halo_track
+    MustRefineRegionFile = halo_track       // Make sure this file is in the local run directory
+    CoolingRefineRegionFile = halo_track    // Make sure this file is in the local run directory
     CosmologyFinalRedshift      = 0
-    dtDataDump                = 0.25  // finer time spacing
 
 Now this can be submitted to run until it reaches z = 0!
