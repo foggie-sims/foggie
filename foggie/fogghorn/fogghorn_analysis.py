@@ -86,6 +86,9 @@ def parse_args():
     parser.add_argument('--projection', metavar='projection', type=str, action='store', default='x', help='Which projection do you want to plot, i.e., which axis is your line of sight? Default is x; but user can input multiple comma-separated values. Options are: x, y, z, x_disk, y_disk, z_disk')
     parser.add_argument('--use_cen_smoothed', dest='use_cen_smoothed', action='store_true', default=False, help='use Cassis new smoothed center file?, default is no')
 
+    # These options are for halo finding
+    parser.add_argument('--min_halo_mass', metavar='min_halo_mass', type=float, action='store', default=1e10, help='If doing halo finding, what do you want for the minimum mass of halos?')
+
     # These are for metallicity plots that are not ready yet
     parser.add_argument('--docomoving', dest='docomoving', action='store_true', default=False, help='Consider the input upto_kpc as a comoving quantity? Default is No.')
     parser.add_argument('--weight', metavar='weight', type=str, action='store', default=None, help='Name of quantity to weight the metallicity by. Default is None i.e., no weighting.')
@@ -286,6 +289,7 @@ def generate_plot_filename(quantity, args, snap):
                             'halos_gasMHM': snap + '_halos_gas-mass_halo-mass.png', \
                             'halos_ismMHM': snap + '_halos_ism-mass_halo-mass.png', \
                             'halos_cgmMHM': snap + '_halos_cgm-mass_halo-mass.png', \
+                            'halos_density_projection': snap + '_halos_density_projection.png', \
                             'baryon_budget': snap + '_baryon_budget.png', \
                             'plot_SFMS': 'SFMS.png', \
                             'plot_SMHM': 'SMHM.png', \
@@ -391,7 +395,7 @@ if __name__ == "__main__":
     # yt's HOP halo finder to be run (each will check if the halo catalog already exists).
     # It is not recommended to run these on snapshots lower than z = 2 because the halo finder
     # doesn't work well at low redshifts:
-    args.highz_halos_plots = ['halos_SMHM','halos_SFMS','halos_MZR','halos_gasMHM', 'halos_ismMHM', 'halos_cgmMHM', 'baryon_budget', 'halos_h2_frac']
+    args.highz_halos_plots = ['halos_SMHM','halos_SFMS','halos_MZR','halos_gasMHM', 'halos_ismMHM', 'halos_cgmMHM', 'baryon_budget', 'halos_h2_frac', 'halos_density_projection']
 
     # These plots add a line to the central_galaxy_info.txt table for each snapshot, then make
     # ONE plot at the end containing data from every snapshot:
