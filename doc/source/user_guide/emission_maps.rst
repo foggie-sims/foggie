@@ -76,6 +76,7 @@ Emission maps setting arguments:
               emission_map: Plots an image of projected emission lines (edge-on and face-on).
               emission_map_vbins: Plots multiple images of projected emission lines in line-of-sight velocity bins.
               emission_FRB: Makes FRBs of projected emission lines (edge-on and face-on). Default is emission_FRB.
+              emission_paper: Runs relevant functions for the FOGGIE XVI paper analysis.
 * ``--unit_system``: What unit system to use? Default: photons. Options:
                      default: photons (photons * s**-1 * cm**-3 * sr**-1).
                      erg: ergs (ergs * s**-1 * cm**-3 * arcsec**-2).

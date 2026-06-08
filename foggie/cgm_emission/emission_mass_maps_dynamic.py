@@ -1,5 +1,5 @@
 '''
-Filename: emission_maps_dynamic.py
+Filename: emission_mass_maps_dynamic.py
 Author: Vida
 Date created: 01-15-25
 Date last modified: 06-04-26
@@ -131,7 +131,7 @@ def parse_args():
                         'emission_map       -  Plots an image of projected emission lines edge-on and face-on\n' + \
                         'emission_map_vbins -  Plots many images of projected emission lines edge-on and face-on in line-of-sight velocity bins\n' + \
                         'emission_FRB       -  Makes FRBs of projected emission lines edge-on and face-on\n' + \
-                        'emission_paper   -  Runs relevants functions for the FOGGIE XVI paper analysis')
+                        'emission_paper   -  Runs relevant functions for the FOGGIE XVI paper analysis')
     parser.set_defaults(plot='emission_FRB')
 
     parser.add_argument('--unit_system', metavar='unit_system', type=str, action='store', \
@@ -1274,7 +1274,7 @@ def make_emissivity_weighted_velocity_FRB(ds, refine_box, snap, ions, unit_syste
     save_path = prefix + f'FRBs/' 
     os.makedirs(save_path, exist_ok=True)
     
-    f, grp, data_sources,width_value, res, min_res, bin_size_cm, unit_label = process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count,max_number_of_satellites, shell_path, unit_system, prefix, save_suffix, ions)
+    f, grp, data_sources, width_value, res, round_bin_size_kpc, bin_size_cm, unit_label, subhalo_meta  = process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count,max_number_of_satellites, shell_path, unit_system, prefix, save_suffix, ions, catalog_dir=catalog_dir, snapname=snap, clump_file=clump_file)
     
     for region, data_source in data_sources.items():
         for ion in ions:
