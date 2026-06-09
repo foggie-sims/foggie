@@ -298,7 +298,7 @@ def Emission_CII_1335(field, data,scale_factor, unit_system='photons'):
     emission_line = scale_by_metallicity(emission_line, 0.0, np.log10(np.array(data['metallicity'])))
     
     if unit_system == 'photons':
-        emission_line = emission_line / (4. * np.pi * 2.03e-11)
+        emission_line = emission_line / (4. * np.pi * 1.489e-11)
         return emission_line * ytEmU
     elif unit_system == 'erg':
         emission_line = emission_line / (4. * np.pi)
@@ -319,7 +319,7 @@ def Emission_CIII_1910(field, data,scale_factor, unit_system='photons'):
     emission_line = scale_by_metallicity(emission_line, 0.0, np.log10(np.array(data['metallicity'])))
     
     if unit_system == 'photons':
-        emission_line = emission_line / (4. * np.pi * 2.03e-11)
+        emission_line = emission_line / (4. * np.pi * 1.041e-11)
         return emission_line * ytEmU
     elif unit_system == 'erg':
         emission_line = emission_line / (4. * np.pi)
