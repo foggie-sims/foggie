@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import unyt as u
 
-from make_hi_datacube_v2 import load_line_properties
+from make_hi_datacube import load_line_properties
 from astropy.io import fits
 import sys
 
@@ -109,10 +109,10 @@ def ApplyPrimaryBeamCorrection(ifu, primary_beam):
     return ifu
     
 
-inputDir = "/Users/ctrapp/Documents/foggie_analysis/analysis_tools/synthetic_HI_imager/aitoff_runs/tmp/"
+inputDir = "/Users/ctrapp/Documents/foggie_analysis/analysis_tools/synthetic_HI_imager/aitoff_runs_noiseless/tmp/"
 GalName = sys.argv[3]
-Survey = '_MhongooseLR_10Mpc_NHI1e18_RD0042'
-DiskSuffix  = '_MhongooseLR_10Mpc'
+Survey = "_MhongooseLR_20Mpc_i"+sys.argv[1]+"_pa"+sys.argv[2]+'_NHI1e18_RD0042'
+DiskSuffix  = "_MhongooseLR_20Mpc_i"+sys.argv[1]+"_pa"+sys.argv[2]
 filebase = inputDir+GalName+Survey
 inputFile = filebase+"_GaussianHPF_AllImages.h5"
 noisyFitsFile = filebase+"_noisy.fits"
@@ -160,7 +160,7 @@ filtered_ifu[filtered_mask<=0] = 0
 
 filtered_ifu = ApplyPrimaryBeamCorrection(filtered_ifu,primary_beam)
 filtered_map = np.sum(filtered_ifu,axis=2) * dnu
-filtered_map = filtered_map * np.max(smoothed_map)/np.max(filtered_map)
+#filtered_map = filtered_map * np.max(smoothed_map)/np.max(filtered_map)
 filtered_disk_mass = np.sum(filtered_map[disk_mask])
 filtered_cgm_mass = np.sum(filtered_map)-filtered_disk_mass
 
@@ -169,8 +169,8 @@ hf.close()
 
 
 
-output_filename = "/Users/ctrapp/Documents/foggie_analysis/analysis_tools/synthetic_HI_imager/aitoff_runs/"
-output_filename += GalName+"MhongooseLR_10Mpc_NHI1e18_RD0042_i"+sys.argv[1]+"_pa"+sys.argv[2]
+output_filename = "/Users/ctrapp/Documents/foggie_analysis/analysis_tools/synthetic_HI_imager/aitoff_runs_noiseless/"
+output_filename += GalName+"MhongooseLR_20Mpc_NHI1e18_RD0042_i"+sys.argv[1]+"_pa"+sys.argv[2]
 
 hfo = h5py.File(output_filename+".h5",'w')
 hfo.create_dataset('ideal_map', data=ideal_map)

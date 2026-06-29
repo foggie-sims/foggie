@@ -3,9 +3,24 @@ import numpy as np
 import h5py
 import unyt as u
 
-from foggie.galaxy_mocks.mock_hi_imager.HICubeHeader import * #Constants
+c = 3e5 * u.km / u.s  # km/s
+H0 = 70. * u.km / u.s / u.Mpc  # km/s/Mpc Hubble's constant
+h = 4.135667696e-15 * u.eV * u.s #eV * s
+Mpc_to_m = 3.08e22
+Mpc_to_cm = Mpc_to_m * 100
+kpc_to_cm = Mpc_to_cm / 1000
+kb = 8.617333262e-5 * u.eV / u.K
+m_e = 9.1094*np.power(10.,-28.) * u.g #grams
+e = 4.8032*np.power(10.,-10.) * u.statC #cm^(3/2) * g^(1/2) * s^(-1)
+amu = 1.6735575*np.power(10.,-24) * u.g
+
+arcsec_to_rad = 1./60./60. * np.pi/180.
 
 import argparse
+
+'''
+This is a cheap function to convert the hdf5 datacubes to FITS format using an existing FITS header.
+'''
 
 
 def parse_args():
@@ -64,7 +79,11 @@ input_filebase = args.input_dir#"/Users/ctrapp/Documents/foggie_analysis/analysi
 input_survey = args.input_survey#"Grid_MhongooseHR_NHI5e18_bmin29_RD0042"
 
 print(input_filebase + GalName + input_survey +args.bminstr+"_AllImages.h5")
-hf = h5py.File(input_filebase + GalName + input_survey +args.bminstr+"_AllImages.h5",'r')
+try:
+    hf = h5py.File(input_filebase + GalName + input_survey +args.bminstr+"_AllImages.h5",'r')
+except:
+    hf = h5py.File(input_filebase + GalName + input_survey + "_GaussianHPF" +args.bminstr+"_AllImages.h5",'r')
+
 print(hf.keys())
 
 output_filename = input_filebase+GalName+input_survey+args.bminstr+"_"+args.image_type+".fits"
@@ -98,9 +117,7 @@ if args.renormalize_noise:
     nx,ny,nz = np.shape(new_datacube)
     print("Shape is",nx,ny,nz)
     new_datacube = new_datacube - 1*np.mean(new_datacube[0:int(nx/4),0:int(ny/4),:])
-    plt.figure()
-    plt.imshow(np.sum(new_datacube, axis=2), cmap='inferno',norm=LogNorm())
-    plt.show()
+
 
 nx,ny,nspec = np.shape(new_datacube)
 
@@ -126,9 +143,6 @@ with fits.open(input_filename) as hdul:
     header = hdul[0].header
     data = hdul[0].data  # This is a NumPy array
 
-
-# Step 4: Save to a new FITS file
-#output_filename = "/Users/ctrapp/Documents/foggie_analysis/analysis_tools/tilted_ring_fits/"+gal_name+"_NHI18_unfiltered_mock_ifu.fits"
 
 bmaj = obs_spatial_res_arcseconds / 3600.#0.001666666666666666
 bmin = obs_spatial_res_arcseconds / 3600.#0.001666666666666666 

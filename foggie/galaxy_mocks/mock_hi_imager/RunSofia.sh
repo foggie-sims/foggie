@@ -8,6 +8,8 @@
 halo_id=$1 #008508
 survey=$2 #Grid_MhongooseHR_NHI5e18_bmin29_RD0042
 bminstr=$3 #'' or '_bmin5' or '_bmin10' etc
+parfile=$4
+base_path=$5
 
 case "$halo_id" in
   "008508")
@@ -34,13 +36,16 @@ case "$halo_id" in
     ;;
 esac
 
-#base_path="/Volumes/FoggieCam/synthetic_HI_imager/outputs"
-base_path="/Users/ctrapp/Documents/foggie_analysis/analysis_tools/synthetic_HI_imager/outputs/"
+if [ $base_path = "-1" ]; then
+    base_path="/Users/ctrapp/Documents/foggie_analysis/analysis_tools/synthetic_HI_imager/outputs/"
+    #base_path="/Volumes/FoggieCam/synthetic_HI_imager/outputs/"
+fi
+
 
 echo "Converting hdf5 to fits for halo $halo_id with survey $survey"
 python convert_to_fits.py --halo $halo_id --input_survey $survey --image_type noisy --input_dir $base_path --bminstr $bminstr
 python convert_to_fits.py --halo $halo_id --input_survey $survey --image_type smoothed --input_dir $base_path --bminstr $bminstr
-python convert_to_fits.py --halo $halo_id --input_survey $survey --image_type filtered --input_dir $base_path --bminstr $bminstr # --renormalize_noise 1
+python convert_to_fits.py --halo $halo_id --input_survey $survey --image_type filtered --input_dir $base_path --bminstr $bminstr
 
 #run sofia mask on all 3
 cd /Users/ctrapp/Documents/foggie_analysis/SoFiA-2-master
@@ -54,8 +59,10 @@ filename1="${halo_name}${survey}${bminstr}_smoothed.fits"
 filename2="${halo_name}${survey}${bminstr}_filtered.fits"
 
 echo "Running Sofia on $filename0"
-./sofia test_par_file.par input.data="${base_path}${filename0}"
+
+
+./sofia "${parfile}" input.data="${base_path}${filename0}"
 echo "Running Sofia on $filename1"
-./sofia test_par_file.par input.data="${base_path}${filename1}"
+./sofia "${parfile}" input.data="${base_path}${filename1}"
 echo "Running Sofia on $filename2"
-./sofia test_par_file.par input.data="${base_path}${filename2}"
+./sofia "${parfile}" input.data="${base_path}${filename2}"

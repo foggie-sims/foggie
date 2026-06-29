@@ -9,8 +9,10 @@ from foggie.galaxy_mocks.mock_hi_imager.HICubeHeader import * #Constants
 class radio_telescope(object):
     def __init__(self, args):
         self.name = args.survey
+
         self.get_instrument_properties(args)
 
+    # ---------deduce folder corresponding to this instrument--------
     def get_instrument_properties(self, args):
         '''
         Function to set attributes of the given survey either based on pre-saved list or the user inputs
@@ -22,6 +24,8 @@ class radio_telescope(object):
         '''
 
         species_mass,gamma_ul, A_ul, Elevels, Glevels, n_u_fraction, n_l_fraction = load_line_properties("HI_21cm")
+
+
 
         #https://science.nrao.edu/facilities/vla/docs/manuals/oss/performance/resolution
         #in arcseconds
@@ -42,14 +46,14 @@ class radio_telescope(object):
         #MHONGOOSE_BW_freq = 1.56e6 / u.s #Leave the same for now for simplicity...
         HI_21cm_freq -= args.z*HI_21cm_freq # account for redshift of the 21 cm line
 
-        #THINGS uses B array to reach it's max resolution, but uses D and C array data to recover extended emissions
+        #THINGS uses B array to reach it's max resolution, but uses D and C array data to recover extended emissions...
         THINGS_min_spatial_freq = 1. / (VLA_max_angular_scales['L']['D'] * arcsec_to_rad) #max angular scale obtained while in D configuration
         MHONGOOSE_min_spatial_freq = THINGS_min_spatial_freq * 29./35.
         FAST_min_spatial_freq = 0.
         VLA_EffectiveArea = 27. * np.pi * (25.*u.m)**2
         MEERKAT_EffectiveArea = 64. * np.pi * (13.5*u.m)**2
         FAST_Area = 500.
-
+        print("VLA Effective area=",VLA_EffectiveArea)
 
         if self.name =="THINGS":
             SpecRes_kms = 5.2#2.6
@@ -62,8 +66,6 @@ class radio_telescope(object):
             nChannels = int(np.round(128 * 2.6/1.67)) # limited bandwidth for now, pad as needed
  
         if args.max_projected_velocity is not None:
-            # Pads the bandwidth to account for the maximum projected velocity of the galaxy.
-            # This is to account for the high central rotational velocity in the FOGGIE galaxies.
             dopplerBeta = args.max_projected_velocity  / c
             nu_ul = (Elevels[1]-Elevels[0])/h #in Hz
             doppler_freq_shift = nu_ul * (np.sqrt( np.divide(-dopplerBeta+1 , dopplerBeta+1) ) - 1) # in Hz
@@ -86,13 +88,15 @@ class radio_telescope(object):
             for key in self.instrument_dict[self.name]:
                 setattr(self, key, self.instrument_dict[self.name][key])
             self.obs_freq_range = self.obs_freq_range
+            args.obs_channels=nChannels
         else: # assigning user input parameters for this unknown instrument
+            #myprint('Unknown instrument: ' + self.name + '; using user input/default attributes', args)
             self.name = 'dummy'
+
             self.obs_freq_range = args.obs_freq_range
             self.obs_spec_res = args.obs_spec_res # in km/s
             self.obs_spatial_res = args.obs_spatial_res # in arcseconds
 
         if args.min_baseline is not None:
-            #Override the minimum baseline for setting the minimum spatial frequency
             print("Overriding minimum baseline to:",args.min_baseline)
             self.min_baseline = args.min_baseline

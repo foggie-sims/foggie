@@ -25,12 +25,6 @@ Last updated 06/17/2025
 
 
 def apply_primary_beam_correction(ifu, instrument, args):
-    '''
-    Accounts for the primary beam drop off based on the survey parameters
-    Primary beam is modeled as a Gaussian with a FWHM defined by the instrument.
-    This FWHM typically sets the FOV in observation.
-    if instrument.primary_beam_FWHM_deg is not defined, it's assumed to be negligible (i.e. a mosaic survey)
-    '''
     primary_beam = None
     if instrument.primary_beam_FWHM_deg is not None:
         nx,ny,ns = np.shape(ifu)
@@ -43,58 +37,115 @@ def apply_primary_beam_correction(ifu, instrument, args):
     return ifu,primary_beam
 
 
-def add_noise(ifu, args):
-    '''
-    Adds a gaussian noise profile to the image.
-    Assumes that the noise is uncorrleated with the signal and keeps the noise cube separate from the ifu cube
-    Noise will need to be renormalized on smoothing.
-    The noise level is set by args.min_column_density divided by args.sigma_noise_level
-    '''
+def convert_flux_to_column_density(ifu,instrument,args):
+    #From Draine Pg. 72
+    nx,ny,nz=np.shape(ifu)
+    nu = np.linspace(instrument.obs_freq_range[0].in_units('1/s'),instrument.obs_freq_range[0].in_units('1/s'),nz)
+    dnu = ( np.max(nu)-np.min(nu) ) / np.size(nu)
+    observer_distance = (args.z * c / H0).in_units("m")
+    integrated_flux = np.sum(ifu,axis=2)*dnu *  np.pi*np.power(observer_distance,2) / instrument.area.in_units('m**2')
+
+    
+    species_mass,gamma_ul, A_ul, Elevels, Glevels, n_u_fraction, n_l_fraction = load_line_properties("HI_21cm")
+    nu_ul = (Elevels[1]-Elevels[0])/h #in Hz
+
+    prefactor = 3./16./np.pi * A_ul * h * nu_ul
+ 
+    print("ifu=",ifu[0,0,0])
+    print("integrated_flux=",integrated_flux[0],"(should be in eV/m^2/s)")
+    print("dnu=",dnu)
+    print("nu_ul = ",nu_ul)
+    print("A_ul=",A_ul)
+    print("h=",h)
+    print('prefactor=',prefactor)
+    N_HI = integrated_flux / prefactor
+
+    return N_HI.in_units('1/cm**2')
+
+def convert_column_density_to_flux(ifu, column_density, instrument, args):
+    nx,ny,nz=np.shape(ifu)
+    nu = np.linspace(instrument.obs_freq_range[1].in_units('1/s'),instrument.obs_freq_range[0].in_units('1/s'),nz)
+    dnu = ( np.max(nu)-np.min(nu) ) / np.size(nu)
+
+    species_mass,gamma_ul, A_ul, Elevels, Glevels, n_u_fraction, n_l_fraction = load_line_properties("HI_21cm")
+    nu_ul = (Elevels[1]-Elevels[0])/h #in Hz
+
+    prefactor = 3./16./np.pi * A_ul * h * nu_ul
+
+    observer_distance = (args.z * c / H0).in_units("m")
+
+
+    return prefactor * column_density / dnu * instrument.area.in_units('m**2') / (np.pi*np.power(observer_distance,2))
+    
+       
+def add_noise(ifu, instrument, args):
     nx,ny,nz=np.shape(ifu)
     nu = np.linspace(args.base_freq_range[1].in_units('1/s'),args.base_freq_range[0].in_units('1/s'),nz)
     dnu = ( np.max(nu)-np.min(nu) ) / np.size(nu)
+    #print("dnu=",dnu)
     if args.min_column_density>0:
         noise_level = args.min_column_density / u.cm / u.cm / dnu / args.sigma_noise_level# 3. /3. # / nz 3-sigma detection?
 
+   # print("Noise level=",noise_level)
+   # print("IFU = ",np.max(ifu))
     N = np.size(ifu)
+    #noise_flux = np.random.normal(0.0, noise_level.value, (N,2)) 
+    #noise_flux = np.linalg.norm(noise_flux,axis=1).reshape(np.shape(ifu)) * noise_level.units #rician distribution
 
     try:
-        #If restarting from a previous crash/run will ensure you are using the same noise profile.
+        #Have the same noise profile if restarted
         hf_nc = h5py.File("./outputs/tmp_slices/tmp_noise_cube_"+args.halo+args.mock_suffix+"_"+args.survey+".h5",'r')
+       #hf_nc = h5py.File("/Volumes/wde4tb/foggie_hi_images/outputs/tmp_slices/tmp_noise_cube_"+args.halo+args.mock_suffix+"_"+args.survey+".h5",'r')
         noise_flux = hf_nc['noise_flux'][...] * noise_level.units
         hf_nc.close()
         print("Using noise flux from previous run!")
+        if np.shape(noise_flux)!=np.shape(ifu):
+            print("Noise cube shape does not match IFU shape! Regenerating noise cube...")
+            raise Exception
     except:
         noise_flux = np.random.normal(0.0,noise_level.value, N).reshape(np.shape(ifu)) #Gaussian
         hf_nc = h5py.File("./outputs/tmp_slices/tmp_noise_cube_"+args.halo+args.mock_suffix+"_"+args.survey+".h5",'w')
         hf_nc.create_dataset('noise_flux', data=noise_flux)
         hf_nc.close()
         noise_flux = noise_flux * noise_level.units
+   # print("noise flux=",noise_flux)
+   # print(np.min(noise_flux),np.max(noise_flux))
+
+    #noise_flux = np.random.normal(0.0,noise_level.value, N).reshape(np.shape(ifu)) * noise_level.units
 
     print("Noise level is:",f"{noise_level*dnu:e}","(",f"{noise_level:e}",")")
     print("Mean noise flux is:",f"{np.mean(noise_flux*dnu):e}","(",f"{np.mean(noise_flux):e}",")")
     print("Stdv noise flux is:",f"{np.std(noise_flux*dnu):e}","(",f"{np.std(noise_flux):e}",")")
 
+    
+
+
+
     return noise_flux, noise_level
+
+    #flux_counts, random_noise, absolute_noise = convert_incident_flux_to_counts(ifu,instrument,args)
+
+   # noisy_counts = flux_counts + random_noise
+
+    #noisy_ifu  = convert_counts_to_flux(noisy_counts, instrument, args)
+    #noise_flux = convert_counts_to_flux(random_noise, instrument, args)
+    #noisy_ifu[noisy_ifu<0]=0
+   # return noisy_ifu, np.std(noise_flux)
 
 
 
 
 
 def get_mock_hi_datacube(args, ds, ifu, clean_mask):
-    '''
-    This is the core function for the creating the mock datacubes.
-    This calls the functions in this file to add noise and smooth the cube.
-    Additionally, this calls functions in make_spatially_filtered_datacubes.py to spatially filter the data and run the CLEAN algorithm if desired
-    '''
-    instrument = radio_telescope(args) #load instrument parameters
-
-    ### Add Noise to the Image ###
+    ##Start here!
+    instrument = radio_telescope(args)
+    max_residual_limit = None#1e-24
     if args.min_column_density>0:
-        noise_flux, noise_level = add_noise(ifu,args)
-
+        noise_flux, noise_level = add_noise(ifu,instrument,args)
+        max_residual_limit = noise_level#*instrument.integrated_channels_for_noise #3sigma 
         plt.figure()
-        nz = args.base_channels
+
+        nz = args.obs_channels
         nu = np.linspace(args.base_freq_range[1].in_units('1/s'),args.base_freq_range[0].in_units('1/s'),nz)
         dnu = ( np.max(nu)-np.min(nu) ) / np.size(nu)
         image = np.sum(ifu+noise_flux,axis=2) * dnu
@@ -113,16 +164,13 @@ def get_mock_hi_datacube(args, ds, ifu, clean_mask):
         noise_flux = noise_flux / np.std(noise_flux) * noise_std 
         print("Smoothed noise flux after renormalizing=",f"{np.std(noise_flux):e}")
 
-    ### Apply the Primary Beam Correction ###
     ifu, primary_beam = apply_primary_beam_correction(ifu,instrument,args)
-
-    ### Apply Gaussian Smoothing to mimic the PSF ###
     ifu = apply_gaussian_smoothing(ifu,instrument,args)
 
-    #Make some basic plots
+
     if args.min_column_density>0:
         plt.figure()
-        nz = args.base_channels
+        nz = args.obs_channels
         nu = np.linspace(args.base_freq_range[1].in_units('1/s'),args.base_freq_range[0].in_units('1/s'),nz)
         dnu = ( np.max(nu)-np.min(nu) ) / np.size(nu)
         image = np.sum(ifu+noise_flux,axis=2) * dnu
@@ -144,19 +192,23 @@ def get_mock_hi_datacube(args, ds, ifu, clean_mask):
         plt.savefig(args.output+"_NoisyImageSmoothed_with5SigmaColDensCut.png")
         plt.close()
 
-
-    #If your min_basline is 0, you aren't missing any short baseline signal!
     if instrument.min_baseline <= 0: args.skip_spatial_filtering = True
 
-    ### Apply Spatial Filtering to account for missing diffuse signal in interferometry ###
+    unfiltered_image = ifu + noise_flux
     if not args.skip_spatial_filtering:
-        clean_image, clean_image_with_residuals = filter_spatial_frequencies_slicewise(ifu,noise_flux,instrument,args,clean_mask=clean_mask)
 
-        #Return the clean components only, clean components with residuals, and the unfiltered mock cube
-        return clean_image, clean_image_with_residuals, ifu + noise_flux
+        hf = h5py.File(args.output+"_AllImages.h5",'w')
+        hf.create_dataset('ideal_ifu',data=ifu+noise_flux)
+        hf.close()
+
+
+        if args.clean_wideband: return filter_spatial_frequencies_wideband(ifu,noise_flux,instrument,args,max_residual_limit=max_residual_limit,clean_mask=clean_mask)
+      
+        clean_image, clean_image_with_residuals = filter_spatial_frequencies_slicewise(ifu,noise_flux,instrument,args,max_residual_limit=max_residual_limit,clean_mask=clean_mask)
+        return clean_image, clean_image_with_residuals, unfiltered_image
     else:
-        #Return only the unfiltered mock cube
-        return  ifu*0, ifu*0, ifu + noise_flux
+        return  ifu*0, ifu*0, unfiltered_image
     
+
 
 

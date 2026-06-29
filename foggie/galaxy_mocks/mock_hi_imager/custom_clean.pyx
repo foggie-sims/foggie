@@ -80,6 +80,7 @@ def complex_clean(np.ndarray[np.complex128_t, ndim=2] dirty_slice,
                  int tid,
                  float clean_gain,
                  int max_itr):
+    print('In Cython complex clean...')
 
     cdef int itr = 0
     cdef int nx = dirty_slice.shape[0]
@@ -93,6 +94,7 @@ def complex_clean(np.ndarray[np.complex128_t, ndim=2] dirty_slice,
     cdef double[:,:] clean_beam_mv = np.copy(clean_beam)
 
     cdef double max_residual
+    cdef double abs_max_residual
     cdef int max_x, max_y, xshift, yshift
     cdef int b_min_x, b_max_x, b_min_y, b_max_y
     cdef int i,j
@@ -101,23 +103,29 @@ def complex_clean(np.ndarray[np.complex128_t, ndim=2] dirty_slice,
     cdef int max_iterations = max_itr
 
     cdef double magnitude,phase,real_residual
+    cdef bint finished = False
+
+    
 
 
     while itr < max_iterations:
         # Compute max residual and it's index
         max_residual = 0
+        abs_max_residual = 0
         #if tid==0: print('In Cython: Finding max...')
         for i in range(0,nx):
             for j in range(0,ny):
                 magnitude = sqrt(residual[i,j].real * residual[i,j].real + residual[i,j].imag * residual[i,j].imag)
                 phase = atan2(residual[i,j].imag, residual[i,j].real)
-                real_residual = magnitude * cos(phase)  # Projects onto real axis
-                if real_residual > max_residual:
-                    max_residual = real_residual
+                real_residual = magnitude# * cos(phase)  # Projects onto real axis
+                if real_residual > abs_max_residual:
+                    abs_max_residual = real_residual
+                    max_residual = real_residual * cos(phase)  # Retain sign
                     max_x = i
                     max_y = j
 
         if abs(max_residual) <= max_residual_limit:
+            finished=True
             break
 
         # Compute shifts
@@ -138,11 +146,12 @@ def complex_clean(np.ndarray[np.complex128_t, ndim=2] dirty_slice,
         ####clean_map[max_x,max_y] = clean_map[max_x,max_y] + clean_gain * max_residual
 
         if tid==0: print('In Cython: max_residual=',f"{max_residual:e}","at itr=",itr,"for limit",f"{max_residual_limit:e}")
+        #print('In Cython: max_residual=',f"{max_residual:e}","at itr=",itr,"for limit",f"{max_residual_limit:e}")
 
         itr+=1
 
     print("Slice",tid,"cleaned in",itr,"iterations")
-    return np.asarray(clean_map), np.asarray(residual)
+    return np.asarray(clean_map), np.asarray(residual),finished
 
 
 def masked_clean(np.ndarray[np.float64_t, ndim=2] dirty_slice, 
@@ -154,6 +163,7 @@ def masked_clean(np.ndarray[np.float64_t, ndim=2] dirty_slice,
                  int tid,
                  float clean_gain,
                  int max_itr):
+    print('In Cython masked clean...')
 
     cdef int itr = 0
     cdef int nx = dirty_slice.shape[0]
@@ -227,6 +237,7 @@ def complex_masked_clean(np.ndarray[np.complex128_t, ndim=2] dirty_slice,
                  int tid,
                  float clean_gain,
                  int max_itr):
+    print('In Cython complex masked clean...')
 
     cdef int itr = 0
     cdef int nx = dirty_slice.shape[0]
@@ -240,7 +251,7 @@ def complex_masked_clean(np.ndarray[np.complex128_t, ndim=2] dirty_slice,
     cdef double complex[:,:] beam_mv = np.copy(beam)
     cdef double[:,:] clean_beam_mv = np.copy(clean_beam)
 
-    cdef double max_residual
+    cdef double max_residual, abs_max_residual
     cdef int max_x, max_y, xshift, yshift
     cdef int b_min_x, b_max_x, b_min_y, b_max_y
     cdef int i,j
@@ -254,15 +265,18 @@ def complex_masked_clean(np.ndarray[np.complex128_t, ndim=2] dirty_slice,
     while itr < max_iterations:
         # Compute max residual and it's index
         max_residual = 0
+        abs_max_residual=0
         #if tid==0: print('In Cython: Finding max...')
         for k in range(0,n_masked_pixels):
             i = <int>clean_mask_indices[0, k]
             j = <int>clean_mask_indices[1, k]
             magnitude = sqrt(residual[i,j].real * residual[i,j].real + residual[i,j].imag * residual[i,j].imag)
-            phase = atan2(residual[i,j].imag, residual[i,j].real)
-            real_residual = magnitude * cos(phase)  # Projects onto real axis
-            if real_residual > max_residual:
+          #  phase = atan2(residual[i,j].imag, residual[i,j].real)
+            real_residual = residual[i,j].real #magnitude * cos(phase)  # Projects onto real axis
+
+            if magnitude > abs_max_residual:
                 max_residual = real_residual
+                abs_max_residual = magnitude
                 max_x = i
                 max_y = j
 
@@ -287,9 +301,10 @@ def complex_masked_clean(np.ndarray[np.complex128_t, ndim=2] dirty_slice,
 
         ####clean_map[max_x,max_y] = clean_map[max_x,max_y] + clean_gain * max_residual
 
-        if tid==0: print('In Cython: max_residual=',f"{max_residual:e}","at itr=",itr,"for limit",f"{max_residual_limit:e}")
+        print('In Cython: max_residual=',f"{max_residual:e}","at itr=",itr,"for limit",f"{max_residual_limit:e}")
 
         itr+=1
+
 
     print("Slice",tid,"cleaned in",itr,"iterations")
     return np.asarray(clean_map), np.asarray(residual)

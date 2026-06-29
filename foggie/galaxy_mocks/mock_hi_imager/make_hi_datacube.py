@@ -1,16 +1,17 @@
 import numpy as np
-import unyt as u
-import h5py
-import time
-import os
-import sys
-
+import scipy
+import argparse
+from argparse import Namespace
+from scipy.special import erf
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
-
+#from foggie.galaxy_mocks.mock_ifu.make_ideal_datacube import gauss
+import os 
 from foggie.utils.foggie_load import foggie_load
+
 from foggie.utils.consistency import *
 from foggie.clumps.clump_finder import *
+from foggie.clumps.clump_finder.utils_clump_finder import read_virial_mass_file
 
 from foggie.galaxy_mocks.mock_hi_imager.HICubeHeader import * #Constants
 from foggie.galaxy_mocks.mock_hi_imager.hi_datacube_arg_parser import parse_args
@@ -24,6 +25,21 @@ from foggie.galaxy_mocks.mock_hi_imager.make_mock_datacubes import get_mock_hi_d
 from foggie.galaxy_mocks.mock_hi_imager.make_mock_datacubes import apply_gaussian_smoothing
 from foggie.galaxy_mocks.mock_hi_imager.make_mock_datacubes import apply_primary_beam_correction
 
+
+#from astropy import units as u
+import unyt as u
+import time
+
+from functools import partial
+from joblib import Parallel, delayed
+import multiprocessing
+
+from astropy.io import fits
+
+
+import sys
+
+
 '''
 Functions to make synthetic HI datacubes targeting specific pre- or user-defined radio surveys.
 
@@ -33,13 +49,79 @@ make_ideal_datacubes.py calculates the emission profiles for the given projectio
 make_mock_datacubes.py adds gaussian noise and applies gaussian smoothing to make the typical mock datacube
 make_spatially_filtered_datacubes.py takes this one step further and simulates the effects of interferometry by filtering out diffuse components of the image
 
+Basic Example usage:
+    python make_hi_datacube.py --output outputs/Tempest_MhongooseLR_20Mpc_i40 --z .004666666666 --halo 008508 --clean_sigma 0.5  --mock_suffix _NHI1e18_RD0042_GaussianHPF --memory_chunks 1000 --survey MHONGOOSE_LR  --min_column_density 1e18   --high_pass_filter_type gaussian  --nthreads 15 --clean_gain 0.1 --set_res_auto 1 --fov_kpc 350 --inclination 40 
+
+    The args are parsed as follows:
+    
+    IO Arguments:
+    --halo: Which halo should be analyzed. Default is 008508 (Tempest)
+    --snapshot: Which snapshot should be analyzed? Default is RD0042
+    --run: What refinement run should be analyzed? Default is nref11c_nref9f  
+    --survey: 'What instrument/survey do you want to simulate?' Options are MHONGOOSE_LR, MHONGOOSE_HR, THINGS. This can be in part or completely overwritten by subsequent arguments
+    --system: Set the system to get data paths from get_run_loc_etc if not None Overrides --code_dir and --data_dir. Default is None. 
+    --data_dir: Where are the simulation outputs?
+    --code_dir: Where is the foggie analysis directory?
+    --output: Where to save datacubes and plots. Needs directory and prefix: e.g. outputs/Tempest_MhonghooseHR
+    --mock_suffix: Suffix to append to mock datacubes (e.g. _NHI1e18_GaussianHPF). Default is None.
+    --pwd: Use pwd arguments in get_run_loc_etc. Default is False.
+    --forcepath: Use forcepath in get_run_loc_etc. Default is False.
+
+    --nthreads: How many threads for parellel calculations. Defaults to number of avaialbe cpus
+
+
+    Instrument Overrides:
+    --obs_freq_range: What is the observed frequency range in microns. If None will set automatically based on survey/simulation data.
+    --obs_spec_res: What is the observed spectral resolution in km/s. If None will default to instrument.
+    --obs_spatial_res: Spatial resolution in arcseconds. Defaults to instrument.
+    --obs_channels: Number of spectral channels. A different way to set spectral res. Defaults to instrument.
+    --base_freq_range: Not implemented. To oversample spectral axis
+    --base_spatial_res: What is the spatial resolution of your pixels. Defaults to 4x the observed resolution
+
+
+    Observational Parameters:
+    --inclination: Observed inclination in degrees. Defaults to 45.
+    --position_angle: Observed position_angle (rotation) in degrees. Defaults to 0.
+    --z: Redshift. Used to set distance. Defaults to 0.002
+    --fov_kpc: Dimension of the image in kpc. Defaults to 250 kpc.
+    --max_projected_velocity: Alternative way to set the bandwidth. Defaults to the maximum for all gas in fov above a certain column density.
+
+    --set_fov_auto: Automatically set the field of view to resolve the missing short baselines by a factor of 5.
+    --set_res_auto: Set the pixel resolution to automatically oversample the observe spatial resolution.
+
+    Spatial Filtering/Clean Parameters:
+    --high_pass_filter_type: Type of high pass filter to apply to datacube. Options are "gaussian" or "butterworth". Default is a simple cut (infintely sharp filter).
+    --clean_gain: What is the loop gain for the clean algorithm? Recommended 0.1-0.5. May be able to do much higher...
+    --max_iterations: What is the maximum number of iterations for the clean algorithm? Default is None.
+    --clean_mask_filedir: What is your clean mask?"
+    --do_noiseless_clean: Do cleaning on the noiseless datacube and then add appropriate noise. Default is False."
+    --clean_sigma: To what noise level do you want to clean to? Default is 3 sigma.
+
+    
+    This pipeline can also be run in a few different configurations. The following parameters allow you to either make simple moment maps,
+    skip generating more expensive datacubes, or make projection masks for filtering out disks/satellites/clumps.
+
+    Alternative Run Options:
+    --make_simple_moment_maps: Do you want to create and save simple moment maps for these projections? Default is False.'
+    --skip_full_datacube: Skip making the full datacube to save time. Default is false
+    --skip_mock_datacube: Only make the ideal datacube
+
+    --make_disk_cut_mask: Create a projected mask for the disk:
+    --make_cell_mass_projection: Do you want to make a projection of the HI weighted cell mass at each pixel? Default is False
+    --make_clump_cut_mask: Do you want to make a mask for the clump projection? Default is False"
+    --clump_cut_file: What is the clump cut file to use?
+    --clump_cut_suffix: What is the suffix to append to the clump cutoff file? Default is ''
+    --n_clumps_to_cut: How many clumps do you want to cut? Default is 1"
+
+
+
+
 
 Author: Cameron Trapp
-Last updated 06/17/2025
+Last updated 06/12/2026
 '''
 
 if __name__ == "__main__":
-    ### Load the data and do some book keeping ###
     args = parse_args()
 
     if args.log_min_column_density>0:
@@ -84,7 +166,7 @@ if __name__ == "__main__":
     smooth_AM_name = catalog_dir + 'AM_direction_smoothed'
     #smooth_AM_name = None
 
-    ds, refine_box = foggie_load(snap_name, trackname, halo_c_v_name=halo_c_v_name, do_filter_particles=True,disk_relative=True,particle_type_for_angmom=particle_type_for_angmom,smooth_AM_name = smooth_AM_name)
+    ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, halo_c_v_name=halo_c_v_name, do_filter_particles=True,disk_relative=True,particle_type_for_angmom=particle_type_for_angmom,smooth_AM_name = smooth_AM_name)
 
     fov_sphere_radius = (args.fov_kpc / 2.) * np.sqrt(2.)
     if fov_sphere_radius > np.max(refine_box['gas','radius_corrected']):
@@ -94,9 +176,7 @@ if __name__ == "__main__":
     else:
         source_cut = refine_box
 
-
-    ### Calculate the disk mask if needed ###
-    if args.mask_disk or args.make_disk_cut_mask:
+    if args.mask_disk or args.make_disk_cut_mask or args.make_simple_moment_maps:
         from foggie.clumps.clump_finder.clump_finder import clump_finder
         from foggie.clumps.clump_finder.clump_finder_argparser import get_default_args
         from foggie.clumps.clump_finder.utils_clump_finder import mask_clump
@@ -126,10 +206,10 @@ if __name__ == "__main__":
         hf_disk = h5py.File(clump_file+"_Disk.h5",'r')
         cell_ids_to_mask = np.array(hf_disk['cell_ids'])
         hf_disk.close()
-        for i in range(5):
-            hf_shell = h5py.File(clump_file+"_DiskDilationShell_n"+str(i)+".h5",'r')
-            cell_ids_to_mask = np.append(cell_ids_to_mask, np.array(hf_shell['cell_ids']))
-            hf_shell.close()
+        #for i in range(5):
+        #   hf_shell = h5py.File(clump_file+"_DiskDilationShell_n"+str(i)+".h5",'r')
+        #    cell_ids_to_mask = np.append(cell_ids_to_mask, np.array(hf_shell['cell_ids']))
+        #    hf_shell.close()
 
         if args.mask_disk:
             source_cut = mask_clump(ds,clump_file+"_Disk.h5",source_cut=source_cut,clump_cell_ids=cell_ids_to_mask)
@@ -144,6 +224,7 @@ if __name__ == "__main__":
 
     print("Max projected velocity is",args.max_projected_velocity,'km/s')
 
+
     if args.make_disk_cut_mask:
         print("Making disk cut mask...")
         disk_cut_mask = get_ideal_hi_datacube(args, ds, source_cut)
@@ -157,20 +238,76 @@ if __name__ == "__main__":
         hf.create_dataset('disk_cut_mask_smoothed',data=disk_cut_mask_smoothed)
 
         hf.close()
-        plt.figure()
-        plt.imshow(disk_cut_mask)
-        plt.savefig(args.output+"_DiskCutMask.png")
-        plt.close()
+        sys.exit()
+
+    if args.make_cell_mass_projection:
+        cell_mass_projection = get_ideal_hi_datacube(args, ds, source_cut)
+        instrument = radio_telescope(args)
+
+        cell_mass_projection_smoothed = apply_gaussian_smoothing(cell_mass_projection.astype(float),instrument,args)
+        hf = h5py.File(args.output+"_CellMassProjection.h5",'w')
+        hf.create_dataset('cell_mass_projection',data=cell_mass_projection)
+        hf.create_dataset('cell_mass_projection_smoothed',data=cell_mass_projection_smoothed)
+
+        hf.close()
 
         plt.figure()
-        plt.imshow(disk_cut_mask_smoothed)
-        plt.savefig(args.output+"_DiskCutMaskSmoothed.png")
+        plt.imshow(cell_mass_projection_smoothed,norm=LogNorm())
+        plt.colorbar()
+        plt.savefig(args.output+"_CellMassProjectionSmoothed.png")
+        plt.close()
+        plt.figure()
+        plt.imshow(cell_mass_projection,norm=LogNorm())
+        plt.colorbar()
+        plt.savefig(args.output+"_CellMassProjection.png")
         plt.close()
 
         sys.exit()
 
-    #### Create the ideal datacube ####
-    if not args.skip_full_datacube:
+    if args.make_clump_cut_mask:
+        from foggie.clumps.clump_finder.clump_finder import clump_finder
+        from foggie.clumps.clump_finder.clump_finder_argparser import get_default_args
+        from foggie.clumps.clump_finder.utils_clump_finder import mask_clump
+        from foggie.clumps.clump_finder.utils_clump_finder import load_clump
+
+        print("Loading clump to mask...")
+        run_disk_finder = False
+        #clump_file = args.output + gal_name
+        clump_cut = load_clump(ds, args.clump_cut_file+"0.h5",source_cut=source_cut)
+        if args.n_clumps_to_cut>1:
+            for i in range(1,args.n_clumps_to_cut):
+                clump_cut = clump_cut + load_clump(ds, args.clump_cut_file+str(int(i))+".h5",source_cut=source_cut)
+        source_cut = clump_cut
+
+        print("Clump loaded!")
+
+        print("Making disk cut mask...")
+        clump_cut_mask = get_ideal_hi_datacube(args, ds, source_cut)
+        instrument = radio_telescope(args)
+
+        clump_cut_mask_smoothed = apply_gaussian_smoothing(clump_cut_mask.astype(float),instrument,args)
+        clump_cut_mask_smoothed[clump_cut_mask_smoothed>0]=1
+        clump_cut_mask_smoothed=clump_cut_mask_smoothed.astype(bool)
+        hf = h5py.File(args.output+args.clump_cut_suffix+".h5",'w')
+        hf.create_dataset('clump_cut_mask',data=clump_cut_mask)
+        hf.create_dataset('clump_cut_mask_smoothed',data=clump_cut_mask_smoothed)
+        hf.close()
+        plt.figure()
+        plt.imshow(np.sum(clump_cut_mask,axis=2))
+        plt.savefig(args.output+"_SatCutMask.png")
+        plt.close()
+
+        plt.figure()
+        plt.imshow(np.sum(clump_cut_mask_smoothed,axis=2))
+        plt.savefig(args.output+"_SatCutMaskSmoothed.png")
+        plt.close()
+
+        sys.exit()    
+
+
+    if args.output is None and not args.skip_full_datacube:
+        ifu = get_ideal_hi_datacube(args, ds, source_cut)
+    elif not args.skip_full_datacube:
         if args.force_ideal_ifu:
             ifu = get_ideal_hi_datacube(args, ds, source_cut)
             hf = h5py.File(args.output+".h5", "w")
@@ -179,7 +316,6 @@ if __name__ == "__main__":
             hf.close()
         else:
             try:
-                ### Try to load if already calculated
                 hf = h5py.File(args.output+".h5", "r")
                 ifu = hf["ifu"][:] * u.Unit(hf["ifu"].attrs["unit"])
                 print('Ifu loaded as',ifu)
@@ -194,23 +330,24 @@ if __name__ == "__main__":
                 dset.attrs["unit"] = str(ifu.units)
                 hf.close()
 
+    #make_moment_map_figures(args,ifu,args.output+"_ideal")
 
     if args.mock_suffix is not None:
         args.output = args.output+args.mock_suffix
        
     if args.make_simple_moment_maps:
-      ###If making simple moment maps save and exit here!
       radial_profiles = []
       radii = []
-      for inc in [20]:
+      for inc in [60]:
         for pa in  np.linspace(0,355,72):
             args.inclination = inc
             args.position_angle = pa
-            source_cut = ds.sphere(center=ds.halo_center_kpc, radius=(500, 'kpc'))
+            if True: source_cut = ds.sphere(center=ds.halo_center_kpc, radius=(500, 'kpc'))
 
             pixel_radii, radial_profile, dens_proj, vdopp_proj = get_ideal_hi_datacube(args, ds, source_cut)#,moment_map_filename = './ideal_moment_maps/i20/RD0038/moment_map_i'+str(inc).zfill(2)+'_pa'+str(int(pa)).zfill(3))
             radial_profiles.append(radial_profile)
             radii.append(pixel_radii)
+      # create_gif_from_pngs("./ideal_moment_maps/i20/RD0038","Tempest_Doppler_Vel_i20.gif",duration = 150)
    
       radial_profiles = np.array(radial_profiles)
       mean_NHI = np.mean(radial_profiles,axis=0)
@@ -264,12 +401,13 @@ if __name__ == "__main__":
 
       '''
 
-    ### Make some basic figures
+
+
     print("Ideal IFU")
     print(np.max(ifu))
     print(np.shape(ifu))
     plt.figure()
-    nz = args.base_channels
+    nz = args.obs_channels
     nu = np.linspace(args.base_freq_range[1].in_units('1/s'),args.base_freq_range[0].in_units('1/s'),nz)
     nx,ny,nz = np.shape(ifu)
     dnu = ( np.max(nu)-np.min(nu) ) / np.size(nu)
@@ -279,16 +417,14 @@ if __name__ == "__main__":
     plt.imshow(image,norm=LogNorm(vmin=ideal_vmin),cmap='inferno')
     plt.colorbar()
     plt.savefig(args.output+"_IdealImage.png")
-    #plt.show()
     plt.close()
 
     plt.figure()
-    nz = args.base_channels
+    nz = args.obs_channels
     nu = np.linspace(args.base_freq_range[1].in_units('1/s'),args.base_freq_range[0].in_units('1/s'),nz)
     nx,ny,nz = np.shape(ifu)
     dnu = ( np.max(nu)-np.min(nu) ) / np.size(nu)
     image  = np.sum(ifu,axis=2)*dnu
-    #clean_mask = np.where(image>=args.min_column_density)
     image[image<args.min_column_density] = ideal_vmin
     ideal_vmin = np.min(image[image>0]) / 10.
     ideal_vmax = np.max(image)
@@ -298,7 +434,6 @@ if __name__ == "__main__":
     plt.imshow(image,norm=LogNorm(vmin=ideal_vmin),cmap='inferno')
     plt.colorbar()
     plt.savefig(args.output+"_IdealImage_WithColDensCutoff.png")
-    #plt.show()
     plt.close()
 
     if args.skip_mock_datacube:
@@ -307,11 +442,13 @@ if __name__ == "__main__":
 
         sys.exit(0)
 
-
-    #### Make the Mock Datacubes ####
     clean_mask = None
     if args.use_clean_mask:
-        clean_mask = ((ifu*dnu*args.base_channels>=args.min_column_density))
+        clean_mask = ((ifu*dnu*args.obs_channels>=args.min_column_density))
+        if args.clean_mask_filedir is not None:
+            clean_mask = LoadSofiaMask(args.clean_mask_filedir+"_filtered_mask.fits")
+
+        hf.close()
 
     if args.test_calibrator_clean:
         mifu = np.max(ifu)
@@ -320,9 +457,8 @@ if __name__ == "__main__":
         ifu[nx//2+nx//6,ny//2-ny//10,:] = mifu #Point source test!
 
 
-    clean_image, clean_image_with_residuals, unfiltered_image = get_mock_hi_datacube(args, ds, ifu,clean_mask)
 
-    #### Make some plots and save everything ####
+    clean_image, clean_image_with_residuals, unfiltered_image = get_mock_hi_datacube(args, ds, ifu,clean_mask)
 
     instrument = radio_telescope(args)
 
@@ -376,14 +512,6 @@ if __name__ == "__main__":
     hf.create_dataset('dnu',data=dnu)
     hf.create_dataset('fov_kpc',data=args.fov_kpc.in_units('kpc').v)
     hf.create_dataset('spec_res_kms',data=instrument.spec_res_kms)
-
-    #hf.create_dataset('fourier_image',data=fourier_image)
-    #hf.create_dataset('filtered_fourier_image',data=filtered_fourier_image)
-   # hf.create_dataset('mock_column_densities',data=mock_column_densities)
-  #  hf.create_dataset('ideal_column_densities',data=ideal_column_densities)
-    #hf.create_dataset('args',data=args)
-    #hf.create_dataset('instrument',data=instrument)
-   # hf.create_dataset('actual_column_densities',data=density_projection)
     hf.close()
 
 

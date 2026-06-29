@@ -4,9 +4,6 @@ import unyt as u
 from foggie.galaxy_mocks.mock_hi_imager.HICubeHeader import * #Constants
 
 def load_line_properties(line):
-    '''
-    Line Properties used to calculate emission profile. Only defined for HI 21cm currently.
-    '''
     if line=="HI_21cm":
         #Hyperfine splitting
         species_mass = 1.6735575*np.power(10.,-24) * u.g #grams to unit mass
