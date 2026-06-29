@@ -209,6 +209,17 @@ def make_halo_plots(ds, simulation_dir, snapname):
     actual_baryon_fraction = all_data["halos", "actual_baryon_fraction"]
     overdensity = all_data["halos", "overdensity"]
 
+    box_length = ds.quan(500., 'kpc')
+    box = ds.r[ds.halo_center_kpc[0]-box_length:ds.halo_center_kpc[0]+box_length, 
+            ds.halo_center_kpc[1]-box_length:ds.halo_center_kpc[1]+box_length, 
+            ds.halo_center_kpc[2]-box_length:ds.halo_center_kpc[2]+box_length]
+    p = yt.ProjectionPlot(ds, 'z', ('gas','density'), weight_field=('gas','density'), data_source=box, center=ds.halo_center_code, width=(500, 'kpc'))
+    p.set_cmap('density', density_color_map)
+    p.annotate_title(snapname)
+    p.annotate_timestamp(redshift=True)
+    p.annotate_halos(new_ds) 
+    p.save(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'_all_halos')
+
     for index in np.arange(len(x)):
         center0 = [float(x.in_units('code_length')[index]), float(y.in_units('code_length')[index]), float(z.in_units('code_length')[index])] 
         halo0 = ds.sphere(center0, radius = corrected_rvir[index] ) 

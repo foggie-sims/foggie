@@ -27,9 +27,9 @@ def get_halo_catalog(ds, args, snap):
     else:
         print('No halo catalog found, creating halo catalog for snapshot ' + snap)
         from foggie.fogghorn.quick_halo_finding import prep_dataset_for_halo_finding, halo_finding_step, repair_halo_catalog, export_to_astropy
-        ds, box = prep_dataset_for_halo_finding(args.directory, snap, trackfile=args.trackfile_name) 
+        ds, box = prep_dataset_for_halo_finding(args.directory, snap, trackfile_name=args.trackfile_name) 
         hc = halo_finding_step(ds, box, simulation_dir=args.directory) 
-        hc = repair_halo_catalog(ds, args.directory, snap, min_halo_mass=1e9)
+        hc = repair_halo_catalog(ds, args.directory, snap, min_halo_mass=args.min_halo_mass)
         hc = yt.load(args.directory + '/halo_catalogs/' + snap + '/' + snap + '.0.h5')
         return hc
     
@@ -48,6 +48,48 @@ def halos_density_projection(ds, region, args, output_filename):
     p.annotate_timestamp(redshift=True)
     p.annotate_halos(hc) 
     p.save(output_filename)
+
+    all_data = hc.all_data()
+    x = all_data["halos", "particle_position_x"]
+    y = all_data["halos", "particle_position_y"]
+    z = all_data["halos", "particle_position_z"]
+    corrected_rvir = all_data["halos", "corrected_rvir"].in_units('kpc') 
+    total_halo_mass = all_data["halos", "total_mass"].in_units('Msun')
+    sfr7 = all_data["halos", "sfr7"].in_units('Msun/yr') 
+    actual_baryon_fraction = all_data["halos", "actual_baryon_fraction"]
+    overdensity = all_data["halos", "overdensity"]
+
+    for index in np.arange(len(x)):
+        center0 = [float(x.in_units('code_length')[index]), float(y.in_units('code_length')[index]), float(z.in_units('code_length')[index])] 
+        halo0 = ds.sphere(center0, radius = corrected_rvir[index] ) 
+
+        p = yt.ProjectionPlot(ds, 'z', 'density', weight_field='density', data_source=halo0, center=center0, width=2.5 * corrected_rvir[index])
+        p.set_cmap('density', density_color_map)
+        p.annotate_timestamp(redshift=True)
+        p.annotate_title(args.snap)
+        p.set_zlim('density', 1e-28, 1e-21)
+        p.annotate_sphere(halo0.center, halo0.radius, circle_args={"color": "green", "linewidth": 2, "linestyle": "dashed"}) 
+        p.annotate_text([0.05, 0.95], 'Virial Radius = ' + str(corrected_rvir[index])[0:5], coord_system='axis', text_args={"color": "black"}) 
+        p.annotate_text([0.40, 0.95], 'Virial Mass = ' + str(total_halo_mass[index]/1e10)[0:5]+'e10', coord_system='axis', text_args={"color": "black"}) 
+        p.annotate_text([0.05, 0.92], 'Baryon Fraction = ' + str(actual_baryon_fraction[index])[0:5], coord_system='axis', text_args={"color": "black"}) 
+        p.annotate_text([0.40, 0.92], 'Overdensity = ' + str(overdensity[index])[0:7], coord_system='axis', text_args={"color": "black"}) 
+        p.annotate_text([0.75, 0.92], 'SFR7 = ' + str(sfr7[index])[0:7], coord_system='axis', text_args={"color": "black"}) 
+        p.set_origin('native') 
+        p.save(args.directory + '/halo_catalogs/'+ args.snap +'/' + args.snap + '_index' + str(index))
+
+        p = yt.ProjectionPlot(ds, 'z', ('enzo', 'Dark_Matter_Density'), data_source=halo0, center=center0, width=2.5 * corrected_rvir[index])
+        p.set_cmap(('enzo', 'Dark_Matter_Density'), density_color_map)
+        p.annotate_timestamp(redshift=True)
+        p.annotate_title(args.snap)
+        p.set_unit(('enzo', 'Dark_Matter_Density'), 'Msun/pc**2') 
+        p.set_zlim(('enzo', 'Dark_Matter_Density'), 1e-27, 1e-23) 
+        p.annotate_sphere(halo0.center, halo0.radius, circle_args={"color": "green", "linewidth": 2, "linestyle": "dashed"}) 
+        p.annotate_text([0.05, 0.95], 'Virial Radius = ' + str(corrected_rvir[index])[0:5], coord_system='axis', text_args={"color": "black"}) 
+        p.annotate_text([0.40, 0.95], 'Virial Mass = ' + str(total_halo_mass[index]/1e10)[0:5]+'e10', coord_system='axis', text_args={"color": "black"}) 
+        p.annotate_text([0.05, 0.92], 'Baryon Fraction = ' + str(actual_baryon_fraction[index])[0:5], coord_system='axis', text_args={"color": "black"}) 
+        p.annotate_text([0.40, 0.92], 'Overdensity = ' + str(overdensity[index])[0:7], coord_system='axis', text_args={"color": "black"}) 
+        p.set_origin('native') 
+        p.save(args.directory + '/halo_catalogs/'+ args.snap +'/' + args.snap + '_index' + str(index))
 
 def halos_SMHM(ds, region, args, output_filename):
     '''Plots the stellar-mass halo-mass relation for all halos in the halo catalog.'''

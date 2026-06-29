@@ -138,7 +138,7 @@ def register_emission_fields(ds, cloudy_path, unit_system='photons'):
         emission_line = (10.**dia1) * ((10.**H_N)**2.0)
         emission_line = scale_by_metallicity(emission_line, 0.0, np.log10(np.array(data['metallicity'])))
         if unit_system == 'photons':
-            emission_line = emission_line / (4. * np.pi * 2.03e-11)
+            emission_line = emission_line / (4. * np.pi * 1.49e-11)
         else:
             emission_line = emission_line / (4. * np.pi)
         return apply_units(emission_line)
@@ -151,7 +151,7 @@ def register_emission_fields(ds, cloudy_path, unit_system='photons'):
         emission_line = (10.**dia1) * ((10.**H_N)**2.0)
         emission_line = scale_by_metallicity(emission_line, 0.0, np.log10(np.array(data['metallicity'])))
         if unit_system == 'photons':
-            emission_line = emission_line / (4. * np.pi * 2.03e-11)
+            emission_line = emission_line / (4. * np.pi * 1.041e-11)
         else:
             emission_line = emission_line / (4. * np.pi)
         return apply_units(emission_line)
@@ -192,7 +192,7 @@ def register_emission_fields(ds, cloudy_path, unit_system='photons'):
         emission_line = (10.**dia1) * ((10.**H_N)**2.0)
         emission_line = scale_by_metallicity(emission_line, 0.0, np.log10(np.array(data['metallicity'])))
         if unit_system == 'photons':
-            emission_line = emission_line / (4. * np.pi * 2.03e-11)
+            emission_line = emission_line / (4. * np.pi * 1.578e-11)
         else:
             emission_line = emission_line / (4. * np.pi)
         return apply_units(emission_line)
@@ -205,7 +205,7 @@ def register_emission_fields(ds, cloudy_path, unit_system='photons'):
         emission_line = (10.**dia1) * ((10.**H_N)**2.0)
         emission_line = scale_by_metallicity(emission_line, 0.0, np.log10(np.array(data['metallicity'])))
         if unit_system == 'photons':
-            emission_line = emission_line / (4. * np.pi * 2.03e-11)
+            emission_line = emission_line / (4. * np.pi * 1.10e-11)
         else:
             emission_line = emission_line / (4. * np.pi)
         return apply_units(emission_line)
@@ -218,7 +218,7 @@ def register_emission_fields(ds, cloudy_path, unit_system='photons'):
         emission_line = (10.**dia1) * ((10.**H_N)**2.0)
         emission_line = scale_by_metallicity(emission_line, 0.0, np.log10(np.array(data['metallicity'])))
         if unit_system == 'photons':
-            emission_line = emission_line / (4. * np.pi * 2.03e-11)
+            emission_line = emission_line / (4. * np.pi * 1.43e-11)
         else:
             emission_line = emission_line / (4. * np.pi)
         return apply_units(emission_line)
@@ -231,7 +231,7 @@ def register_emission_fields(ds, cloudy_path, unit_system='photons'):
         emission_line = (10.**dia1) * ((10.**H_N)**2.0)
         emission_line = scale_by_metallicity(emission_line, 0.0, np.log10(np.array(data['metallicity'])))
         if unit_system == 'photons':
-            emission_line = emission_line / (4. * np.pi * 2.03e-11)
+            emission_line = emission_line / (4. * np.pi * 7.11e-11)
         else:
             emission_line = emission_line / (4. * np.pi)
         return apply_units(emission_line)

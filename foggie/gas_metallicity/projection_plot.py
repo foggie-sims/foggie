@@ -126,12 +126,16 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
                   'stars':('deposit', 'stars_density'),'ys_density':('deposit', 'young_stars_density'), 'ys_age':('my_young_stars', 'age'), 'ys_mass':('deposit', 'young_stars_mass'), \
                   'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'dm':('deposit', 'dm_density'), 'vrad':('gas', 'radial_velocity_corrected'), \
                   'grid': ('index', 'grid_level'), 'mrp': ('deposit', 'ptype4_mass'), 'vdisp_3d':('gas', 'velocity_dispersion_3d'), 'h1':('gas', 'H_p0_number_density'), 'el':('gas', 'El_number_density'), \
-                  'vtan':('gas', 'tangential_velocity_corrected'), 'vphi':('gas', 'phi_velocity_corrected'), 'vtheta':('gas', 'theta_velocity_corrected')}
+                  'vtan':('gas', 'tangential_velocity_corrected'), 'vphi':('gas', 'phi_velocity_corrected'), 'vtheta':('gas', 'theta_velocity_corrected'), \
+                  'tf1':('enzo', 'TracerFluid01'), 'tf2': ('enzo', 'TracerFluid02'), 'tf3': ('enzo', 'TracerFluid03'), 'tf4': ('enzo', 'TracerFluid04'), \
+                 }
     cmap_dict = {'gas':density_color_map, 'gas_entropy':entropy_color_map, 'stars':plt.cm.Greys_r, 'ys_density':density_color_map, 'ys_age':density_color_map, \
+                 'tf1':density_color_map, 'tf2':density_color_map, 'tf3':density_color_map, 'tf4':density_color_map, \
                  'ys_mass':density_color_map, 'metal':old_metal_color_map, 'temp':temperature_color_map, 'dm':plt.cm.gist_heat, 'vrad':velocity_discrete_cmap, \
                  'vlos':velocity_discrete_cmap, 'grid':'viridis', 'mrp':'viridis', 'vdisp_los':'viridis', 'vdisp_3d':'viridis', 'vtan':'viridis', \
                  'vphi':velocity_discrete_cmap, 'vtheta':'viridis', 'h1':h1_color_map, 'el':e_color_map}
-    unit_dict = defaultdict(lambda: 'Msun/pc**2', metal='Zsun', temp='K', vrad='km/s', ys_age='Myr', ys_mass='pc*Msun', gas_entropy='keV*cm**3', \
+    unit_dict = defaultdict(lambda: 'Msun/pc**2', metal='Zsun', tf1=lambda: 'Msun/pc**3', tf2=lambda: 'Msun/pc**3', tf3=lambda: 'Msun/pc**3', tf4=lambda: 'Msun/pc**3', \
+                            temp='K', vrad='km/s', ys_age='Myr', ys_mass='pc*Msun', gas_entropy='keV*cm**3', \
                             vlos='km/s', grid='', mrp='cm*g', vdisp_los='km/s', vdisp_3d='km/s', vtan='km/s', vphi='km/s', vtheta='km/s', h1='cm**-2', el='cm**-2')
     zmin_dict = defaultdict(lambda: density_proj_min, metal=7e-2 if args.forpaper else 2e-2, temp=1.e3, vrad=-200, ys_age=0.1, ys_mass=1, ys_density=1e-3, \
                             gas_entropy=1.6e25, vlos=-500, grid=1, mrp=1e57, vdisp_los=0, vdisp_3d=0, vtan=0, vphi=-500, vtheta=0, h1=h1_proj_min, el=e_min)

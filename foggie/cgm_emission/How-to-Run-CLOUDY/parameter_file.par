@@ -75,6 +75,10 @@ lineMapLine = N  5 1238
 lineMapLine = N  5 1242
 lineMapLine = Ne 8 770
 lineMapLine = Ne 8 780
+lineMapLine = O  5 1218
+lineMapLine = Si 4 1394
+lineMapLine = Si 4 1403
+lineMapLine = O  4 1400
 
 
 

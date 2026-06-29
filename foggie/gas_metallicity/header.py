@@ -23,6 +23,7 @@ import shutil
 import copy
 import glob
 import random
+import h5py
 import collections, itertools
 
 from matplotlib import pyplot as plt
@@ -35,6 +36,8 @@ from matplotlib.colors import LogNorm
 from matplotlib import image as mpimg
 from matplotlib.path import Path as mpl_Path
 from matplotlib import cm as mpl_cm
+from matplotlib import ticker
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import mplcyberpunk
 
 
@@ -161,3 +164,16 @@ metal_colors_mw = sns.blend_palette(metal_color_list, n_colors=6)
 metal_discrete_cmap_mw = mplcolors.ListedColormap(metal_colors_mw)
 metal_color_key_mw = collections.OrderedDict()
 for i in np.arange(np.size(metal_color_labels_mw)): metal_color_key_mw[metal_color_labels_mw[i]] = to_hex(metal_colors_mw[i])
+
+
+# --- Enable autoreload when running in IPython ---
+try:
+    from IPython import get_ipython
+    ipython = get_ipython()
+    if ipython is not None:
+        ipython.run_line_magic('load_ext', 'autoreload')
+        ipython.run_line_magic('reload_ext', 'autoreload')
+        ipython.run_line_magic('autoreload', '2')
+except Exception:
+    pass
+

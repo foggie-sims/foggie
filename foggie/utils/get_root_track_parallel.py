@@ -55,6 +55,10 @@ def parse_args():
                         'If you do not specify outputs, it will run on every output in run_dir.')
     parser.set_defaults(output=None)
 
+    parser.add_argument('--output_step', metavar='output_step', type=int, action='store', \
+                        help='If you want to do every Nth output, this specifies N. Default: 1 (every output in specified range)')
+    parser.set_defaults(output_step=1)
+
     parser.add_argument('--ref_level', metavar='ref_level', type=int, action='store', \
                         help='What forced refinement level do you want the track box to be?\n' + \
                         'Default is 9.')
@@ -73,6 +77,14 @@ def parse_args():
 
     args = parser.parse_args()
     return args
+
+def get_redshift_from_snap(snap_path):
+    '''Read CosmologyCurrentRedshift from an ENZO parameter file without loading yt.'''
+    with open(snap_path, 'r') as f:
+        for line in f:
+            if 'CosmologyCurrentRedshift' in line:
+                return float(line.split('=')[1].strip())
+    return None
 
 def get_halo_root_track(run_path, halo_id, snap_number, box_size, ref_level, t):
     '''This function calculates the center of mass of the particles listed
@@ -133,7 +145,7 @@ if __name__ == "__main__":
           if os.path.isdir(os.path.join(args.run_dir, name)) and (name.startswith('DD') or name.startswith('RD'))]
     else:
         print('Outputs: %s' % (args.output))
-        outs = make_output_list(args.output)
+        outs = make_output_list(args.output, output_step=args.output_step)
 
 
     trackname = args.run_dir + '/root_track'
@@ -144,6 +156,22 @@ if __name__ == "__main__":
     else:
         track = Table(dtype=('f4', 'f4', 'f4', 'f4', 'f4', 'f4', 'f4', 'i4'),
             names=('redshift', 'left_x', 'left_y', 'left_z', 'right_x', 'right_y', 'right_z', 'ref_level'))
+
+    if len(track) > 0:
+        existing_redshifts = set(track['redshift'])
+        filtered_outs = []
+        for out in outs:
+            snap = args.run_dir + '/' + out + '/' + out
+            z = get_redshift_from_snap(snap)
+            if z is not None and z not in existing_redshifts:
+                filtered_outs.append(out)
+            else:
+                print('Skipping %s (redshift %.4f already in track)' % (out, z))
+        outs = filtered_outs
+
+    if len(outs) == 0:
+        print('All requested outputs are already in the track file. Nothing to do.')
+        exit(0)
 
     print('Computing root track for ' + str(len(outs)) + ' snaps ' + \
           'from ' + outs[0] + ' to ' + outs[-1])

@@ -29,14 +29,16 @@ including spatial resolution and detection limits. If you use the ``--instrument
 For example, when using ``--instrument ASPERA``, the ion should be specified as ``--ions OVI`` because Aspera only detects OVI.
 
 The pipeline can generate full emission maps that include all gas within the field of view. Alternatively, it can create emission maps for a specific yt cut region using the
-``--filter_type`` argument. This allows users to isolate particular gas components, such as inflows, outflows, or only the CGM.
+``--filter_type`` argument. This allows users to isolate particular gas components, such as inflows, outflows, only the CGM, only clumps, subhalos etc.
 
 
 **List of files:**
 
 | Folder/Module        | Description |
 
-* ``emission_maps_dynamic.py``: The main code to make emission maps and FRBs from CLOUDY tables for a specific halo and snapshot.
+* ``emission_mass_maps_dynamic.py``: The main code to make emission maps and FRBs from CLOUDY tables for a specific halo and snapshot. It also includes functions to produce data used in FOGGIE XVI paper analysis.
+* ``cloudy_extended_z0_selfshield``: This folder contains CLOUDY tables for different ions across a range of temperatures and hydrogen number densities. The tables are used to calculate the emissivity for each ion in the dataset.
+
 
 
 **Author:**
@@ -47,11 +49,11 @@ Running the emission maps pipeline
 ----------------------------------
 **Running from command line:**
 
-To run the emission maps pipeline directly from command line, run ``emission_maps_dynamic.py`` with by your needed arguments. For example the below command
-will run the code for halo 4123 and make emission maps for CIV and OVI ions on vida_local system.
+To run the emission maps pipeline directly from command line, run ``emission_mass_maps_dynamic.py`` with by your needed arguments. For example the below command
+will run the code for halo 4123 at output RD0042 and make emission maps for CIV and OVI ions on vida_local system.
 ::
 
-    python emission_maps_dynamic.py --halo 4123 --system vida_local --plot emission_map 
+    python emission_mass_maps_dynamic.py --halo 4123 --output 42 --system vida_local --plot emission_map 
     --ions 'CIV,OVI'
 
 For a full list of arguments, see below.
@@ -74,6 +76,7 @@ Emission maps setting arguments:
               emission_map: Plots an image of projected emission lines (edge-on and face-on).
               emission_map_vbins: Plots multiple images of projected emission lines in line-of-sight velocity bins.
               emission_FRB: Makes FRBs of projected emission lines (edge-on and face-on). Default is emission_FRB.
+              emission_paper: Runs relevant functions for the FOGGIE XVI paper analysis.
 * ``--unit_system``: What unit system to use? Default: photons. Options:
                      default: photons (photons * s**-1 * cm**-3 * sr**-1).
                      erg: ergs (ergs * s**-1 * cm**-3 * arcsec**-2).
@@ -86,14 +89,18 @@ Emission maps setting arguments:
 
 Cut regions arguments:
 
-* ``--filter_type``: What yt cut region you want the emission maps to be made for? Default: None. Options: inflow_outflow, disk_cgm.
+* ``--filter_type``: What yt cut region you want the emission maps to be made for? Default: None. Options: inflow_outflow, disk_cgm, nodisk_nosatellite, no_clumps, clumps_only.
 * ``--shell_count``: If you are using ``--filter_type disk_cgm`` then you can choose if you want shells around the disk to be removed 
                      as part of the disk removel and getting CGM.How many shells around the disk when using the disk_cgm filter? Default: 0.
+* ``--max_number_of_satellites``: If you are using ``--filter_type nodisk_nosatellite`` then you can choose how many satellite you want to be removed as part of the satellite removel and getting CGM. Default: 0.
+* ``--n_subhalos``: Number of subhalos to make emission maps for when you are using ``--filter_type == subhalos`` . If not set, process all subhalos in the catalog. Default: None.
+* ``--subhalo_start``: If you are using ``--filter_type == subhalos`` then which subhalo you want to start with? They are organized by Mvir. Default: 0.
 
 Instrument Specific arguments:
 
 * ``--instrument``: Which instrument criteria do you want to use?use all caps for name of instruments. Default: None. Options: DRAGONFLY, ASPERA, JUNIPER, MAGPIE, HWO, MUSE.
 * ``--res_arcsec``: What is the instrument spatial resolution in arcseconds? Default: None.
+* ``--res_kpc``: What is the instrument spatial resolution in kpc? Default: None.
 * ``--target_z``: What is the target redshift for your instrument? Default: None.
 
 **Author:**
@@ -102,10 +109,12 @@ Vida Saeedzadeh
 
 **Examples**
 
-An example for running the emission maps pipeline for halo 8508, output RD0042, and make emission maps for CIV ion on vida_local system.
+You can find below some examples for running the emission maps pipeline with different arguments from the command line and in ``foggie/cgm_emission`` directory.
+
+An example for running the emission maps pipeline for halo 5036, output RD0042, and make emission maps for CIV ion on vida_local system.
 ::
 
-    python emission_maps_dynamic.py --halo 5036 --output RD0042 --system vida_local 
+    python emission_mass_maps_dynamic.py --halo 5036 --output 42 --system vida_local 
     --plot emission_map --ions 'CIV' --fov_kpc 100 
 
 Here how the edge on map looks like:
@@ -114,11 +123,34 @@ Here how the edge on map looks like:
    :width: 400px
    :align: center
 
-An example for running the emission maps pipeline for halo 8508, output RD0042, and make emission maps for CIV ions on vida_local system and 
+
+An example for running the emission maps pipeline for halo 5036, output RD0042, and make emission maps without disk, only CGM, for CIV ion on vida_local system.
+
+**Note:** To make emission maps without disk you need to run clump_finder.py and make sure that the directory in the emission_mass_map.py for disk_file directory points to the currect disk file directory.
+Example command for running clump_finder.py used to make below map is:
+
+::
+
+    python clump_finder.py --refinement_level 11 --identify_disk --data_dir /Users/vidasaeedzadeh/Projects/foggie_data/ 
+    --code_dir /Users/vidasaeedzadeh/Projects/repositories/foggie/foggie/ --output /Users/vidasaeedzadeh/Projects/foggie_outputs/plots_halo_005036/nref11c_nref9f/FOGGIE/RD0042/Disk/H1  
+    --run nref11c_nref9f --snapshot RD0042 --halo 005036 --clumping_field H_p0_number_density --identify_satellites --max_number_of_satellites 10
+
+::
+
+    python emission_mass_maps_dynamic.py --halo 5036 --output 42 --system vida_local 
+    --plot emission_map --ions 'CIV' --fov_kpc 100 --filter_type disk_cgm
+
+Here how the edge on map looks like:
+
+.. image:: figures/RD0042_CIV_emission_map_edge-on_CGM.png
+   :width: 400px
+   :align: center
+
+An example for running the emission maps pipeline for halo 5036, output RD0042, and make emission maps for CIV ions on vida_local system and 
 instrument JUNIPER.
 ::
 
-    python emission_maps_dynamic.py --halo 5036  --output RD0042 --system vida_local
+    python emission_mass_maps_dynamic.py --halo 5036  --output 42 --system vida_local
     --plot emission_map --ions 'CIV,OVI' --instrument JUNIPER --target_z 0.001 --res_arcsec 20 
     --fov_kpc 100 
 

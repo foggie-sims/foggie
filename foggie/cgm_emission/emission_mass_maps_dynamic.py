@@ -1,15 +1,15 @@
 '''
-Filename: emission_maps_dynamic.py
+Filename: emission_mass_maps_dynamic.py
 Author: Vida
-Date created: 1-15-25
-Date last modified: 3-14-25
+Date created: 01-15-25
+Date last modified: 06-04-26
 
 This file contains everything that is needed to make emission maps and FRBs from CLOUDY tables.
 All CLOUDY and emission code copy-pasted from Lauren's foggie/cgm_emission/emission_functions.py and Cassi's foggie/cgm_emission/emission_maps.py 
 
 This code is modified Cassi's foggie/cgm_emission/emission_maps.py to dynamically get:
-1. yt cut regions: tempreture, density, inflow, outflow, disk, cgm 
-Note: if you want to use disk and cgm filters then you need to run clump_finder.py first and then use the output file in the code
+1. yt cut regions: tempreture, density, inflow, outflow, disk, cgm, clumps
+Note: if you want to use disk,cgm, or clumps filters then you need to run clump_finder.py first and then use the output file in the code
 2. pixel size for frb maps
 3. units for emission: photons: photons s$^{-1}$ cm$^{-2}$ sr$^{-1}$ and erg: erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$
 4. Field of view size
@@ -18,8 +18,10 @@ Note: if you want to use disk and cgm filters then you need to run clump_finder.
 It saves:
 1. emission maps for edge-on and face-on projections for each ion in the list 'ions' 
 2. Saves the emission values in a hdf5 file  
+3. calculate data for the paper FOGGIE XVI analysis and saves the relevant data in hdf5 files
 '''
 
+import builtins
 import numpy as np
 import yt
 import unyt
@@ -31,7 +33,8 @@ from astropy.table import Table
 from astropy.io import ascii
 import multiprocessing as multi
 import time
-
+import re
+import builtins
 
 import datetime
 from scipy import interpolate
@@ -39,11 +42,13 @@ import shutil
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 from matplotlib.colors import LogNorm
+import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable 
 import cmasher as cmr
 import matplotlib.colors as mcolors
 import h5py
 import trident
+from scipy.interpolate import RegularGridInterpolator
 from yt.units import define_unit, Msun, erg, arcsec, cm, s, sr  
 
 import datashader as dshader
@@ -56,6 +61,7 @@ from yt.units.yt_array import YTQuantity
 from scipy.ndimage import gaussian_filter
 from astropy.cosmology import Planck18 as cosmology
 from yt.visualization.volume_rendering.off_axis_projection import off_axis_projection
+from scipy.ndimage import gaussian_filter, rotate, zoom
 
 
 # These imports are FOGGIE-specific files
@@ -71,6 +77,8 @@ from foggie.clumps.clump_finder.clump_finder_argparser import *
 from foggie.clumps.clump_finder.fill_topology import *
 from foggie.clumps.clump_finder.clump_load import *
 from foggie.clumps.clump_finder.clump_finder import *
+
+#####################################################################################################
 
 def parse_args():
     '''Parse command line arguments. Returns args object.'''
@@ -92,8 +100,6 @@ def parse_args():
                         '(e.g. "20,25" or "20-25").')
     parser.set_defaults(output='42')
 
-    
-
     parser.add_argument('--output_step', metavar='output_step', type=int, action='store', \
                         help='If you want to do every Nth output, this specifies N. Default: 1 (every output in specified range)')
     parser.set_defaults(output_step=1)
@@ -112,24 +118,6 @@ def parse_args():
                         ' specified, code will run one output per processor')
     parser.set_defaults(nproc=1)
 
-    parser.add_argument('--plot', metavar='plot', type=str, action='store', \
-                       help='What do you want to plot? Options are:\n' + \
-                        'emission_map       -  Plots an image of projected emission lines edge-on and face-on\n' + \
-                        'emission_map_vbins -  Plots many images of projected emission lines edge-on and face-on in line-of-sight velocity bins\n' + \
-                        'emission_FRB       -  Makes FRBs of projected emission lines edge-on and face-on')
-    parser.set_defaults(plot='emission_FRB')
-
-    parser.add_argument('--ions', metavar='ions', type=str, action='store', \
-                      help='What ions do you want emission maps or FRBs for? Options are:\n' + \
-                        'Lyalpha, Halpha, CII, CIII, CIV, MgII, OVI, SiII, SiIII, SiIV\n' + \
-                        "If you want multiple, use a comma-separated list with no spaces like:\n" + \
-                        "--ions 'CIII,OVI,SiIII'")
-
-    parser.add_argument('--instrument', metavar='instrument', type=str, action='store', \
-                        help='Which instrument criteria do you want to use?use all caps for name of instruments. Default: None. \n' + \
-                              'Options: DRAGONFLY, ASPERA, JUNIPER, MAGPIE, HWO, MUSE.')
-    parser.set_defaults(instrument=None)
-    
     parser.add_argument('--save_suffix', metavar='save_suffix', type=str, action='store', \
                         help='Do you want to append a string onto the names of the saved files? Default is no.')
     parser.set_defaults(save_suffix="")
@@ -138,12 +126,63 @@ def parse_args():
                         help='If plotting from saved surface brightness files, use this to pass the file name suffix.')
     parser.set_defaults(file_suffix="")
 
+    parser.add_argument('--plot', metavar='plot', type=str, action='store', \
+                       help='What do you want to plot? Options are:\n' + \
+                        'emission_map       -  Plots an image of projected emission lines edge-on and face-on\n' + \
+                        'emission_map_vbins -  Plots many images of projected emission lines edge-on and face-on in line-of-sight velocity bins\n' + \
+                        'emission_FRB       -  Makes FRBs of projected emission lines edge-on and face-on\n' + \
+                        'emission_paper   -  Runs relevant functions for the FOGGIE XVI paper analysis')
+    parser.set_defaults(plot='emission_FRB')
+
     parser.add_argument('--unit_system', metavar='unit_system', type=str, action='store', \
                         help='What unit system? Default is photons. Options are:\n' + \
                             'default - photons (photons * s**-1 * cm**-3 * sr**-1)\n' + \
                             'erg - erg (ergs * s**-1 * cm**-3 * arcsec**-2)')
     parser.set_defaults(unit_system='photons')
 
+    parser.add_argument('--ions', metavar='ions', type=str, action='store', \
+                      help='What ions do you want emission maps or FRBs for? Options are:\n' + \
+                        'Lyalpha, Halpha, CII, CIII, CIV, MgII, OVI, SiII, SiIII, SiIV\n' + \
+                        "If you want multiple, use a comma-separated list with no spaces like:\n" + \
+                        "--ions 'CIII,OVI,SiIII'")
+    
+    parser.add_argument('--fov_kpc', metavar='fov_kpc', type=str, action='store', \
+                        help='what is the field of view width in kpc (e.g. 100 )? Default is None. If it is None then it will take the refine box width')
+    parser.set_defaults(fov_kpc=None)
+
+    parser.add_argument('--fov_arcmin', metavar='fov_arcmin', type=str, action='store', \
+                        help='what is the field of view width in arcmin (e.g. 4)? Default is None. If it is None then it will take the refine box width')
+    parser.set_defaults(fov_arcmin=None)
+
+    parser.add_argument('--scale_factor', metavar='scale_factor', type=str, action='store', \
+                        help='Do you want to scale the emissivity to observation? How much? The default is 1 i.e. no scaling.')
+    parser.set_defaults(scale_factor=1)
+
+    parser.add_argument('--filter_type', metavar='filter_type', type=str, action='store', \
+                        help='What filter type? Default is None (Options are: inflow_outflow or disk_cgm or nodisk_nosatellite or no_clumps or clumps_only)')
+    parser.set_defaults(filter_type=None)
+
+    parser.add_argument('--shell_count', metavar='shell_count', type=str, action='store', \
+                        help='How many shell you have around disk when you are using disk_cgm filter? defualt is 0')
+    parser.set_defaults(shell_count=0)
+
+    parser.add_argument('--max_number_of_satellites', metavar='max_number_of_satellites', type=str, action='store', \
+                        help='If you are using --filter_type nodisk_nosatellite then you can choose how many satellite you want to be removed as part of the satellite removel and getting CGM. Default: 0.')
+    parser.set_defaults(max_number_of_satellites=0)
+
+    parser.add_argument('--n_subhalos', type=int, default=None,
+                    help="Number of subhalos to make emission maps for. If not set, process all subhalos in the catalog.")
+    parser.set_defaults(n_subhalos=None)
+
+    parser.add_argument('--subhalo_start', type=int, default=0,action='store',\
+                    help='which subhalo you want to start with? they are organized by Mvir.')
+    parser.set_defaults(subhalo_start=0)
+
+    parser.add_argument('--instrument', metavar='instrument', type=str, action='store', \
+                        help='Which instrument criteria do you want to use?use all caps for name of instruments. Default: None. \n' + \
+                              'Options: DRAGONFLY, ASPERA, JUNIPER, MAGPIE, HWO, MUSE.')
+    parser.set_defaults(instrument=None)
+    
     parser.add_argument('--res_arcsec', metavar='res_arcsec', type=str, action='store', \
                         help='What is the instrument resolution in arcsec? Default is None. If it is None then simulation resolution will be used.')
     parser.set_defaults(res_arcsec=None)
@@ -156,29 +195,6 @@ def parse_args():
                         help='What is the target redshift for your instrument? Default is 0.1')
     parser.set_defaults(target_z=None)
 
-    parser.add_argument('--fov_kpc', metavar='fov_kpc', type=str, action='store', \
-                        help='what is the field of view width in kpc (e.g. 100 )? Default is None. If it is None then it will take the refine box width')
-    parser.set_defaults(fov_kpc=None)
-
-    parser.add_argument('--fov_arcmin', metavar='fov_arcmin', type=str, action='store', \
-                        help='what is the field of view width in arcmin (e.g. 4)? Default is None. If it is None then it will take the refine box width')
-    parser.set_defaults(fov_arcmin=None)
-
-    parser.add_argument('--filter_type', metavar='filter_type', type=str, action='store', \
-                        help='What filter type? Default is None (Options are: inflow_outflow or disk_cgm )')
-    parser.set_defaults(filter_type=None)
-
-    parser.add_argument('--shell_count', metavar='shell_count', type=str, action='store', \
-                        help='How many shell you have around disk when you are using disk_cgm filter? defualt is 0')
-    parser.set_defaults(shell_count=0)
-
-    parser.add_argument('--shell_cut', metavar='shell_cut', type=str, action='store', \
-                        help='What filter type? Default is None (Option is = shell )')
-    parser.set_defaults(shell_cut=None)
-    
-    parser.add_argument('--scale_factor', metavar='scale_factor', type=str, action='store', \
-                        help='Do you want to scale the emissivity to observation? How much? The default is 1 i.e. no scaling.')
-    parser.set_defaults(scale_factor=1)
 
     args = parser.parse_args()
     return args
@@ -282,33 +298,12 @@ def Emission_CII_1335(field, data,scale_factor, unit_system='photons'):
     emission_line = scale_by_metallicity(emission_line, 0.0, np.log10(np.array(data['metallicity'])))
     
     if unit_system == 'photons':
-        emission_line = emission_line / (4. * np.pi * 2.03e-11)
+        emission_line = emission_line / (4. * np.pi * 1.489e-11)
         return emission_line * ytEmU
     elif unit_system == 'erg':
         emission_line = emission_line / (4. * np.pi)
         emission_line = emission_line / 4.25e10
         return emission_line * ytEmUALT
-    
-# def Emission_CIII_977(field, data,scale_factor, unit_system='photons'):
-    
-#     H_N = np.log10(np.array(data["H_nuclei_density"]))
-#     Temperature = np.log10(np.array(data["Temperature"]))
-#     dia1 = bl_CIII_977(H_N, Temperature)
-#     idx = np.isnan(dia1)
-#     dia1[idx] = -200.
-#     if scale_factor > 1:
-#         emission_line = scale_factor * ((10.0**dia1) * ((10.0**H_N)**2.0))
-#     else:
-#         emission_line = ((10.0**dia1) * ((10.0**H_N)**2.0))
-#     emission_line = scale_by_metallicity(emission_line, 0.0, np.log10(np.array(data['metallicity'])))
-    
-#     if unit_system == 'photons':
-#         emission_line = emission_line / (4. * np.pi * 2.03e-11) # the constant value 2.03e-11 is energy per photon for CIII 977
-#         return emission_line * ytEmU
-#     elif unit_system == 'erg':
-#         emission_line = emission_line / (4. * np.pi)
-#         emission_line = emission_line / 4.25e10
-#         return emission_line * ytEmUALT
       
 def Emission_CIII_1910(field, data,scale_factor, unit_system='photons'):
     
@@ -324,7 +319,7 @@ def Emission_CIII_1910(field, data,scale_factor, unit_system='photons'):
     emission_line = scale_by_metallicity(emission_line, 0.0, np.log10(np.array(data['metallicity'])))
     
     if unit_system == 'photons':
-        emission_line = emission_line / (4. * np.pi * 2.03e-11)
+        emission_line = emission_line / (4. * np.pi * 1.041e-11)
         return emission_line * ytEmU
     elif unit_system == 'erg':
         emission_line = emission_line / (4. * np.pi)
@@ -398,29 +393,6 @@ def Emission_SiIII_1207(field, data,scale_factor, unit_system='photons'):
         emission_line = emission_line / 4.25e10
         return emission_line * ytEmUALT
 
-# def Emission_SiII_1814(field, data,scale_factor, unit_system='photons'):
-    
-#     H_N = np.log10(np.array(data["H_nuclei_density"]))
-#     Temperature = np.log10(np.array(data["Temperature"]))
-#     dia1 = bl_SiII_1814(H_N, Temperature)
-#     idx = np.isnan(dia1)
-#     dia1[idx] = -200.
-#     if scale_factor > 1:
-#         emission_line = scale_factor * (10.0**dia1) * ((10.0**H_N)**2.0)
-#     else:
-#         emission_line = (10.0**dia1) * ((10.0**H_N)**2.0)
-    
-#     emission_line = scale_by_metallicity(emission_line, 0.0, np.log10(np.array(data['metallicity'])))
-    
-#     if unit_system == 'photons':
-#         emission_line = emission_line / (4.*np.pi*1.10e-11)
-#         return emission_line * ytEmU
-#     elif unit_system == 'erg':
-#         emission_line = emission_line / (4. * np.pi)
-#         emission_line = emission_line / 4.25e10
-#         return emission_line * ytEmUALT
-#     else:
-#         raise ValueError("Invalid unit_system specified. Use 'default' or 'ALT'.")
 def Emission_SiII_1260(field, data,scale_factor, unit_system='photons'):
     
     H_N = np.log10(np.array(data["H_nuclei_density"]))
@@ -491,6 +463,12 @@ def Emission_MgII_2796(field, data,scale_factor, unit_system='photons'):
         emission_line = emission_line / 4.25e10
         return emission_line * ytEmUALT
 
+#####################################################################################################  
+# Prepare data for generating emission maps
+# This section was previously repeated in every emission map function. Now, it is modularized into a series of 
+# functions that handle key preprocessing steps. These functions collectively determine the halo name, resolution, 
+# pixel size, field of view, filtering criteria, unit label, and HDF5 file structure. 
+
 def filter_ds(box,segmentation_filter='radial_velocity'):
     '''This function filters the yt data object passed in as 'box' into inflow and outflow regions,
     based on metallicity, and returns the box filtered into these regions.'''
@@ -507,11 +485,6 @@ def filter_ds(box,segmentation_filter='radial_velocity'):
         box_neither = box_neither.include_below(('gas','radial_velocity_corrected'), 200., 'km/s')
 
     return box_inflow, box_outflow, box_neither
-#####################################################################################################  
-# Prepare data for generating emission maps
-# This section was previously repeated in every emission map function. Now, it is modularized into a series of 
-# functions that handle key preprocessing steps. These functions collectively determine the halo name, resolution, 
-# pixel size, field of view, filtering criteria, unit label, and HDF5 file structure. 
 
 def get_halo_name_and_resolution(halo_dict, args, refine_box):
     """Retrieve halo name and pixel resolution from refine_box."""
@@ -551,13 +524,161 @@ def determine_fov(args, arcmin_kpc_scale, ds):
     else:
         return YTQuantity(ds.refine_width, 'kpc') if not hasattr(ds.refine_width, 'in_units') else ds.refine_width.in_units('kpc')
 
-def filter_data(refine_box, filter_type, filter_value, ds, disk_file, shell_count, shell_path,radii=[20,30,50,100]):
+def _h5_find_dataset(h5f, target_name):
+    """
+    Find dataset path inside an HDF5 file by its final name.
+    Example: target_name='particle_position_x' will match any path ending with that.
+    """
+    matches = []
+
+    def visitor(name, obj):
+        if isinstance(obj, h5py.Dataset) and name.split("/")[-1] == target_name:
+            matches.append(name)
+
+    h5f.visititems(visitor)
+    if len(matches) == 0:
+        raise KeyError(f"Could not find dataset named '{target_name}' in halo catalog file.")
+    # If multiple, pick the first; you can print(matches) if you want to inspect.
+    return matches[0]
+
+def load_halo_catalog_fields_h5(catalog_dir, snapname):
+    """
+    Returns numpy arrays for the halo catalog fields without involving yt.
+    """
+    halo_catalog_path = os.path.join(catalog_dir, "halo_catalogs", snapname, f"{snapname}.0.h5")
+    with h5py.File(halo_catalog_path, "r") as f:
+        px_path = _h5_find_dataset(f, "particle_position_x")
+        rvir_path = _h5_find_dataset(f, "corrected_rvir")
+        mass_path = _h5_find_dataset(f, "total_mass")
+        print("particle_position_x attrs:", dict(f[px_path].attrs))
+        print("corrected_rvir attrs:", dict(f[rvir_path].attrs))
+        print("total_mass attrs:", dict(f[mass_path].attrs))
+
+    print("Looking for halo catalog at:", halo_catalog_path)
+    if not os.path.exists(halo_catalog_path):
+        raise FileNotFoundError(f"No halo catalog found at {halo_catalog_path}")
+
+    with h5py.File(halo_catalog_path, "r") as f:
+        # These names match what you used via yt: ("halos","particle_position_x"), etc.
+        px_path = _h5_find_dataset(f, "particle_position_x")
+        py_path = _h5_find_dataset(f, "particle_position_y")
+        pz_path = _h5_find_dataset(f, "particle_position_z")
+        rvir_path = _h5_find_dataset(f, "corrected_rvir")
+        mtot_path = _h5_find_dataset(f, "total_mass")
+
+        x = np.array(f[px_path])
+        y = np.array(f[py_path])
+        z = np.array(f[pz_path])
+        rvir = np.array(f[rvir_path])
+        mtot = np.array(f[mtot_path])
+
+    return (x, y, z, rvir, mtot), halo_catalog_path
+
+def build_subhalo_spheres_from_catalog_arrays(
+    ds, x, y, z, rvir, mtot,
+    n_subhalos=None, start=0, rvir_scale=1.0):
+    """
+    Build ds.sphere objects around halo catalog entries.
+
+    Assumptions:
+      - positions stored in code_length unless you set positions_are_code_length=False
+      - corrected_rvir stored in kpc unless rvir_is_kpc=False
+    """
+    # Sort by mass descending
+    order = np.argsort(mtot)[::-1]
+
+    if n_subhalos is None:
+        order = order[start:]
+    else:
+        order = order[start:start + n_subhalos]
+
+    spheres = {}
+    meta = []
+
+    for rank, idx in enumerate(order):
+        
+        center_cm = ds.arr([x[idx], y[idx], z[idx]], "cm")
+        center_code = center_cm.in_units("code_length")
+
+        radius_kpc = float(ds.quan(rvir[idx], "cm").in_units("kpc")) * rvir_scale
+        mtot_msun = float(ds.quan(mtot[idx], "g").in_units("Msun"))
+
+        sp = ds.sphere(center_code, (radius_kpc, "kpc"))
+
+        key = f"catidx_{int(idx)}"
+        spheres[key] = sp
+        meta.append({
+            "key": key,
+            "cat_index": int(idx),
+            "rvir_kpc": radius_kpc / rvir_scale,
+            "mtot_msun": mtot_msun,
+        })
+
+    
+    return spheres, meta
+
+def load_clump_tree_as_cut_region(ds, data_source, clump_tree_file):
+    """
+    Load a yt ClumpTree HDF5 file and return a yt cut_region containing
+    all leaf-clump cells.
+
+    The ClumpTree HDF5 structure is:
+        hf['leaf_clump_ids']          -> array of leaf IDs (ints)
+        hf[str(leaf_id)]['cell_ids']  -> array of cell IDs for that leaf
+
+    This is different from the Disk HDF5 format used by load_clump(),
+    which stores cell_ids at the top level.
+    """
+    import h5py
+    from foggie.clumps.clump_finder.utils_clump_finder import add_cell_id_field
+
+    # Register the cell_id_2 field so we can match cells
+    add_cell_id_field(ds)
+
+    # Collect all clump cell IDs from every leaf in the tree
+    print(f"Loading clump tree from: {clump_tree_file}")
+    with h5py.File(clump_tree_file, 'r') as hf:
+        leaf_clump_ids = hf['leaf_clump_ids'][...]
+        print(f"  Found {len(leaf_clump_ids)} leaf clumps")
+        all_clump_cell_ids = []
+        for leaf_id in leaf_clump_ids:
+            leaf_cell_ids = hf[str(leaf_id)]['cell_ids'][...]
+            all_clump_cell_ids.append(leaf_cell_ids)
+
+    all_clump_cell_ids = np.unique(np.concatenate(all_clump_cell_ids))
+    print(f"  Total unique clump cells: {len(all_clump_cell_ids)}")
+
+    # Register a temporary boolean field driven by the clump cell IDs
+    if not hasattr(ds, '_clump_cell_ids'):
+        ds._clump_cell_ids = {}
+    field_name = 'in_clump_tree'
+    ds._clump_cell_ids[field_name] = all_clump_cell_ids
+
+    def _in_clump_field(field, data):
+        cids = np.array(data['index', 'cell_id_2']).astype(np.uint64)
+        stored_ids = ds._clump_cell_ids[field_name]
+        return ds.arr(np.isin(cids, stored_ids).astype(np.float64), '')
+
+    ds.add_field(
+        ('gas', field_name),
+        function=_in_clump_field,
+        sampling_type='cell',
+        units='',
+        force_override=True,
+    )
+
+    clump_region = data_source.cut_region(["obj['gas', 'in_clump_tree'] > 0.5"])
+    print(f"  Cut region created for clump cells")
+    return clump_region
+
+def filter_data(refine_box, filter_type, filter_value, ds, disk_file,shell_count, max_number_of_satellites, shell_path,
+                catalog_dir=None, snapname=None, args=None,radii=[20,30,50,100], clump_file=None):
     """Apply various data filtering methods."""
     if filter_type == 'inflow_outflow':
         box_inflow, box_outflow, box_neither = filter_ds(refine_box, segmentation_filter='radial_velocity')
         return {'inflow': box_inflow, 'outflow': box_outflow, 'neither': box_neither}
 
-    elif filter_type == 'disk_cgm':
+    elif filter_type == 'disk_cgm': # this will exclude the disk and include only the cgm
         disk_cut_region = load_clump(ds, disk_file, source_cut=refine_box)
         box_cgm = refine_box - disk_cut_region
 
@@ -566,31 +687,69 @@ def filter_data(refine_box, filter_type, filter_value, ds, disk_file, shell_coun
         
         elif shell_count > 0:
             for i in range(shell_count):
-                shell_clump_file = shell_path + f'test_DiskDilationShell_n{i}.h5'
+                shell_clump_file = shell_path + f'H1_DiskDilationShell_n{i}.h5'
                 shell_cut_region = load_clump(ds, shell_clump_file)
                 box_cgm = box_cgm - shell_cut_region
             return {'cgm': box_cgm}
         
-    elif shell_cut == 'shell':
-        # Create a thick shell around the disk
-        center=ds.halo_center_kpc
-        spheres = []
-        for r_index, radius in enumerate(radii):
-            print(f"Creating sphere with radius {radius} kpc")
-            spheres.append(ds.sphere(center, (radius, 'kpc')))
+    elif filter_type == "subhalos":
+        if catalog_dir is None or snapname is None or args is None:
+            raise ValueError("subhalos filter requires catalog_dir, snapname, and args")
 
-        sphere1 = spheres[0]
-        sphere2 = spheres[1] - spheres[0]
-        sphere3 = spheres[2] - spheres[1]
-        sphere4 = spheres[3] - spheres[2]
+        (x, y, z, rvir, mtot), halo_cat_path = load_halo_catalog_fields_h5(catalog_dir, snapname)
 
-        return {'thick_shell1': sphere1, 'thick_shell2': sphere2, 'thick_shell3': sphere3, 'thick_shell4': sphere4}
+        start = int(getattr(args, "subhalo_start", 0) or 0)
+
+        # If user did not pass --n_subhalos, args.n_subhalos will be None
+        if getattr(args, "n_subhalos", None) is None:
+            n = len(rvir)   # "all"
+        else:
+            n = int(args.n_subhalos)
+
+
+        spheres_dict, meta = build_subhalo_spheres_from_catalog_arrays(
+            ds, x, y, z, rvir, mtot,
+            n_subhalos=n,
+            start=start,
+            rvir_scale=1.0
+        )
+
+
+        return spheres_dict, {m["key"]: m for m in meta}    
+
+    elif filter_type == 'nodisk_nosatellite':
+        # Load the disk clump and subtract it from the refine box
+        disk_cut_region = load_clump(ds, disk_file, source_cut=refine_box)
+        box_cgm = refine_box - disk_cut_region
+
+        # Load the satellite clump and subtract it from the box without the disk
+        if max_number_of_satellites > 0:
+            for j in range(max_number_of_satellites):
+                satellite_clump_file = shell_path + f'H1_Satellite{j}.h5'
+                satellite_cut_region = load_clump(ds, satellite_clump_file)
+                box_cgm = box_cgm - satellite_cut_region
+            return {'cgm_no_satellite': box_cgm}
+        else: 
+            return {'cgm': box_cgm}
 
     elif filter_type == 'temperature' and filter_value is not None:
         return {'all': refine_box.cut_region([f"(obj['gas', 'temperature'] < {filter_value})"])}
     
     elif filter_type == 'density' and filter_value is not None:
         return {'all': refine_box.cut_region([f"(obj['gas', 'density'] > {filter_value})"])}
+    
+    elif filter_type == 'no_clumps':
+        if clump_file is None:
+            raise ValueError("no_clumps filter requires a clump_file path")
+        clump_region = load_clump_tree_as_cut_region(ds, refine_box, clump_file)
+        return {'no_clumps': refine_box - clump_region}
+
+    elif filter_type == 'clumps_only':
+        if clump_file is None:
+            raise ValueError("clumps_only filter requires a clump_file path")
+        clump_region = load_clump_tree_as_cut_region(ds, refine_box, clump_file)
+        return {'clumps_only': clump_region}
+
     
     # # YOUR FILTER AND CUT REGIONS GO HERE
     # #elif filter_type == 'your_filter':
@@ -636,7 +795,7 @@ def create_or_open_hdf5_group(prefix, halo_name, save_suffix, ds, width, unit_la
 
     return f, grp  # Return file and group handle
 
-def process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count, shell_path, unit_system, prefix, save_suffix, ions):
+def process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count,max_number_of_satellites, shell_path, unit_system, prefix, save_suffix, ions, catalog_dir=None, snapname=None,clump_file=None):
     """Main function that integrates all steps for computing emission maps."""
     halo_name, pix_res = get_halo_name_and_resolution(halo_dict, args, refine_box)
     arcmin_kpc_scale = get_arcmin_kpc_scale(args)
@@ -654,7 +813,14 @@ def process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_v
     print(f"FRB number of bins (res): {res}")
 
     # Filter data
-    data_sources = filter_data(refine_box, filter_type, filter_value, ds, disk_file, shell_count, shell_path,radii=[20,30,50,100])
+    out = filter_data(refine_box, filter_type, filter_value, ds, disk_file,shell_count, max_number_of_satellites, shell_path,
+                catalog_dir=catalog_dir, snapname=snap, args=args,radii=[20,30,50,100], clump_file=clump_file)
+    if filter_type == "subhalos":
+        data_sources, subhalo_meta = out
+    else:
+        data_sources = out
+        subhalo_meta = {}
+
 
     # Determine unit label
     unit_label = determine_unit_label(unit_system)
@@ -662,7 +828,7 @@ def process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_v
     # Create or open HDF5 file and group
     f, grp = create_or_open_hdf5_group(prefix, halo_name, save_suffix, ds, width, unit_label, round_bin_size_kpc, ions, args)
 
-    return f, grp, data_sources, width_value, res, round_bin_size_kpc, bin_size_cm, unit_label  # Return file, group, and data sources for further processing
+    return f, grp, data_sources, width_value, res, round_bin_size_kpc, bin_size_cm, unit_label, subhalo_meta  # Return file, group, and data sources for further processing
 
 #####################################################################################################  
 
@@ -675,10 +841,22 @@ def make_FRB(ds, refine_box, snap, ions, unit_system='photons', filter_type=None
     save_path = prefix + f'FRBs/' 
     os.makedirs(save_path, exist_ok=True)  # Ensure the directory exists
     print('save path:',save_path)
-    f, grp, data_sources, width_value, res, round_bin_size_kpc, bin_size_cm, unit_label = process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count, shell_path, unit_system, prefix, save_suffix, ions)
+    f, grp, data_sources, width_value, res, round_bin_size_kpc, bin_size_cm, unit_label, subhalo_meta  = process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count,max_number_of_satellites, shell_path, unit_system, prefix, save_suffix, ions, catalog_dir=catalog_dir, snapname=snap, clump_file=clump_file)
 
     # Loop through ions and create projections for each region
     for region, data_source in data_sources.items():
+        print("FRB region =", region, "type =", type(data_source))
+        # if subhalos, region will be the halo index (e.g., 12), and data_source is a sphere
+        plot_center = plot_center = data_source.center if hasattr(data_source, "center") else ds.halo_center_kpc
+        print("plot center:", plot_center)
+
+        # Get subhalo mass if available
+        m = subhalo_meta.get(region, {})
+        if "mtot_msun" in m:
+            mass_txt = rf"$M_h$ = {m['mtot_msun']:.2e} $M_\odot$"
+        else:
+            mass_txt = "$M_h$ = (unknown)"
+
         for ion in ions:
             print(ion)
 
@@ -711,7 +889,7 @@ def make_FRB(ds, refine_box, snap, ions, unit_system='photons', filter_type=None
 
             #Edge-on projection
             proj_edge = yt.ProjectionPlot(ds, ds.x_unit_disk, ('gas', 'Emission_' + ions_dict[ion]),
-                                          center=ds.halo_center_kpc, data_source=data_source,width=(float(width_value), 'kpc'),
+                                          center=plot_center, data_source=data_source,width=(float(width_value), 'kpc'),
                                           north_vector=ds.z_unit_disk, buff_size=[res, res], method = 'integrate', weight_field=None) #(ds.refine_width, 'kpc')
             frb_edge = proj_edge.frb[('gas', 'Emission_' + ions_dict[ion])]
             grp.create_dataset(f"{ion}_emission_edge_{region}", data=frb_edge)
@@ -724,12 +902,13 @@ def make_FRB(ds, refine_box, snap, ions, unit_system='photons', filter_type=None
             proj_edge.set_ylabel('y (kpc)')
             proj_edge.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
             proj_edge.annotate_title(f"bin size = {round_bin_size_kpc} kpc")
-            proj_edge.save(save_path + f'{snap}_{ion}_emission_map_edge-on_{region}' + save_suffix + '.png')
+            proj_edge.annotate_text([0.55, 0.95], mass_txt, coord_system="axis",text_args={"color": "white"})
+            proj_edge.save(save_path + f'{snap}_{ion}_emission_map_edge_{region}' + save_suffix + '.png')
             
 
             #Face-on projection
             proj_face = yt.ProjectionPlot(ds, ds.z_unit_disk, ('gas', 'Emission_' + ions_dict[ion]),
-                                          center=ds.halo_center_kpc, data_source=data_source,width=(float(width_value), 'kpc'),
+                                          center=plot_center, data_source=data_source,width=(float(width_value), 'kpc'),
                                           north_vector=ds.x_unit_disk, buff_size=[res, res],weight_field=None) #(ds.refine_width, 'kpc')
 
             frb_face = proj_face.frb[('gas', 'Emission_' + ions_dict[ion])]
@@ -744,7 +923,8 @@ def make_FRB(ds, refine_box, snap, ions, unit_system='photons', filter_type=None
             proj_face.set_ylabel('y (kpc)')
             proj_face.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
             proj_face.annotate_title(f"bin size = {round_bin_size_kpc} kpc")
-            proj_face.save(save_path + f'{snap}_{ion}_emission_map_face-on_{region}' + save_suffix + '.png')
+            proj_face.annotate_text([0.55, 0.95], mass_txt, coord_system="axis",text_args={"color": "white"})
+            proj_face.save(save_path + f'{snap}_{ion}_emission_map_face_{region}' + save_suffix + '.png')
 
             
 
@@ -752,178 +932,96 @@ def make_FRB(ds, refine_box, snap, ions, unit_system='photons', filter_type=None
     print('Emission frb saved')
     f.close()
   
-def compute_mass_in_emission_pixels(ds, refine_box, snap, ions, unit_system='photons', filter_type=None, filter_value=None,res_arcsec=None):
-    """Compute the total ion mass that contributes to each pixel of an emission FRB for edge-on and face-on views."""
+def emission_map_vbins(ds,refine_box, snap, ions,unit_system='photons', filter_type=None, filter_value=None):
+    '''Makes many emission maps for each ion in 'ions', oriented both edge-on and face-on, for each line-of-sight velocity bin.'''
 
-    f, grp, data_sources,width_value, res, min_res, bin_size_cm, unit_label = process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count, shell_path, unit_system, prefix, save_suffix, ions)
+    vbins = np.arange(-360., 540., 180.)  
+    deltav = vbins[1] - vbins[0]
 
+    f, grp, data_sources, width_value, res, round_bin_size_kpc, bin_size_cm, unit_label, subhalo_meta  = process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count,max_number_of_satellites, shell_path, unit_system, prefix, save_suffix, ions, catalog_dir=catalog_dir, snapname=snap, clump_file=clump_file)
+
+
+    # Loop through ions and create projections for each region
     for region, data_source in data_sources.items():
-        for ion in ions:
-            print(f"Calculating Mass in each pixel for {ion} in {region} region")
-            # Extract necessary fields from refine_box
-            half_width = (width_value / 2) 
-            data_source = data_source.cut_region([
-                f"(abs(obj['gas', 'x_disk']) < {half_width})",
-                f"(abs(obj['gas', 'y_disk']) < {half_width})",
-                f"(abs(obj['gas', 'z_disk']) < {half_width})"
-            ])
+        for i in range(len(ions)):
+            ion = ions[i]
+            print(ion)
 
-            x_disk = data_source[('gas', 'x_disk')].in_units('kpc')  # X positions
-            y_disk = data_source[('gas', 'y_disk')].in_units('kpc')  # Y positions
-            z_disk = data_source[('gas', 'z_disk')].in_units('kpc')  # Z positions
-            ion_mass = data_source[('gas', ions_mass_dict[ion])].in_units('Msun')  # Ion mass
-            #ion_emission = data_source[('gas', 'Emission_' + ions_dict[ion])]
+            # Costum colormap settings with the instrument detection limit for each ion
+            if args.instrument is not None and ion in ions:
 
-            
-            # Create empty mass FRBs
-            mass_frb_edge = np.zeros((res, res), dtype=np.float64) 
-            mass_frb_face = np.zeros((res, res), dtype=np.float64) 
+                # Get the limit range for the total colormap
+                zmin, zmax = zlim_dict[ion]
+        
+                # Get the flux threshold and normalize the threshold position to change cmaps at the detection limit
+                threshold = flux_threshold_dict[ion]
+                fraction_below = (np.log10(threshold) - np.log10(zmin)) / (np.log10(zmax) - np.log10(zmin))
+                fraction_above = 1 - fraction_below
 
-            
-            # if args.unit_system == 'erg':
-            #     emission_frb_edge = np.zeros((res, res)) * (erg / (arcsec**2 * cm**3 * s))
-            #     emission_frb_face = np.zeros((res, res)) * (erg / (arcsec**2 * cm**3 * s))
-            # elif args.unit_system == 'photons': 
-            #     #define_unit("photon", 1.0)  # Define 'photon' as a dimensionless unit
-            #     emission_frb_edge = np.zeros((res, res)) * (1.0 * sr**-1 * cm**-3 * s**-1)
-            #     emission_frb_face = np.zeros((res, res)) * (1.0 * sr**-1 * cm**-3 * s**-1)
+                # Basically change the fractions to percentage, I found that works best for these colormaps
+                below_n = int((fraction_below * 100))
+                above_n = 100 - below_n 
+                
+                # Generate colormap sections
+                cmap1 = cmr.take_cmap_colors('cmr.flamingo', above_n, cmap_range=(0.5, 0.8), return_fmt='rgba')
+                cmap2 = cmr.take_cmap_colors('cmr.neutral_r', below_n, cmap_range=(0.0, 0.6), return_fmt='rgba')
+                cmap = np.hstack([cmap2, cmap1])
+                mymap = mcolors.LinearSegmentedColormap.from_list('cmap', cmap)
+            else:
+                # Default colormap
+                mymap = cmr.get_sub_cmap('cmr.flamingo', 0.2, 1.0)
 
+            mymap.set_bad(mymap(0))
 
-            # Ensure width is evenly divisible by min_dx
-            width_min = np.floor((-width_value / 2) / min_res) * min_res  # Snap left edge to nearest cell boundary
-            width_max = np.ceil((width_value / 2) / min_res) * min_res  # Snap right edge to nearest cell boundary
+            # Loop through each velocity bin
+            for v in range(len(vbins) - 1):
+                # Filter the data by the current velocity bin
+                vbox = ds.cut_region(data_source, [f"obj[('gas', 'vx_disk')] > {vbins[v]:.1f}"])
+                vbox = ds.cut_region(vbox, [f"obj[('gas', 'vx_disk')] < {vbins[v+1]:.1f}"])
 
-            # Compute pixel indices for edge-on and face-on views
-            x_bins = np.linspace(width_min, width_max, res+1)  # FRB pixel edges
-            y_bins = np.linspace(width_min, width_max, res+1)  # Same binning for both views
+                # Edge-on projection
+                proj_edge = yt.ProjectionPlot(ds, ds.x_unit_disk, ('gas', 'Emission_' + ions_dict[ion]), 
+                                            center=ds.halo_center_kpc, width=(ds.refine_width, 'kpc'),
+                                            north_vector=ds.z_unit_disk, data_source=vbox)
+                proj_edge.set_cmap('Emission_' + ions_dict[ion], mymap)
+                proj_edge.set_zlim('Emission_' + ions_dict[ion], zlim_dict[ion][0], zlim_dict[ion][1])
+                #proj_edge.set_colorbar_label('Emission_' + ions_dict[ion], label_dict[ion] + 'Emission' + unit_label)
+                proj_edge.set_font_size(42)
+                #proj_edge.annotate_title(f'$%d < v_{{\\rm los}} < %d$' % (vbins[v], vbins[v+1]))
+                #proj_edge.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
+                proj_edge.hide_axes()
+                proj_edge.hide_colorbar()
+                #annotate a box with velocity range
+        
+                vlabel = rf"${vbins[v]:.0f} < v_{{\rm los}} < {vbins[v+1]:.0f}\ \mathrm{{km\,s^{{-1}}}}$"
+                proj_edge.annotate_text((0.5, 0.97), vlabel,coord_system="axis",text_args=dict(ha="center", va="top", color="black",
+                                        bbox=dict(facecolor="white", edgecolor="none", alpha=0.9, boxstyle="round,pad=0.25"),zorder=1000,),
+                                        )
+                proj_edge.save(prefix + f'EmissionMap/Delta_v{deltav}/' + snap + '_' + ion + '_emission_map_edge-on_vbin' + str(v) + save_suffix + '.png')
 
-
-            x_indices = np.digitize(x_disk, x_bins) - 1  # Assign x_proj positions to pixels (edge-on)
-            y_indices = np.digitize(y_disk, y_bins) - 1  # Assign y_proj positions to pixels (edge-on)
-            z_indices = np.digitize(z_disk, y_bins) - 1  # Assign z_proj positions to pixels (face-on)
-
-            # Flip the X-axis indices to correct the left-right mirroring
-            face_y_indices = (res - 1) - y_indices
-
-
-            # Ensure indices are valid
-            valid_edge = (z_indices >= 0) & (z_indices < res) & (y_indices >= 0) & (y_indices < res)
-            valid_face = (face_y_indices >= 0) & (face_y_indices < res) & (x_indices >= 0) & (x_indices < res)
-            print("start calculating mass")
-
-            ion_mass = ion_mass.in_units('Msun')
-            
-            # EDGE-ON map
-            mass_vals_edge = ion_mass[valid_edge].in_units('Msun').v  # strip units
-            yi_edge = y_indices[valid_edge]
-            zi_edge = z_indices[valid_edge]
-            np.add.at(mass_frb_edge, (zi_edge, yi_edge), mass_vals_edge)
-            mass_frb_edge = mass_frb_edge * yt.units.Msun
-
-
-            # FACE-ON map
-            mass_vals_face = ion_mass[valid_face].in_units('Msun').v  # strip units
-            xi_face = x_indices[valid_face]
-            yi_face = face_y_indices[valid_face]
-            np.add.at(mass_frb_face, (xi_face, yi_face), mass_vals_face)
-            mass_frb_face = mass_frb_face * yt.units.Msun
-            #for yi, zi, mass,emission in zip(y_indices[valid_edge], z_indices[valid_edge], ion_mass[valid_edge].in_units('Msun'), ion_emission[valid_edge]):
-            # for yi, zi, mass in zip(y_indices[valid_edge], z_indices[valid_edge], ion_mass[valid_edge].in_units('Msun')):
-            #     mass_frb_edge[zi, yi] += mass  # Edge-on uses Y (horizontal) & Z (vertical)
-            #     #emission_frb_edge[zi, yi] += emission  # Edge-on uses Y (horizontal) & Z (vertical)
-
-            # #for xi, yi, mass,emission in zip(x_indices[valid_face], face_y_indices[valid_face], ion_mass[valid_face].in_units('Msun'), ion_emission[valid_face]):
-            # for xi, yi, mass in zip(x_indices[valid_face], face_y_indices[valid_face], ion_mass[valid_face].in_units('Msun')):
-            #     mass_frb_face[xi, yi] += mass  # Face-on uses Y (horizontal) & X (vertical)
-                #emission_frb_face[xi, yi] += emission  # Face-on uses Y (horizontal) & X (vertical)
-
-            # emission_frb_edge = (emission_frb_edge*bin_size_cm).to(1.0 * sr**-1 * cm**-2 * s**-1)
-            # emission_frb_face = (emission_frb_face*bin_size_cm).to(1.0 * sr**-1 * cm**-2 * s**-1)
-
-            
-            # Compute total ion mass only within the FRB region
-            total_mass_box = ion_mass.sum().in_units('Msun')
-
-            # Compute total mass from FRB maps
-            total_mass_frb_edge = mass_frb_edge.sum().in_units('Msun')
-            total_mass_frb_face = mass_frb_face.sum().in_units('Msun')
-
-            # Print results
-            print(f"Total {ion} mass in FRB-sized region: {total_mass_box:.2e} Msun")
-            print(f"Total {ion} mass in mass FRB (edge-on): {total_mass_frb_edge:.2e} Msun")
-            print(f"Total {ion} mass in mass FRB (face-on): {total_mass_frb_face:.2e} Msun")
-
-            # Check relative difference
-            error_edge = abs(total_mass_frb_edge - total_mass_box) / total_mass_box
-            error_face = abs(total_mass_frb_face - total_mass_box) / total_mass_box
-
-            print(f"Relative error (edge-on): {error_edge:.2%}")
-            print(f"Relative error (face-on): {error_face:.2%}")
-
-            # Save mass FRBs in the same HDF5 file under the correct group
-            dset_edge = grp.create_dataset(f"{ion}_mass_edge_{region}", data=mass_frb_edge.in_units('Msun'))
-            dset_face = grp.create_dataset(f"{ion}_mass_face_{region}", data=mass_frb_face.in_units('Msun'))
-
-            #emission_dset_edge = grp.create_dataset(f"{ion}_emission_manualpixel_edge_{region}", data=emission_frb_edge)
-            #emission_dset_face = grp.create_dataset(f"{ion}_emission_manualpixel_face_{region}", data=emission_frb_face)
-
-            print(f"Saved mass FRBs for {ion} in HDF5")
-
-           # make a plot of the mass and emission maps
-            fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-
-            extent = [-width_value/2, width_value/2, -width_value/2, width_value/2]  # Define extent in kpc
-
-            # Edge-on Mass Map
-            # edge_on_msun = mass_frb_edge.in_units('Msun')
-            # im1 = axes[0].imshow(edge_on_msun, origin='lower', cmap='inferno', norm=LogNorm(vmin=1e-5, vmax=np.max(edge_on_msun)))
-            # axes[0].set_title(f"{ion} Mass Distribution (Edge-on)")
-            # axes[0].set_xlabel("Y (kpc)")
-            # axes[0].set_ylabel("Z (kpc)")
-            # fig.colorbar(im1, ax=axes[0], label="log Mass per pixel (Msun)")
-
-            # # Face-on Mass Map
-            # face_on_msun = mass_frb_face.in_units('Msun')
-            # im2 = axes[1].imshow(face_on_msun, origin='lower', cmap='inferno', norm=LogNorm(vmin=1e-5, vmax=np.max(face_on_msun)))
-            # axes[1].set_title(f"{ion} Mass Distribution (Face-on)")
-            # axes[1].set_xlabel("X (kpc)")
-            # axes[1].set_ylabel("Z (kpc)")
-            # fig.colorbar(im2, ax=axes[1], label="log Mass per pixel (Msun)")
-
-            # plt.tight_layout()
-            # plt.show()
-
-            ###Plot emission Distribution Maps** ###
-            # fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-
-            # extent = [-width/2, width/2, -width/2, width/2]  # Define extent in kpc
-
-            # # Edge-on Mass Map
-            
-            # im1 = axes[0].imshow(emission_frb_edge, origin='lower', cmap='inferno', norm=LogNorm(vmin=1e-1, vmax=np.max(emission_frb_edge)))
-            # axes[0].set_title(f"{ion} emission Distribution (Edge-on)")
-            # axes[0].set_xlabel("Y (kpc)")
-            # axes[0].set_ylabel("Z (kpc)")
-            # fig.colorbar(im1, ax=axes[0], label="log emission per pixel")
-
-            # # Face-on Mass Map
-            
-            # im2 = axes[1].imshow(emission_frb_face, origin='lower', cmap='inferno', norm=LogNorm(vmin=1e-1, vmax=np.max(emission_frb_face)))
-            # axes[1].set_title(f"{ion} Emission Distribution (Face-on)")
-            # axes[1].set_xlabel("X (kpc)")
-            # axes[1].set_ylabel("Z (kpc)")
-            # fig.colorbar(im2, ax=axes[1], label="log emission per pixel ")
-
-            # plt.tight_layout()
-            # plt.show()
-
-    print("Mass FRB calculations and saved.")
+                # Face-on projection
+                proj_face = yt.ProjectionPlot(ds, ds.z_unit_disk, ('gas', 'Emission_' + ions_dict[ion]), 
+                                            center=ds.halo_center_kpc, width=(ds.refine_width, 'kpc'),
+                                            north_vector=ds.x_unit_disk, data_source=vbox)
+                proj_face.set_cmap('Emission_' + ions_dict[ion], mymap)
+                proj_face.set_zlim('Emission_' + ions_dict[ion], zlim_dict[ion][0], zlim_dict[ion][1])
+                #proj_face.set_colorbar_label('Emission_' + ions_dict[ion], label_dict[ion] + 'Emission' + unit_label)
+                proj_face.set_font_size(20)
+                #proj_face.annotate_title(f'$%d < v_{{\\rm los}} < %d$' % (vbins[v], vbins[v+1]))
+                #proj_face.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
+                proj_face.hide_axes()
+                proj_face.hide_colorbar()
+                vlabel = rf"${vbins[v]:.0f} < v_{{\rm los}} < {vbins[v+1]:.0f}\ \mathrm{{km\,s^{{-1}}}}$"
+                proj_face.annotate_text((0.5, 0.97), vlabel,coord_system="axis",text_args=dict(ha="center", va="top",
+                                        color="black",bbox=dict(facecolor="white", edgecolor="none", alpha=0.9, boxstyle="round,pad=0.25"),zorder=1000),
+                                        )
+                proj_face.save(prefix + f'EmissionMap/Delta_v{deltav}/' + snap + '_' + ion + '_emission_map_face-on_vbin' + str(v) + save_suffix + '.png')
 
 def emission_map(ds, refine_box, snap, ions, unit_system='photons', filter_type=None, filter_value=None,res_arcsec=None):
     '''Makes emission maps for each ion in 'ions', oriented both edge-on and face-on.'''
     save_path = prefix + f'FRBs/' 
     os.makedirs(save_path, exist_ok=True)  # Ensure the directory exists
-    f, grp, data_sources, width_value, res, round_bin_size_kpc, bin_size_cm, unit_label = process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count, shell_path, unit_system, prefix, save_suffix, ions)
+    f, grp, data_sources, width_value, res, round_bin_size_kpc, bin_size_cm, unit_label, subhalo_meta  = process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count,max_number_of_satellites, shell_path, unit_system, prefix, save_suffix, ions, catalog_dir=catalog_dir, snapname=snap, clump_file=clump_file)
 
 
     # Loop through ions and create projections for each region
@@ -971,7 +1069,7 @@ def emission_map(ds, refine_box, snap, ions, unit_system='photons', filter_type=
                 proj_edge.set_colorbar_label('Emission_' + ions_dict[ion], label_dict[ion] + ' Emission [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]')
             proj_edge.set_font_size(20)
             #proj_edge.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
-            proj_edge.save(prefix + 'Projections/' + ion + '_emission_map_edge_on' + '_' + snap + save_suffix + '.png')
+            proj_edge.save(prefix + 'Projections/' + ion + f'_emission_map_edge_on_{region}' + '_' + snap + save_suffix + '.png')
 
             proj_face = yt.ProjectionPlot(ds, ds.z_unit_disk, ('gas','Emission_' + ions_dict[ion]), center=ds.halo_center_kpc, data_source=data_source, width=(float(width_value), 'kpc'),
                                           buff_size=[res, res], method = 'integrate', weight_field=None, north_vector=ds.x_unit_disk)
@@ -984,113 +1082,117 @@ def emission_map(ds, refine_box, snap, ions, unit_system='photons', filter_type=
                 proj_face.set_colorbar_label('Emission_' + ions_dict[ion], label_dict[ion] + ' Emission [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]')
             proj_face.set_font_size(20)
             #proj_face.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
-            proj_face.save(prefix + 'Projections/' + ion + '_emission_map_face_on'+ '_' + snap + save_suffix + '.png')
+            proj_face.save(prefix + 'Projections/' + ion + f'_emission_map_face_on_{region}'+ '_' + snap + save_suffix + '.png')
 
             
             print('Emission maps saved')
 
-def combined_emission_map(ds, refine_box, snap, ions, unit_system='photons', filter_type=None, filter_value=None, res_arcsec=None):
-    '''Makes emission maps for each ion in 'ions', oriented both edge-on and face-on,
-    and arranges them side by side with a shared y-axis, no space between maps, and colorbars on top.'''
+def compute_mass_in_emission_pixels(ds, refine_box, snap, ions, unit_system='photons', filter_type=None, filter_value=None,res_arcsec=None):
+    """Compute the total ion mass that contributes to each pixel of an emission FRB for edge-on and face-on views.
+    It is useful to use for finding total 
+      """
 
-    f, grp, data_sources, width_value, res, round_bin_size_kpc, bin_size_cm, unit_label = process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count, shell_path, unit_system, prefix, save_suffix, ions)
-
-    width = [(73.7, 'kpc'), (140.88, 'kpc')]  # Define width as a tuple for rectangular projection 63.7
-    res_w = int(width[0][0] / round_bin_size_kpc) 
-    res_h = int(width[1][0] / round_bin_size_kpc) 
-    print('res w',res_w, 'res h', res_h)
+    f, grp, data_sources,width_value, res, min_res, bin_size_cm, unit_label, subhalo_meta  = process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, 
+                                                                                                                   shell_count,max_number_of_satellites, shell_path, unit_system, 
+                                                                                                                   prefix, save_suffix, ions,catalog_dir=catalog_dir, snapname=snap, clump_file=clump_file)
 
     for region, data_source in data_sources.items():
-        fig, axes = plt.subplots(1, len(ions), figsize=(len(ions) * 6, 15), sharey=True, gridspec_kw={'wspace': 0, 'hspace': 0})  # No space between images
+        for ion in ions:
+            print(f"Calculating Mass in each pixel for {ion} in {region} region")
+            # Extract necessary fields from refine_box
+            half_width = (width_value / 2) 
+            data_source = data_source.cut_region([
+                f"(abs(obj['gas', 'x_disk']) < {half_width})",
+                f"(abs(obj['gas', 'y_disk']) < {half_width})",
+                f"(abs(obj['gas', 'z_disk']) < {half_width})"
+            ])
 
-        if len(ions) == 1:
-            axes = [axes]  # Ensure axes is iterable
+            x_disk = data_source[('gas', 'x_disk')].in_units('kpc')  # X positions
+            y_disk = data_source[('gas', 'y_disk')].in_units('kpc')  # Y positions
+            z_disk = data_source[('gas', 'z_disk')].in_units('kpc')  # Z positions
+            ion_mass = data_source[('gas', ions_mass_dict[ion])].in_units('Msun')  # Ion mass
+            #ion_emission = data_source[('gas', 'Emission_' + ions_dict[ion])]
 
-        for i, ion in enumerate(ions):
-            print(f"Processing {ion}...")
-
-            # Get the colormap limits from zlim_dict
-            zmin, zmax = zlim_dict[ion]
-
-            # Custom colormap settings based on detection limit
-            if args.instrument is not None and ion in ions:
-                threshold = flux_threshold_dict[ion]
-                fraction_below = (np.log10(threshold) - np.log10(zmin)) / (np.log10(zmax) - np.log10(zmin))
-                fraction_above = 1 - fraction_below
-
-                below_n = int(fraction_below * 100)
-                above_n = 100 - below_n 
-
-                cmap1 = cmr.take_cmap_colors('cmr.flamingo', above_n, cmap_range=(0.5, 0.8), return_fmt='rgba')
-                cmap2 = cmr.take_cmap_colors('cmr.neutral_r', below_n, cmap_range=(0.0, 0.6), return_fmt='rgba')
-                cmap = np.hstack([cmap2, cmap1])
-                mymap = mcolors.LinearSegmentedColormap.from_list('cmap', cmap)
-            else:
-                mymap = cmr.get_sub_cmap('cmr.neutral_r', 0.0, 1.0)#cmr.get_sub_cmap('magma', 0.0, 1.0)
-
-            mymap.set_bad(mymap(0))
-
-            # Create the projection with correct width
-            proj = yt.ProjectionPlot(ds, ds.x_unit_disk, ('gas', 'Emission_' + ions_dict[ion]), 
-                                     center=ds.halo_center_kpc, data_source=data_source, 
-                                     width=width, buff_size=[res_w, res_h], method='integrate', weight_field=None, 
-                                     north_vector=ds.z_unit_disk)
             
-            proj_face = yt.ProjectionPlot(ds, ds.z_unit_disk, ('gas', 'Emission_' + ions_dict[ion]), 
-                                     center=ds.halo_center_kpc, data_source=data_source, 
-                                     width=width, buff_size=[res_w, res_h], method='integrate', weight_field=None, 
-                                     north_vector=ds.x_unit_disk)
+            # Create empty mass FRBs
+            mass_frb_edge = np.zeros((res, res), dtype=np.float64) 
+            mass_frb_face = np.zeros((res, res), dtype=np.float64) 
 
-            proj.set_cmap('Emission_' + ions_dict[ion], mymap)
-            proj.set_zlim('Emission_' + ions_dict[ion], zmin, zmax)
-            proj.set_font_size(20)
 
-            # Extract the image array
-            img = proj.frb['gas', 'Emission_' + ions_dict[ion]].to_ndarray()
-            extent = [-30, 30, -75, 75]  # X: [-30,30] kpc, Y: [-75,75] kpc
+            # Ensure width is evenly divisible by min_dx
+            width_min = np.floor((-width_value / 2) / min_res) * min_res  # Snap left edge to nearest cell boundary
+            width_max = np.ceil((width_value / 2) / min_res) * min_res  # Snap right edge to nearest cell boundary
 
-            # Plot in the combined figure using a logarithmic color scale
-            ax = axes[i]
-            norm = mcolors.LogNorm(vmin=zmin, vmax=zmax)  # Logarithmic normalization
-            im = ax.imshow(img, origin='lower', extent=extent, cmap=mymap, norm=norm, aspect = 'auto')
+            # Compute pixel indices for edge-on and face-on views
+            x_bins = np.linspace(width_min, width_max, res+1)  # FRB pixel edges
+            y_bins = np.linspace(width_min, width_max, res+1)  # Same binning for both views
 
-            if i == 0:
-                ax.set_ylabel("Y (kpc)", fontsize=16)
-                ax.yaxis.set_ticks_position('left')
-                ax.tick_params(axis='y', direction='out', labelsize=16, width=2, length=8)
+
+            x_indices = np.digitize(x_disk, x_bins) - 1  # Assign x_proj positions to pixels (edge-on)
+            y_indices = np.digitize(y_disk, y_bins) - 1  # Assign y_proj positions to pixels (edge-on)
+            z_indices = np.digitize(z_disk, y_bins) - 1  # Assign z_proj positions to pixels (face-on)
+
+            # Flip the X-axis indices to correct the left-right mirroring
+            face_y_indices = (res - 1) - y_indices
+
+
+            # Ensure indices are valid
+            valid_edge = (z_indices >= 0) & (z_indices < res) & (y_indices >= 0) & (y_indices < res)
+            valid_face = (face_y_indices >= 0) & (face_y_indices < res) & (x_indices >= 0) & (x_indices < res)
+            print("start calculating mass")
+
+            ion_mass = ion_mass.in_units('Msun')
             
+            # EDGE-ON map
+            mass_vals_edge = ion_mass[valid_edge].in_units('Msun').v  # strip units
+            yi_edge = y_indices[valid_edge]
+            zi_edge = z_indices[valid_edge]
+            np.add.at(mass_frb_edge, (zi_edge, yi_edge), mass_vals_edge)
+            mass_frb_edge = mass_frb_edge * yt.units.Msun
+
+
+            # FACE-ON map
+            mass_vals_face = ion_mass[valid_face].in_units('Msun').v  # strip units
+            xi_face = x_indices[valid_face]
+            yi_face = face_y_indices[valid_face]
+            np.add.at(mass_frb_face, (xi_face, yi_face), mass_vals_face)
+            mass_frb_face = mass_frb_face * yt.units.Msun
+    
             
+            # Compute total ion mass only within the FRB region
+            total_mass_box = ion_mass.sum().in_units('Msun')
 
-            ax.set_xlabel("X (kpc)", fontsize=16)
-            ax.xaxis.set_major_locator(MaxNLocator(nbins=5, prune='both'))
-            ax.tick_params(axis='x', which='both', direction='out', labelsize=16, width=2, length=8)
-            
-            
+            # Compute total mass from FRB maps
+            total_mass_frb_edge = mass_frb_edge.sum().in_units('Msun')
+            total_mass_frb_face = mass_frb_face.sum().in_units('Msun')
 
-            # Add colorbar ABOVE the subplot
-            cbar = fig.colorbar(im, ax=ax, orientation='horizontal', pad=0.005, aspect=30, location="top",shrink=0.9)
+            # Print results
+            print(f"Total {ion} mass in FRB-sized region: {total_mass_box:.2e} Msun")
+            print(f"Total {ion} mass in mass FRB (edge-on): {total_mass_frb_edge:.2e} Msun")
+            print(f"Total {ion} mass in mass FRB (face-on): {total_mass_frb_face:.2e} Msun")
 
-            # **Set the colorbar label in two rows**
-            cbar.set_label(
-                label_dict[ion] + ' Emission\n' + unit_label, 
-                fontsize=16, labelpad=15
-            )
+            # Check relative difference
+            error_edge = abs(total_mass_frb_edge - total_mass_box) / total_mass_box
+            error_face = abs(total_mass_frb_face - total_mass_box) / total_mass_box
 
-            # **Increase tick size and tick label size**
-            cbar.ax.tick_params(labelsize=14, width=1.5, length=8, direction='out')
-            cbar.ax.tick_params(labelsize=14, width=1, length=6, direction='out')
-  
+            print(f"Relative error (edge-on): {error_edge:.2%}")
+            print(f"Relative error (face-on): {error_face:.2%}")
 
-        plt.subplots_adjust(wspace=0, hspace=0)  # Remove space between subplots
-        plt.tight_layout(rect=[0, 0.02, 1, 1])  # Slight adjustment for better layout
-        save_path = prefix + 'Projections/'
-        os.makedirs(save_path, exist_ok=True)
-        #plt.savefig( save_path + snap + '_greycombined_emission_map_' + region + save_suffix + '.png', dpi=300, bbox_inches='tight')
-        plt.savefig( save_path + snap + f'_{ion}_emission_map_' + region + save_suffix + '.png', dpi=300, bbox_inches='tight')
-        plt.show()
-        plt.close()
+            # Save mass FRBs in the same HDF5 file under the correct group
+            dset_edge = grp.create_dataset(f"{ion}_mass_edge_{region}", data=mass_frb_edge.in_units('Msun'))
+            dset_face = grp.create_dataset(f"{ion}_mass_face_{region}", data=mass_frb_face.in_units('Msun'))
 
-def make_column_density_FRB(ds, refine_box, snap, ions,scaling = True, scale_factor=100, filter_type=None, filter_value=None, resolution=2):
+            print(f"Saved mass FRBs for {ion} in HDF5")
+
+           # make a plot of the mass and emission maps
+            fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+            extent = [-width_value/2, width_value/2, -width_value/2, width_value/2]  # Define extent in kpc
+
+
+    print("Mass FRB calculations and saved.")
+
+def make_column_density_FRB(ds, refine_box, snap, ions,scaling = True, scale_factor=100, filter_type=None, filter_value=None, resolution=2, clump_file=None):
     '''This function calculates and saves projected column density FRBs '''
 
     # # Create HDF5 file for saving mass maps
@@ -1098,9 +1200,10 @@ def make_column_density_FRB(ds, refine_box, snap, ions,scaling = True, scale_fac
     os.makedirs(save_path, exist_ok=True)  # Ensure the directory exists
    
 
-    f, grp, data_sources, width_value, res, round_bin_size_kpc, bin_size_cm, unit_label = process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count, shell_path, unit_system, prefix, save_suffix, ions)
+    f, grp, data_sources, width_value, res, round_bin_size_kpc, bin_size_cm, unit_label, subhalo_meta  = process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count,max_number_of_satellites, shell_path, unit_system, prefix, save_suffix, ions, catalog_dir=catalog_dir, snapname=snap, clump_file=clump_file)
     # Loop through ions and create projections for each region
     for region, data_source in data_sources.items():
+        plot_center = plot_center = data_source.center if hasattr(data_source, "center") else ds.halo_center_kpc
         for ion in ions:
             print(f"Processing ion: {ion}")
 
@@ -1124,7 +1227,7 @@ def make_column_density_FRB(ds, refine_box, snap, ions,scaling = True, scale_fac
 
             # Edge-on projection (surface density)
             proj_edge = yt.ProjectionPlot(ds, ds.x_unit_disk, numdensity_field,
-                                          center=ds.halo_center_kpc, data_source=data_source,
+                                          center=plot_center, data_source=data_source,
                                           width=(100, 'kpc'), north_vector=ds.z_unit_disk,
                                           buff_size=[res, res], weight_field=None)#width=(ds.refine_width, 'kpc')
             frb_edge = proj_edge.frb[numdensity_field]  # Surface density in g/cm^2
@@ -1135,40 +1238,11 @@ def make_column_density_FRB(ds, refine_box, snap, ions,scaling = True, scale_fac
             else:
                 dset1 = grp.create_dataset(edge_name, data=frb_edge)
 
-            
-            # # Calculate positions
-            # # Calculate positions relative to the halo center
-            # halo_center_x = ds.halo_center_kpc[0].in_units('kpc')
-            # halo_center_y = ds.halo_center_kpc[1].in_units('kpc')
-
-            # # Edge-on projection
-            # x_min = -width_value/2
-            # x_max = width_value/2
-            # y_min = -width_value/2
-            # y_max = width_value/2
-
-            # x_edges = np.linspace(x_min, x_max, res + 1)
-            # y_edges = np.linspace(y_min, y_max, res + 1)
-
-            # x_positions = 0.5 * (x_edges[:-1] + x_edges[1:]) 
-            # y_positions = 0.5 * (y_edges[:-1] + y_edges[1:]) 
-
-            # # Debugging
-            # print(f"x_min: {x_min}, x_max: {x_max}, y_min: {y_min}, y_max: {y_max}")
-            # print(f"x_positions (kpc): {x_positions}")
-            # print(f"y_positions (kpc): {y_positions}")
-
-            # # Save positions
-            # dset_x = grp.create_dataset(f"{ion}_x_edge_{region}", data=x_positions)
-            # dset_y = grp.create_dataset(f"{ion}_y_edge_{region}", data=y_positions)
-
-            
-            
 
             # Face-on projection (surface density)
             proj_face = yt.ProjectionPlot(ds, ds.z_unit_disk, numdensity_field,
-                                          center=ds.halo_center_kpc, data_source=data_source,
-                                          width=(100, 'kpc'), north_vector=ds.x_unit_disk,
+                                          center=plot_center, data_source=data_source,
+                                          width=(150, 'kpc'), north_vector=ds.x_unit_disk,
                                           buff_size=[res, res], weight_field=None)#(width=(ds.refine_width, 'kpc')
             frb_face = proj_face.frb[numdensity_field]  # Surface density in g/cm^2
         
@@ -1178,10 +1252,6 @@ def make_column_density_FRB(ds, refine_box, snap, ions,scaling = True, scale_fac
             else:
                 dset2 = grp.create_dataset(face_name, data=frb_face)
 
-
-            # Save relative positions
-            #dset_x = grp.create_dataset(f"{ion}_x_face_{region}", data=x_positions)
-            #dset_y = grp.create_dataset(f"{ion}_y_face_{region}", data=y_positions)
 
             proj_face.set_cmap(numdensity_field, h1_color_map)
             proj_face.set_zlim(numdensity_field , h1_proj_min, h1_proj_max)
@@ -1204,7 +1274,7 @@ def make_emissivity_weighted_velocity_FRB(ds, refine_box, snap, ions, unit_syste
     save_path = prefix + f'FRBs/' 
     os.makedirs(save_path, exist_ok=True)
     
-    f, grp, data_sources,width_value, res, min_res, bin_size_cm, unit_label = process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count, shell_path, unit_system, prefix, save_suffix, ions)
+    f, grp, data_sources, width_value, res, round_bin_size_kpc, bin_size_cm, unit_label, subhalo_meta  = process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count,max_number_of_satellites, shell_path, unit_system, prefix, save_suffix, ions, catalog_dir=catalog_dir, snapname=snap, clump_file=clump_file)
     
     for region, data_source in data_sources.items():
         for ion in ions:
@@ -1229,18 +1299,8 @@ def make_emissivity_weighted_velocity_FRB(ds, refine_box, snap, ions, unit_syste
             print(f"{ion} vx_disk_cgs stats (edge-on): min = {frb_edge.v.min():.2f}, max = {frb_edge.v.max():.2f}, mean = {frb_edge.v.mean():.2f} [km/s]")
 
             grp.create_dataset(f"{ion}_vlos_emissweighted_edge_{region}", data=frb_edge)
-            #Set colormap and save projection plot
-            # proj_edge.set_cmap('vx_disk_cgs', mymap)
-            # #proj_edge.set_zlim('vx_disk_cgs', -1000, 1000)
-            # proj_edge.set_colorbar_label('vx_disk_cgs', label_dict[ion] + ' V los ' + 'km/s')
-            # proj_edge.set_font_size(24)
-            # proj_edge.set_xlabel('x (kpc)')
-            # proj_edge.set_ylabel('y (kpc)')
-            # proj_edge.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
-            # print('save path', save_path)
-            # proj_edge.save(save_path + f'{snap}_{ion}_vlos_map_edge-on_{region}' + save_suffix + '.png')
             
-
+        
             fig, ax = plt.subplots(figsize=(8, 6))
             im = ax.imshow(frb_edge.v, origin='lower', extent=[-width_value/2, width_value/2]*2,
                         vmin=-200, vmax=200, cmap=mymap)
@@ -1253,7 +1313,7 @@ def make_emissivity_weighted_velocity_FRB(ds, refine_box, snap, ions, unit_syste
             ax.set_title(f'{ion} $v_{{los}}$ (edge-on)')
 
             plt.tight_layout()
-            plt.savefig(save_path + f'{snap}_{ion}_vlos_map_edge-on_{region}' + save_suffix + '.png', dpi=300)
+            plt.savefig(save_path + f'{snap}_{ion}_vlos_map_edge_{region}' + save_suffix + '.png', dpi=300)
             plt.close()
 
 
@@ -1273,16 +1333,7 @@ def make_emissivity_weighted_velocity_FRB(ds, refine_box, snap, ions, unit_syste
             print('projected vx unit:',frb_face.units)
             print(frb_face)
             print(f"{ion} vz_disk_cgs stats (edge-on): min = {frb_face.v.min():.2f}, max = {frb_face.v.max():.2f}, mean = {frb_face.v.mean():.2f} [km/s]")
-            #Set colormap and save projection plot
-            # proj_face.set_cmap('vz_disk_cgs', mymap)
-            # #proj_face.set_zlim('vz_disk_cgs', -1000, 1000)
-            # proj_face.set_colorbar_label('vz_disk_cgs', label_dict[ion] + ' V los ' + 'km/s')
-            # proj_face.set_font_size(24)
-            # proj_face.set_xlabel('x (kpc)')
-            # proj_face.set_ylabel('y (kpc)')
-            # proj_face.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
-            # proj_face.save(save_path + f'{snap}_{ion}_vlos_map_face-on_{region}' + save_suffix + '.png')
-
+            
             fig, ax = plt.subplots(figsize=(8, 6))
             im = ax.imshow(frb_face.v, origin='lower', extent=[-width_value/2, width_value/2]*2,
                         vmin=-200, vmax=200, cmap=mymap)
@@ -1295,7 +1346,7 @@ def make_emissivity_weighted_velocity_FRB(ds, refine_box, snap, ions, unit_syste
             ax.set_title(f'{ion} $v_{{los}}$ (face-on)')
 
             plt.tight_layout()
-            plt.savefig(save_path + f'{snap}_{ion}_vlos_map_face-on_{region}' + save_suffix + '.png', dpi=300)
+            plt.savefig(save_path + f'{snap}_{ion}_vlos_map_face_{region}' + save_suffix + '.png', dpi=300)
             plt.close()
 
 
@@ -1325,185 +1376,6 @@ def make_emissivity_weighted_velocity_FRB(ds, refine_box, snap, ions, unit_syste
     f.close()
     print("Finished emissivity-weighted velocity FRBs.")
 
-def make_hi_emission_grid(ds, refine_box, snap, ions,unit_system='photons', filter_type=None, filter_value=None,res_arcsec=None):
-    
-    region = 'all'
-    # Ion list (excluding HI)
-    emission_ions = ['OVI', 'CIV', 'SiIV', 'CIII', 'SiIII', 'MgII', 'SiII']
-    f, grp, data_sources, width_value, res, round_bin_size_kpc, bin_size_cm, unit_label = process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count, shell_path, unit_system, prefix, save_suffix, ions)
-
-    # Loop through ions and create projections for each region
-    for region, data_source in data_sources.items():
-
-        # Use global vmin and vmax for emission maps
-        global_vmin = 1e-2
-        global_vmax = 1e5
-
-        # Open the HDF5 file
-        h5_filename = prefix + f'FRBs/{halo_dict[str(args.halo)]}_emission_maps{save_suffix}.hdf5'
-        with h5py.File(h5_filename, 'r') as f:
-            group = f[f'z={ds.get_parameter("CosmologyCurrentRedshift"):.1f}']
-
-            for orientation in ['face', 'edge']:
-                fig, axes = plt.subplots(4, 2, figsize=(10, 18))
-                plt.subplots_adjust(wspace=0.01, hspace=0.01)
-
-                # Plot HI at (0, 0)
-                hi_data = group[f"HI_numdensity_{orientation}_{region}"][:]
-                ax_hi = axes[0, 0]
-                im_hi = ax_hi.imshow(hi_data, origin='lower', cmap=h1_color_map, norm=LogNorm(vmin=h1_proj_min, vmax=h1_proj_max))
-                ax_hi.text(0.05, 0.90, 'HI', transform=ax_hi.transAxes, fontsize=16, color='white', weight='bold', va='top', ha='left')
-                ax_hi.set_xticks([])
-                ax_hi.set_yticks([])
-
-                # Fill in the rest with emission ions
-                idx = 0
-                last_im = None
-                for i in range(4):
-                    for j in range(2):
-                        if i == 0 and j == 0:
-                            continue
-                        if idx >= len(emission_ions):
-                            continue
-
-                        ion = emission_ions[idx]
-                        data = group[f"{ion}_emission_{orientation}_{region}"][:]
-
-                        ax = axes[i, j]
-                        im = ax.imshow(data, origin='lower', cmap=cmr.flamingo, norm=LogNorm(vmin=global_vmin, vmax=global_vmax))
-                        ax.text(0.05, 0.90, ion, transform=ax.transAxes, fontsize=16, color='white', weight='bold', va='top', ha='left')
-                        ax.set_xticks([])
-                        ax.set_yticks([])
-
-                        last_im = im  # Save the last im for colorbar use
-                        idx += 1
-
-                # Add HI colorbar above [0, 0]
-                cbar_ax_hi = fig.add_axes([0.17, 0.89, 0.3, 0.015])
-                cbar_hi = fig.colorbar(im_hi, cax=cbar_ax_hi, orientation='horizontal',shrink=0.9)
-                cbar_hi.ax.tick_params(labelsize=12, direction='out')
-                cbar_hi.ax.xaxis.set_label_position('top')
-                cbar_hi.ax.xaxis.set_ticks_position('top')
-                cbar_hi.set_label('HI Column Density [cm$^{-2}$]', fontsize=12)
-
-                # Add global emission colorbar above [0, 1]
-                cbar_ax_em = fig.add_axes([0.56, 0.89, 0.3, 0.015])
-                cbar_em = fig.colorbar(last_im, cax=cbar_ax_em, orientation='horizontal',shrink=0.9)
-                cbar_em.ax.tick_params(labelsize=12, direction='out')
-                cbar_em.ax.xaxis.set_label_position('top')
-                cbar_em.ax.xaxis.set_ticks_position('top')
-                cbar_em.set_label('Emission [photons s$^{-1}$ cm$^{-2}$ sr$^{-1}$]', fontsize=12)
-
-                output_path = prefix + 'Projections/'
-                os.makedirs(output_path, exist_ok=True)
-                fig.savefig(os.path.join(output_path, f"{snap}_HI_plus_emission_grid_{orientation}_{region}{save_suffix}.png"), dpi=300, bbox_inches='tight')
-                plt.show()
-                plt.close()
-
-    print("Saved HI+Emission grid plots for both face-on and edge-on.")
-
-def cgm_make_hi_emission_grid(ds, refine_box, snap, ions,unit_system='photons', filter_type=None, filter_value=None,res_arcsec=None):
-
-    
-    emission_ions = ['OVI', 'CIV', 'SiIV', 'CIII', 'SiIII', 'MgII', 'SiII']
-
-    f, grp, data_sources, width_value, res, round_bin_size_kpc, bin_size_cm, unit_label = process_emission_maps(
-        args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count,
-        shell_path, unit_system, prefix, save_suffix, ions
-    )
-
-    for region, data_source in data_sources.items():
-
-        global_vmin = 1e-2
-        global_vmax = 1e5
-
-        h5_filename = prefix + f'FRBs/{halo_dict[str(args.halo)]}_emission_maps{save_suffix}.hdf5'
-        with h5py.File(h5_filename, 'r') as f:
-            group = f[f'z={ds.get_parameter("CosmologyCurrentRedshift"):.1f}']
-
-            for orientation in ['face', 'edge']:
-                fig, axes = plt.subplots(4, 2, figsize=(10, 18))
-                plt.subplots_adjust(wspace=0.01, hspace=0.01)
-
-                hi_data = group[f"HI_numdensity_{orientation}_{region}"][:]
-                ax_hi = axes[0, 0]
-                im_hi = ax_hi.imshow(hi_data, origin='lower', cmap=h1_color_map,
-                                     norm=LogNorm(vmin=h1_proj_min, vmax=h1_proj_max))
-                ax_hi.text(0.05, 0.90, 'HI', transform=ax_hi.transAxes, fontsize=16, color='white', weight='bold', va='top', ha='left')
-                ax_hi.set_xticks([])
-                ax_hi.set_yticks([])
-
-                if region == 'cgm':
-                    try:
-                        disk_cut = load_clump(ds, disk_file, source_cut=refine_box)
-                        proj_disk = yt.ProjectionPlot(ds, ds.x_unit_disk if orientation == 'edge' else ds.z_unit_disk,
-                                                      ('gas', 'H_p0_number_density'),
-                                                      center=ds.halo_center_kpc, data_source=disk_cut,
-                                                      width=(100, 'kpc'),
-                                                      north_vector=ds.z_unit_disk if orientation == 'edge' else ds.x_unit_disk,
-                                                      buff_size=[res, res], weight_field=None)
-                        disk_frb = proj_disk.frb[('gas', 'H_p0_number_density')].v
-                        ax_hi.contour(disk_frb, levels=4, colors='white', linewidths=0.8)
-                    except Exception as e:
-                        print(f"Could not overlay disk contours on HI: {e}")
-
-                idx = 0
-                last_im = None
-                for i in range(4):
-                    for j in range(2):
-                        if i == 0 and j == 0:
-                            continue
-                        if idx >= len(emission_ions):
-                            continue
-
-                        ion = emission_ions[idx]
-                        data = group[f"{ion}_emission_{orientation}_{region}"][:]
-                        ax = axes[i, j]
-                        im = ax.imshow(data, origin='lower', cmap=cmr.flamingo,
-                                       norm=LogNorm(vmin=global_vmin, vmax=global_vmax))
-                        ax.text(0.05, 0.90, ion, transform=ax.transAxes, fontsize=16, color='white', weight='bold', va='top', ha='left')
-                        ax.set_xticks([])
-                        ax.set_yticks([])
-
-                        if region == 'cgm':
-                            try:
-                                proj_disk = yt.ProjectionPlot(ds, ds.x_unit_disk if orientation == 'edge' else ds.z_unit_disk,
-                                                              ('gas', 'H_p0_number_density'),
-                                                              center=ds.halo_center_kpc, data_source=disk_cut,
-                                                              width=(100, 'kpc'),
-                                                              north_vector=ds.z_unit_disk if orientation == 'edge' else ds.x_unit_disk,
-                                                              buff_size=[res, res], weight_field=None)
-                                disk_frb = proj_disk.frb[('gas', 'H_p0_number_density')].v
-                                ax.contour(disk_frb, levels=5, colors='white', linewidths=0.8)
-                            except Exception as e:
-                                print(f"Could not overlay disk contours on {ion}: {e}")
-
-                        last_im = im
-                        idx += 1
-
-                cbar_ax_hi = fig.add_axes([0.17, 0.89, 0.3, 0.015])
-                cbar_hi = fig.colorbar(im_hi, cax=cbar_ax_hi, orientation='horizontal', shrink=0.9)
-                cbar_hi.ax.tick_params(labelsize=12, direction='out')
-                cbar_hi.ax.xaxis.set_label_position('top')
-                cbar_hi.ax.xaxis.set_ticks_position('top')
-                cbar_hi.set_label('HI Column Density [cm$^{-2}$]', fontsize=12)
-
-                cbar_ax_em = fig.add_axes([0.56, 0.89, 0.3, 0.015])
-                cbar_em = fig.colorbar(last_im, cax=cbar_ax_em, orientation='horizontal', shrink=0.9)
-                cbar_em.ax.tick_params(labelsize=12, direction='out')
-                cbar_em.ax.xaxis.set_label_position('top')
-                cbar_em.ax.xaxis.set_ticks_position('top')
-                cbar_em.set_label('Emission [photons s$^{-1}$ cm$^{-2}$ sr$^{-1}$]', fontsize=12)
-
-                output_path = prefix + 'Projections/'
-                os.makedirs(output_path, exist_ok=True)
-                fig.savefig(os.path.join(output_path, f"{snap}_HI_plus_emission_grid_{orientation}_{region}{save_suffix}.png"), dpi=300, bbox_inches='tight')
-                plt.show()
-                plt.close()
-
-    print("Saved HI+Emission grid plots for both face-on and edge-on.")
-
-
 
 ######################################################################################################
 def load_and_calculate(snap, ions,scale_factor=None, unit_system='photons', filter_type=None, filter_value=None, res_arcsec=None):
@@ -1512,10 +1384,11 @@ def load_and_calculate(snap, ions,scale_factor=None, unit_system='photons', filt
 
     # Load simulation output
     snap_name = foggie_dir + 'halo_00' + args.halo + '/' + args.run + '/' + snap + '/' + snap
-    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, disk_relative=True, correct_bulk_velocity=True)#, smooth_AM_name=smooth_AM_name)
+    ds, refine_box = foggie_load(snap_name, trackfile_name = trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, disk_relative=True, correct_bulk_velocity=True)#, smooth_AM_name=smooth_AM_name)
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
-    #finding disk
+
     
+    #finding disk
     if filter_type == 'disk_cgm':
         if not os.path.exists(disk_file):
             print('Disk file not found. Running clump finder to generate disk')
@@ -1533,22 +1406,26 @@ def load_and_calculate(snap, ions,scale_factor=None, unit_system='photons', filt
         else:
             print(f'Disk file already exists at {disk_file}, skipping clump finder.')
 
+
     add_ion_fields(ds,ions)
     
     # Generate emission maps based on the plot type
     if ('emission_map' in args.plot):
         if ('vbins' not in args.plot):
             emission_map(ds, refine_box, snap, ions, unit_system=unit_system, filter_type=filter_type, filter_value=filter_value,res_arcsec=res_arcsec)
-            #combined_emission_map(ds, refine_box, snap, ions, unit_system=unit_system, filter_type=filter_type, filter_value=filter_value, res_arcsec=res_arcsec)
             
-
+    # Generate emission FRBs and emission maps 
     if ('emission_FRB' in args.plot):
-        make_FRB(ds, refine_box, snap, ions, unit_system=unit_system, filter_type=filter_type, filter_value=filter_value, res_arcsec=res_arcsec)
+        make_FRB(ds, refine_box, snap, ions, unit_system='photons', filter_type=filter_type, filter_value=filter_value,res_arcsec=None)
+    
+    # Generate emission FRBs,emission maps, observable maps, and column density maps for FOGGIE XVI paper
+    if ('emission_paper' in args.plot):
+        make_FRB(ds, refine_box, snap, ions, unit_system='photons', filter_type=filter_type, filter_value=filter_value,res_arcsec=None)
+        emission_map_vbins(ds,refine_box, snap, ions,unit_system='photons', filter_type=None, filter_value=None)
         compute_mass_in_emission_pixels(ds, refine_box, snap, ions, unit_system=unit_system, filter_type=filter_type, filter_value=filter_value, res_arcsec=res_arcsec)
-        #make_column_density_FRB(ds, refine_box, snap, ions, scale_factor=scale_factor, filter_type=filter_type, filter_value=filter_value)  
+        make_column_density_FRB(ds, refine_box, snap, ions, scale_factor=scale_factor, filter_type=filter_type, filter_value=filter_value)  
         make_emissivity_weighted_velocity_FRB(ds, refine_box, snap, ions, unit_system=unit_system,filter_type=filter_type, filter_value=filter_value, res_arcsec=res_arcsec)
-        #make_hi_emission_grid(ds, refine_box, snap, ions,unit_system=unit_system, filter_type=filter_type, filter_value=filter_value,res_arcsec=res_arcsec)
-        #cgm_make_hi_emission_grid(ds, refine_box, snap, ions,unit_system=unit_system, filter_type=filter_type, filter_value=filter_value,res_arcsec=res_arcsec)
+          
 
     end_time = time.time()
     elapsed = end_time - start_time
@@ -1557,10 +1434,12 @@ def load_and_calculate(snap, ions,scale_factor=None, unit_system='photons', filt
 if __name__ == "__main__":
 
     args = parse_args()
-    print('Halo:',args.halo)
+    halo_name = halo_dict[args.halo]
+    print('Halo:',args.halo, halo_name)
 
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v'
+    
 
 
     if ('feedback' in args.run) and ('track' in args.run):
@@ -1570,7 +1449,8 @@ if __name__ == "__main__":
     #set the clump/disk file directory that you saved the Disk files that you produced by running clump_finder.py
     disk_file = output_dir + '/FOGGIE' + '/'+ 'RD00' + args.output + '/'+ '/Disk/H1_Disk.h5'
     shell_path = output_dir + '/FOGGIE' + '/'+ 'RD00' + args.output + '/'+ '/Disk/'
-    
+    # Path to the saved clump catalogue (produced by clump_finder.py)
+    clump_file = output_dir + '/FOGGIE/RD00' + args.output + '/Clumps/HI_ClumpTree.h5'
     # Set directory for output location, making it if necessary
     if args.fov_kpc is not None:
         box_name = args.fov_kpc
@@ -1595,15 +1475,19 @@ if __name__ == "__main__":
         if args.filter_type is not None:
             if args.filter_type == 'disk_cgm':
                 prefix = output_dir + '/FOGGIE' + '/'+ 'RD00' + args.output + '/'+ 'box_' + box_name + '/' + 'without_disk' + '/' + resolution + '/' + args.filter_type + '/'
+            elif args.filter_type == 'no_clumps':
+                prefix = output_dir + '/FOGGIE' + '/'+ 'RD00' + args.output + '/'+ 'box_' + box_name + '/' + 'without_clumps' + '/' + resolution + '/'
+            elif args.filter_type == 'clumps_only':
+                prefix = output_dir + '/FOGGIE' + '/'+ 'RD00' + args.output + '/'+ 'box_' + box_name + '/' + 'clumps_only' + '/' + resolution + '/'
             else:
-                prefix = output_dir + '/FOGGIE' + '/'+ 'RD00' + args.output + '/'+ 'box_' + box_name + '/' + args.filter_type + '/' + resolution + '/' 
+                prefix = output_dir + '/FOGGIE' + '/'+ 'RD00' + args.output + '/'+ 'box_' + box_name + '/' + args.filter_type + '/' + resolution + '/'
 
     if not (os.path.exists(prefix)): os.system('mkdir -p ' + prefix)
     table_loc = prefix + 'Tables/'
 
     print('foggie_dir: ', foggie_dir)
-    catalog_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
-    halo_c_v_name = catalog_dir + 'halo_c_v'
+    catalog_dir = foggie_dir + '/halo_00' + args.halo + '/' + args.run + '/'
+    halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/' + 'halo_c_v'
     #smooth_AM_name = catalog_dir + 'AM_direction_smoothed'
 
     # right now using the test tables that vida made 
@@ -1679,10 +1563,10 @@ if __name__ == "__main__":
     
     ############################
     # CIII 977
-    hden_pts, T_pts, table_CIII_977 = make_Cloudy_table(7,cloudy_path)
-    sr_CIII_977 = table_CIII_977.T.ravel()
-    bl_CIII_977 = interpolate.LinearNDInterpolator(pts, sr_CIII_977)
-    register_emission_field_with_unit('Emission_CIII_977', Emission_CIII_977, emission_units, unit_system,scale_factor)
+    # hden_pts, T_pts, table_CIII_977 = make_Cloudy_table(7,cloudy_path)
+    # sr_CIII_977 = table_CIII_977.T.ravel()
+    # bl_CIII_977 = interpolate.LinearNDInterpolator(pts, sr_CIII_977)
+    # register_emission_field_with_unit('Emission_CIII_977', Emission_CIII_977, emission_units, unit_system,scale_factor)
 
     ############################
     # CIII 1910
@@ -1804,12 +1688,6 @@ if __name__ == "__main__":
             flux_threshold_dict = {'CIII': 675,'CIV': 650,'OVI': 270, 'MgII':675} #photons/s/cm^2/sr
         elif args.unit_system == 'erg':
             flux_threshold_dict = {'OVI': 3e-19} #ergs/s/cm^2/arcsec^2
-
-    elif instrument_name == 'DISCO':
-        if args.unit_system == 'erg':
-            flux_threshold_dict = {'CII': 2e-19,'CIII': 2e-19,'CIV': 2e-19,'OVI': 2e-19, 'SiII':2e-19, 'SiIII':2e-19, 'SiIV':2e-19} #ergs/s/cm^2/arcsec^2
-        elif args.unit_system == 'photons':
-            flux_threshold_dict = {'CII': 300,'CIII': 300,'CIV': 300,'OVI': 300, 'SiII':300, 'SiIII':300, 'SiIV':300}
         
     elif instrument_name == 'MUSE':
         if args.unit_system == 'erg':
@@ -1820,32 +1698,6 @@ if __name__ == "__main__":
             flux_threshold_dict = {'OVI': 200} #photons/s/cm^2/sr
         elif args.unit_system == 'erg':
             flux_threshold_dict = {'OVI': 1.5e-20} #ergs/s/cm^2/arcsec^2  
-    elif instrument_name == 'flux100':
-        if args.unit_system == 'photons':
-            flux_value = 100
-            flux_threshold_dict = {'HI':flux_value,'CII':flux_value,'CIII': flux_value,'CIV': flux_value,'OVI': flux_value,'MgII':flux_value,'SiII':flux_value,'SiIII':flux_value,'SiIV':flux_value,} #photons/s/cm^2/sr
-        elif args.unit_system == 'erg':
-            flux_threshold_dict = {'OVI': 3e-19} #ergs/s/cm^2/arcsec^2
-    elif instrument_name == 'flux500':
-        if args.unit_system == 'photons':
-            flux_value = 500
-            flux_threshold_dict = flux_threshold_dict = {'HI':flux_value,'CII':flux_value,'CIII': flux_value,'CIV': flux_value,'OVI': flux_value,'MgII':flux_value,'SiII':flux_value,'SiIII':flux_value,'SiIV':flux_value,} #photons/s/cm^2/sr
-        elif args.unit_system == 'erg':
-            flux_threshold_dict = {'OVI': 3e-19} #ergs/s/cm^2/arcsec^2
-    elif instrument_name == 'flux1000':
-        if args.unit_system == 'photons':
-            flux_value = 1000
-            flux_threshold_dict = flux_threshold_dict = {'HI':flux_value,'CII':flux_value,'CIII': flux_value,'CIV': flux_value,'OVI': flux_value,'MgII':flux_value,'SiII':flux_value,'SiIII':flux_value,'SiIV':flux_value,} #photons/s/cm^2/sr
-        elif args.unit_system == 'erg':
-            flux_threshold_dict = {'OVI': 3e-19} #ergs/s/cm^2/arcsec^2
-    elif instrument_name == 'flux2000':
-        if args.unit_system == 'photons':
-            flux_value = 2000
-            flux_threshold_dict = flux_threshold_dict = {'HI':flux_value,'CII':flux_value,'CIII': flux_value,'CIV': flux_value,'OVI': flux_value,'MgII':flux_value,'SiII':flux_value,'SiIII':flux_value,'SiIV':flux_value,} #photons/s/cm^2/sr
-        elif args.unit_system == 'erg':
-            flux_threshold_dict = {'OVI': 3e-19} #ergs/s/cm^2/arcsec^2
-    else:
-        flux_threshold_dict = {}
 
     #YOUR INSTRUMENT HERE
     #elif instrument_name == 'YOUR INSTRUMENT NAME':
@@ -1883,11 +1735,12 @@ if __name__ == "__main__":
     #Build filter_type
     filter_type = args.filter_type
 
-    shell_cut = args.shell_cut
 
     res_arcsec = args.res_arcsec
     
     shell_count = int(args.shell_count)
+
+    max_number_of_satellites = int(args.max_number_of_satellites)
 
     # Build outputs list
     outs = make_output_list('RD00'+args.output, output_step=args.output_step)
@@ -1943,8 +1796,10 @@ if __name__ == "__main__":
                         shutil.rmtree(snap_dir + snaps[s])
             outs = skipped_outs
 
-    print(str(datetime.datetime.now()))
-    print(f"All snapshots finished and saved in {prefix}!")
+    print(f"All snapshots finished and saved in {prefix}")
+    
+ 
+    
 
 
 

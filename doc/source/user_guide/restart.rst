@@ -1,7 +1,7 @@
 Restarting an Existing FOGGIE Run
 =================================
 
-To restart a FOGGIE halo with next-generation setup:
+To restart a FOGGIE halo with whatever changes you would like:
 
 1.  Make sure to have the ``enzo-foggie`` branch of enzo installed. See the page `Compiling enzo-foggie on Pleiades <enzo-foggie.html>`_ for the steps.
 
@@ -23,7 +23,7 @@ To restart a FOGGIE halo with next-generation setup:
 	-   ``simrun.pl`` from ``/nobackup/clochhaa/reruns/simrun.pl``
 	-   ``RunScript.sh`` from ``/nobackup/clochhaa/reruns/RunScript.sh``
 
-4.  From a pfe, ssh to lou and create a new directory where you want to backup new simulation outputs e.g.:
+4.  If you want backups on lou, then from a pfe, ssh to lou and create a new directory where you want to backup new simulation outputs e.g.:
     ::
 
 	    ssh lou
@@ -41,44 +41,53 @@ To restart a FOGGIE halo with next-generation setup:
 	    On this line, change the path after ``lou:`` to the path to the new directory on lou you just
 	    made for backup. ``simrun.pl`` will automatically back up new simulation outputs to this
 	    directory as they're made while the code runs.
-	-   ``RunScript.sh``:
-	    On the line that calls ``memory_gauge.sh``, put in the path to your own ``memory_gauge.sh`` file
-	    (see the instructions for installing JT's enzo for how to create this).
-	    Feel free to change the name of the run to whatever you'd like (on the line ``#PBS -N``).
-	    The first time you try a new run, submit it to the devel queue to make sure it works:
-	    Change the line ``#PBS -q long`` to ``#PBS -q devel`` and change the line
-	    ``#PBS -l walltime=120:00:00`` to ``#PBS -l walltime=2:00:00``.
 	-   ``OutputLog``:
 	    Delete all lines after whichever output you're restarting from. In the above example, I
 	    would delete everything after DD1970, so that the last line starts with
 	    ``DATASET WRITTEN ./DD1970/DD1970``.
+	-   ``RunScript.sh``:
+	    Here is an example RunScript.sh file:
 
-6.  Modify the parameter file of the last output you're restarting from to include all the new stuff. In the example above, this would be DD1970/DD1970
-	-   H2-regulated SF stuff:
-	    Look for the line that says ``StarParticleCreation = 1`` and change it to
-	    ``StarParticleCreation = 2048``
-	    Look for a block of a bunch of parameters that start with ``H2StarMaker``. Delete this block
-	    and copy-paste in this block of parameters instead:
+		:: 
 
-            ::
+			#!/bin/bash
 
-                H2StarMakerH2FractionMethod        = 1
-				H2StarMakerEfficiency              = 0.02
-				H2StarMakerNumberDensityThreshold  = 0
-				H2StarMakerMinimumMass             = 1000
-				H2StarMakerMinimumH2FractionForStarFormation = 0
-				H2StarMakerStochastic              = 0
-				H2StarMakerUseSobolevColumn        = 1
-				H2StarMakerSigmaOverR              = 0.0333333
-				H2StarMakerAssumeColdWarmPressureBalance = 1
-				H2StarMakerH2DissociationFlux_MW   = 1
-				H2StarMakerH2FloorInColdGas        = 0
-				H2StarMakerColdGasTemperature      = 10000
-				H2StarMakerUseLocalDensityMax      = 1
-				H2StarMakerWriteStarLogFiles       = 1
+			#PBS -N <JOB_NAME>
+			#PBS -W group_list=s2358 
+			#PBS -l select=1:ncpus=64:mpiprocs=64:model=mil_ait
+			#PBS -l walltime=120:00:00
+			#PBS -q long
+			#PBS -j oe
+			#PBS -m abe
+			#set output and error directories
+			#PBS -e pbs_error.txt
+			#PBS -o pbs_output.txt
+			#PBS -koed
 
-            NOTE: These parameters work well at low redshift and relatively high refinement (greater than 11) 
-            but we have not yet found a good scheme or parameter set for the initial onset of star formation at high z. 
+			module purge
+			module use /nasa/modulefiles/testing
+			module load comp-intel/2020.4.304
+			module load hdf5/1.8.18_serial
+			module load mpi-hpe/mpt
+
+			export HDF5_DISABLE_VERSION_CHECK=1
+
+			export PATH="/u/scicon/tools/bin/:$PATH"
+			export LD_LIBRARY_PATH="/PATH/TO/grackle/build/lib64":$LD_LIBRARY_PATH
+
+			cd $PBS_O_WORKDIR
+
+			/u/<USERNAME>/memory_gauge.sh $PBS_JOBID > memory.$PBS_JOBID 2>&1 &
+
+
+			./simrun.pl -mpi "mpiexec -np 64 /u/scicon/tools/bin/mbind.x -cs " -wall 432000 -jf "RunScript.sh"
+
+			mv pbs_output.txt pbs_output_$PBS_JOBID.txt
+
+
+
+6.  Modify the parameter file of the last output you're restarting from to include whatever it is you want to change. In the example above, this would be DD1970/DD1970
+	-   If you want the new star formation and/or feedback stuff, check the page `Starting a Fresh FOGGIE Run from Initial Conditions <clean_from_ICs.html>`_.
 
 	-   path to grackle file:
 	    Look for a parameter called ``grackle_data_file``. Set it to the path to your particular
@@ -89,8 +98,8 @@ To restart a FOGGIE halo with next-generation setup:
 7.  If this is your first time doing a re-run, make sure this all works before you start changing things.
     If you have enzo running fine, then the last step is to change whichever parameter you want to explore!
 
-	-   e.g., if I want to explore the impact of different H2 fraction floors, I would want to
-	    change the parameter ``H2StarMakerH2FloorInColdGas``.
+	-   e.g., if I want to explore the impact of different strengths of mechanical feedback, I would want to
+	    change the parameter ``MomentumMultiplier``.
 
 8.  Submit your re-run to PBS by cd'ing into the directory and typing
 
