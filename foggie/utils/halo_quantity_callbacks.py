@@ -65,24 +65,24 @@ def halo_total_mass(halo, correct=True, rvir_factor = 1.):
     # and, star particles are already included in "nbody" fields so we don't double count them
     return total_gas_mass + total_particle_mass
 
-def halo_overdensity(halo, correct=True):
-    if (correct): 
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
+def halo_overdensity(halo, correct=True, rvir_factor=1.):
+    if (correct):
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_factor * halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
     cosmic_matter_density = futils.cosmic_matter_density(halo.halo_catalog.data_ds.current_redshift,
                                                   h=halo.halo_catalog.data_ds.hubble_constant,
                                                   omega_m=halo.halo_catalog.data_ds.omega_matter)
-    
-    total_halo_mass = halo_total_mass(halo, correct=correct).to('Msun')    
+
+    total_halo_mass = halo_total_mass(halo, correct=correct, rvir_factor=rvir_factor).to('Msun')
     halo_mean_density = (total_halo_mass / (4. / 3. * 3.141592653589793 * sphere.radius**3)).to('Msun/Mpc**3')
 
     return (halo_mean_density.value / cosmic_matter_density)
 
-def halo_average_temperature(halo, correct=True):
-    if (correct): 
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
+def halo_average_temperature(halo, correct=True, rvir_factor=1.):
+    if (correct):
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_factor * halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
@@ -93,9 +93,9 @@ def halo_average_temperature(halo, correct=True):
     return sphere.quantities.weighted_average_quantity(
         ("gas", "temperature"), ("gas", "cell_mass"))
 
-def halo_average_metallicity(halo, correct=True):
-    if (correct): 
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
+def halo_average_metallicity(halo, correct=True, rvir_factor=1.):
+    if (correct):
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_factor * halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
 
@@ -105,9 +105,9 @@ def halo_average_metallicity(halo, correct=True):
     return sphere.quantities.weighted_average_quantity(
         ("gas", "metallicity"), ("gas", "cell_mass"))
 
-def halo_max_metallicity(halo, correct=True):
-    if (correct): 
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
+def halo_max_metallicity(halo, correct=True, rvir_factor=1.):
+    if (correct):
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_factor * halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
 
@@ -117,9 +117,9 @@ def halo_max_metallicity(halo, correct=True):
     zmax = sphere.quantities.extrema(("gas", "metallicity")) / 0.02 
     return zmax[1]
 
-def halo_max_gas_density(halo, correct=True): 
-    if (correct): 
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
+def halo_max_gas_density(halo, correct=True, rvir_factor=1.):
+    if (correct):
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_factor * halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
 
@@ -129,9 +129,9 @@ def halo_max_gas_density(halo, correct=True):
     dmax = sphere.quantities.extrema(("gas", "density")) 
     return dmax[1]
     
-def halo_max_dm_density(halo, correct=True): 
-    if (correct): 
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
+def halo_max_dm_density(halo, correct=True, rvir_factor=1.):
+    if (correct):
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_factor * halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
 
@@ -229,9 +229,9 @@ def halo_cgm_gas_mass(halo, correct=True, rvir_factor=1):
 
     return sphere.quantities.total_quantity(("gas", "cell_mass"))
 
-def halo_cold_cgm_gas_mass(halo, correct=True, rvir_factor=1.): 
-    if (correct): 
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
+def halo_cold_cgm_gas_mass(halo, correct=True, rvir_factor=1.):
+    if (correct):
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_factor*halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
@@ -343,11 +343,11 @@ def halo_sfr8(halo, correct=True, rvir_factor = 1.):
 
     return sphere.quantities.total_quantity(('young_stars8', 'particle_mass')) / yt.YTArray(1e8, 'yr')  
 
-def halo_average_fH2(halo, correct=True):
-    if (correct): 
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
+def halo_average_fH2(halo, correct=True, rvir_factor=1.):
+    if (correct):
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_factor * halo.quantities["corrected_rvir"])
     else:
-        sphere = halo.data_object    
+        sphere = halo.data_object
 
     if sphere is None:
         return halo.halo_catalog.data_ds.quan(0, "Msun")
@@ -356,16 +356,16 @@ def halo_average_fH2(halo, correct=True):
 
     return fH2
 
-def halo_actual_baryon_fraction(halo, correct=True):
-    if (correct): 
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
+def halo_actual_baryon_fraction(halo, correct=True, rvir_factor=1.):
+    if (correct):
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_factor * halo.quantities["corrected_rvir"])
     else:
-        sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback 
+        sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
     if sphere is None:
         return halo.halo_catalog.data_ds.quan(0, "Msun")
 
-    baryon_fraction = (halo_total_gas_mass(halo, correct=correct) + halo_total_star_mass(halo, correct=correct)) / halo_total_mass(halo, correct=correct)
+    baryon_fraction = (halo_total_gas_mass(halo, correct=correct, rvir_factor=rvir_factor) + halo_total_star_mass(halo, correct=correct, rvir_factor=rvir_factor)) / halo_total_mass(halo, correct=correct, rvir_factor=rvir_factor)
 
     return baryon_fraction
 
@@ -392,9 +392,9 @@ def halo_outflow_300(halo, correct=True, rvir_factor = 1.):
     print("halo_outflow_300") 
     return outflow_mass_300
 
-def halo_outflow_500(halo, correct=True):
-    if (correct): 
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
+def halo_outflow_500(halo, correct=True, rvir_factor=1.):
+    if (correct):
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_factor * halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback 
 

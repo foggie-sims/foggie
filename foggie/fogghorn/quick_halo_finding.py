@@ -133,13 +133,10 @@ def repair_halo_catalog(ds, simulation_dir, snapname, min_rvir=10., min_halo_mas
               "max_gas_density": halo_max_gas_density, "max_dm_density": halo_max_dm_density, 
               "outflow_mass_300":halo_outflow_300, "outflow_mass_500":halo_outflow_500} 
     
-    #These quantities will also be calculated with 2Rvir to capture, e.g. outflows that have passed beyond Rvir but are still associated with the halo.
-    quantities_2rvir = {"total_star_mass_2rvir":halo_total_star_mass, "total_gas_mass_2rvir":halo_total_gas_mass, 
-                        "total_ism_HI_mass_2rvir":halo_ism_HI_mass, "total_ism_HII_mass_2rvir":halo_ism_HII_mass,
-                        "total_ism_gas_mass_2rvir":halo_ism_gas_mass, 
-                        "total_gas_mass_2rvir":halo_total_gas_mass, "total_cgm_gas_mass_2rvir":halo_cgm_gas_mass, 
-                        "total_cold_cgm_gas_mass_2rvir": halo_cold_cgm_gas_mass, "total_cool_cgm_gas_mass_2rvir":halo_cool_cgm_gas_mass, 
-                        "total_warm_cgm_gas_mass_2rvir":halo_warm_cgm_gas_mass, "total_hot_cgm_gas_mass_2rvir":halo_hot_cgm_gas_mass}
+    #Every quantity above is also calculated within 2Rvir (to capture, e.g., outflows
+    #that have passed beyond Rvir but are still associated with the halo). All callbacks
+    #accept rvir_factor, so the 2Rvir set simply mirrors the Rvir set with a '_2rvir' suffix.
+    quantities_2rvir = {q + "_2rvir": func for q, func in quantities.items()}
 
     for q in quantities.keys(): 
         add_quantity(q, quantities[q])
@@ -149,12 +146,18 @@ def repair_halo_catalog(ds, simulation_dir, snapname, min_rvir=10., min_halo_mas
         add_quantity(q, quantities_2rvir[q])
         hc.add_quantity(q, correct=True, rvir_factor=2.) 
 
-    if (ds.parameters['MultiSpecies'] == 2): # this is necessary because older runs do not have this field 
-        add_quantity("average_fH2", halo_average_fH2) 
+    if (ds.parameters['MultiSpecies'] == 2): # this is necessary because older runs do not have this field
+        add_quantity("average_fH2", halo_average_fH2)
         hc.add_quantity("average_fH2", correct=True)
+
+        add_quantity("average_fH2_2rvir", halo_average_fH2)
+        hc.add_quantity("average_fH2_2rvir", correct=True, rvir_factor=2.)
 
         add_quantity("total_ism_H2_mass", halo_ism_H2_mass)
         hc.add_quantity("total_ism_H2_mass", correct=True)
+
+        add_quantity("total_ism_H2_mass_2rvir", halo_ism_H2_mass)
+        hc.add_quantity("total_ism_H2_mass_2rvir", correct=True, rvir_factor=2.)
 
     hc.create()
 

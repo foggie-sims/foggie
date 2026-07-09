@@ -151,8 +151,8 @@ def baryons_vs_z(table, zrange=[3, 1.5], title='Baryon Budget', filename='a.png'
     """Stacked baryon budget vs redshift.
 
     suffix='' sums the phase masses within Rvir; suffix='_2rvir' sums the 2Rvir
-    columns instead. In both cases fractions are normalized by the halo virial
-    mass (total_mass), which has no 2Rvir counterpart in the catalogs.
+    columns instead. Fractions are normalized by the total halo mass measured on
+    the same aperture, i.e. total_mass for Rvir and total_mass_2rvir for 2Rvir.
     """
 
     plt.figure()
@@ -162,7 +162,7 @@ def baryons_vs_z(table, zrange=[3, 1.5], title='Baryon Budget', filename='a.png'
     plt.ylabel('Fraction of Halo Total Mass')
 
     z = table['z']
-    total_mass = table['total_mass'].to('Msun')
+    total_mass = table['total_mass' + suffix].to('Msun')
 
     for comps, color, label, annot in BARYON_PHASES:
         band = sum(table[_MASS_COL[c] + suffix].to('Msun') for c in comps)
