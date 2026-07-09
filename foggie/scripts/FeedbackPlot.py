@@ -147,7 +147,13 @@ BARYON_PHASES = [
 ]
 
 
-def baryons_vs_z(table, zrange=[3, 1.5], title='Baryon Budget', filename='a.png'):
+def baryons_vs_z(table, zrange=[3, 1.5], title='Baryon Budget', filename='a.png', suffix=''):
+    """Stacked baryon budget vs redshift.
+
+    suffix='' sums the phase masses within Rvir; suffix='_2rvir' sums the 2Rvir
+    columns instead. In both cases fractions are normalized by the halo virial
+    mass (total_mass), which has no 2Rvir counterpart in the catalogs.
+    """
 
     plt.figure()
     plt.xlim(zrange[0], zrange[1])
@@ -159,12 +165,12 @@ def baryons_vs_z(table, zrange=[3, 1.5], title='Baryon Budget', filename='a.png'
     total_mass = table['total_mass'].to('Msun')
 
     for comps, color, label, annot in BARYON_PHASES:
-        band = sum(table[_MASS_COL[c]].to('Msun') for c in comps)
+        band = sum(table[_MASS_COL[c] + suffix].to('Msun') for c in comps)
         frac = band / total_mass
         plt.plot(z, frac, color=color, linewidth=2)
         plt.fill_between(z, frac, color=color, label=label)
         if annot:
-            comp_frac = table[_MASS_COL[annot]].to('Msun') / total_mass
+            comp_frac = table[_MASS_COL[annot] + suffix].to('Msun') / total_mass
             plt.text(z[-1], frac[-1], str(comp_frac[-1] * 100.)[0:3] + '%', color=color)
 
     plt.plot([0, 7], [0.0461 / 0.285, 0.0461 / 0.285], linestyle='dashed', color='orange')
@@ -366,13 +372,25 @@ if __name__ == '__main__':
     # Stellar mass ratio to thermal run
     plot_mstar_ratio(keys=NO_DEFAULT)
 
-    # Baryon budgets, one figure per run
-    baryons_vs_z(BY_KEY['therm'].table,       zrange=[3, 0.0], title='Tempest Baryon Budget with Thermal Feedback',                filename='baryon_budget_thermal.png')
-    baryons_vs_z(BY_KEY['mech'].table,        zrange=[3, 0.0], title='Tempest Baryon Budget with Mechanical Feedback',             filename='baryon_budget_mechanical.png')
-    baryons_vs_z(BY_KEY['rad'].table,         zrange=[3, 0.0], title='Tempest Baryon Budget with 100x Rad & Thermal Feedback',     filename='baryon_budget_rad100.png')
-    baryons_vs_z(BY_KEY['mom5'].table,        zrange=[3, 0.0], title='Tempest Baryon Budget with Momemtum x5 Feedback',            filename='baryon_budget_mom5x.png')
-    baryons_vs_z(BY_KEY['mom_rad'].table,     zrange=[3, 0.0], title='Tempest Baryon Budget with Momemtum x3 + Rad100 Feedback',   filename='baryon_budget_mom3x_rad.png')
-    baryons_vs_z(BY_KEY['radius3'].table,     zrange=[3, 0.0], title='Tempest Baryon Budget with Momemtum x5 + Radius=3 ',         filename='baryon_budget_mom5x_radius3.png')
-    baryons_vs_z(BY_KEY['rad3_rad100'].table, zrange=[3, 0.0], title='Tempest Baryon Budget with Mom x5,Radius=3,Rad100 ',         filename='baryon_budget_mom5x_radius3_rad100.png')
-    baryons_vs_z(BY_KEY['numerical'].table,   zrange=[3, 0.0], title='Tempest Baryon Budget with H2numerical nref11n ',            filename='baryon_budget_H2numerical.png')
-    baryons_vs_z(BY_KEY['pr63'].table,        zrange=[3, 0.0], title='Tempest Baryon Budget with PR63 Radiation',                  filename='baryon_budget_PR63.png')
+    # Baryon budgets, one figure per run. Each entry: (run key, title stem, file stem)
+    BARYON_BUDGETS = [
+        ('therm',       'Thermal Feedback',                'thermal'),
+        ('mech',        'Mechanical Feedback',             'mechanical'),
+        ('rad',         '100x Rad & Thermal Feedback',     'rad100'),
+        ('mom5',        'Momemtum x5 Feedback',            'mom5x'),
+        ('mom_rad',     'Momemtum x3 + Rad100 Feedback',   'mom3x_rad'),
+        ('radius3',     'Momemtum x5 + Radius=3 ',         'mom5x_radius3'),
+        ('rad3_rad100', 'Mom x5,Radius=3,Rad100 ',         'mom5x_radius3_rad100'),
+        ('numerical',   'H2numerical nref11n ',            'H2numerical'),
+        ('pr63',        'PR63 Radiation',                  'PR63'),
+    ]
+
+    for key, stem, fstem in BARYON_BUDGETS:
+        # Rvir budget (unchanged)
+        baryons_vs_z(BY_KEY[key].table, zrange=[3, 0.0],
+                     title=f'Tempest Baryon Budget with {stem}',
+                     filename=f'baryon_budget_{fstem}.png')
+        # parallel 2Rvir budget (numerators summed within 2Rvir, normalized by Mvir)
+        baryons_vs_z(BY_KEY[key].table, zrange=[3, 0.0], suffix='_2rvir',
+                     title=f'Tempest 2Rvir Baryon Budget with {stem}',
+                     filename=f'baryon_budget_{fstem}_2rvir.png')
