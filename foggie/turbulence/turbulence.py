@@ -115,6 +115,7 @@ def parse_args():
                         'vel_struc_func         -  Velocity structure function\n' + \
                         'emiss_vsf              -  Density-squared-weighted 2D VSF to mimic emission maps\n' + \
                         'vdisp_projection       -  Projections of both local and LOS velocity dispersion weighted by gas density, n_OVI, and n_CII\n' + \
+                        'ion_weighted_vdisp     -  Projections of ion-weighted LOS 1D velocity dispersions and saving average to file in impact parameter bins\n' + \
                         'vdisp_vs_radius        -  Velocity dispersion vs radius\n' + \
                         'vdisp_vs_mass_res      -  Datashader plot of cell-by-cell velocity dispersion vs. cell mass\n' + \
                         'vdisp_vs_spatial_res   -  Plot of average velocity dispersion vs. spatial resolution\n' + \
@@ -3157,6 +3158,145 @@ def vdisp_projection(snap):
 
     fig.subplots_adjust(top=0.98,bottom=0.08,right=0.9,left=0.08,wspace=0.,hspace=0.)
     fig.savefig(save_dir + snap + '_vdisp_OVI_CII_projections_x-disk.png')
+
+def save_ion_weighted_LOSvdisp(snap):
+    '''Plot OVI-weighted and CII-weighted projections of line-of-sight velocity dispersion and save median and
+    average values of these dispersions in bins of impact parameter to file.'''
+
+    snap_name = foggie_dir + run_dir + snap + '/' + snap
+    ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, disk_relative=False, halo_c_v_name=halo_c_v_name, particle_type_for_angmom='gas')
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+    time = ds.current_time.in_units('Gyr').v
+
+    trident.add_ion_fields(ds, ions=['O VI', 'C II'], ftype='gas')
+
+    width = 400.
+    buff_size = 800
+    left_edge = ds.halo_center_kpc - ds.arr([width/2.,width/2.,width/2.], 'kpc')
+    right_edge = ds.halo_center_kpc + ds.arr([width/2.,width/2.,width/2.], 'kpc')
+    box = ds.box(left_edge=left_edge, right_edge=right_edge)
+    
+    fig = plt.figure(figsize=(9.85,8), dpi=250)
+    ax_CII_den = fig.add_subplot(2,2,1)
+    ax_OVI_den = fig.add_subplot(2,2,2)
+    ax_CII_vdisp = fig.add_subplot(2,2,3)
+    ax_OVI_vdisp = fig.add_subplot(2,2,4)
+
+    cmap_den = cmr.get_sub_cmap('cmr.rainforest', 0., 0.85)
+    cmap_den.set_bad(cmap_den(0.))
+    cmap_vdisp = cmr.get_sub_cmap('cmr.voltage_r', 0., 0.8)
+    cmap_vdisp.set_bad(cmap_vdisp(0.))
+
+    fig.subplots_adjust(top=0.99,bottom=0.01,left=0.1,wspace=0.,hspace=0.,right=0.9)
+
+    proj_CII = yt.ProjectionPlot(ds, 'x', ('gas','C_p1_number_density'), center=ds.halo_center_kpc, width=(width, 'kpc'), data_source=box, buff_size=(buff_size, buff_size))
+    proj_CII.set_cmap(('gas','C_p1_number_density'), cmap_den)
+    proj_CII.set_zlim(('gas','C_p1_number_density'), 10**(10.5), 10**(17.5))
+    proj_CII.render()
+    frb_CII = np.log10(proj_CII.frb[('gas','C_p1_number_density')])
+    im_CII = ax_CII_den.imshow(frb_CII, aspect='equal', origin='lower', extent=[-width/2., width/2., -width/2., width/2.], cmap=cmap_den, norm=colors.Normalize(vmin=10.5, vmax=17.5))
+    ax_CII_den.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+            top=False, right=False, left=False, bottom=False, labelbottom=False, labelleft=False)
+    pos_CII = ax_CII_den.get_position()
+    cax_CII = fig.add_axes([pos_CII.x0-0.03, pos_CII.y0+0.05*pos_CII.height, 0.03, 0.9*pos_CII.height])  # [left, bottom, width, height]
+    fig.colorbar(im_CII, cax=cax_CII, orientation='vertical')
+    cax_CII.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=12, \
+                    top=False, right=False, bottom=False, left=True, labelbottom=False, labelright=False, labelleft=True)
+    cax_CII.text(-1.6, 0.5, 'log C II Column [cm$^{-2}$]', fontsize=14, ha='center', va='center', rotation=90, transform=cax_CII.transAxes)
+
+    # Put time and redshift on top left panel
+    ax_CII_den.text(0.05, 0.95, '%.2f\nz = %.2f' % (time, zsnap), fontsize=14, color='white', ha='left', va='top', transform=ax_CII_den.transAxes)
+    
+    proj_OVI = yt.ProjectionPlot(ds, 'x', ('gas','O_p5_number_density'), center=ds.halo_center_kpc, width=(width, 'kpc'), data_source=box, buff_size=(buff_size, buff_size))
+    proj_OVI.set_cmap(('gas','O_p5_number_density'), cmap_den)
+    proj_OVI.set_zlim(('gas','O_p5_number_density'), 10**(10.5), 10**(17.5))
+    proj_OVI.render()
+    frb_OVI = np.log10(proj_OVI.frb[('gas','O_p5_number_density')])
+    im_OVI = ax_OVI_den.imshow(frb_OVI, aspect='equal', origin='lower', extent=[-width/2., width/2., -width/2., width/2.], cmap=cmap_den, norm=colors.Normalize(vmin=10.5, vmax=17.5))
+    ax_OVI_den.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+            top=False, right=False, left=False, bottom=False, labelbottom=False, labelleft=False)
+    pos_OVI = ax_OVI_den.get_position()
+    cax_OVI = fig.add_axes([pos_OVI.x1, pos_OVI.y0+0.05*pos_OVI.height, 0.03, 0.9*pos_OVI.height])  # [left, bottom, width, height]
+    fig.colorbar(im_OVI, cax=cax_OVI, orientation='vertical')
+    cax_OVI.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=12, \
+                    top=False, right=True, left=False, bottom=False, labelbottom=False, labelleft=False, labelright=True)
+    cax_OVI.text(2.8, 0.5, 'log O VI Column [cm$^{-2}$]', fontsize=14, ha='center', va='center', rotation=90, transform=cax_OVI.transAxes)
+
+    # Put scale bar on top right panel
+    ax_OVI_den.plot([125, 175], [-175,-175], 'w-', lw=2)
+    ax_OVI_den.text(150, -170, '50 kpc', fontsize=14, color='white', ha='center', va='bottom')
+
+    proj_CII_vdisp = yt.ProjectionPlot(ds, 'x', ('gas','vx_corrected'), weight_field=('gas','C_p1_number_density'), moment=2, center=ds.halo_center_kpc, width=(width, 'kpc'), data_source=box, buff_size=(buff_size, buff_size))
+    proj_CII_vdisp.set_cmap(('gas','vx_corrected'), cmap_vdisp)
+    proj_CII_vdisp.set_zlim(('gas','vx_corrected'), 0., 100.)
+    proj_CII_vdisp.render()
+    frb_CII_vdisp = proj_CII_vdisp.frb[('gas','vx_corrected')]
+    frb_CII_vdisp[frb_CII < 10.5] = 0.
+    im_CII_vdisp = ax_CII_vdisp.imshow(frb_CII_vdisp, aspect='equal', origin='lower', extent=[-width/2., width/2., -width/2., width/2.], cmap=cmap_vdisp, norm=colors.Normalize(vmin=0., vmax=100.))
+    ax_CII_vdisp.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+            top=False, right=False, left=False, bottom=False, labelbottom=False, labelleft=False)
+    pos_CII = ax_CII_vdisp.get_position()
+    cax_CII = fig.add_axes([pos_CII.x0-0.03, pos_CII.y0+0.05*pos_CII.height, 0.03, 0.9*pos_CII.height])  # [left, bottom, width, height]
+    fig.colorbar(im_CII_vdisp, cax=cax_CII, orientation='vertical')
+    cax_CII.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=12, \
+                    top=False, right=False, bottom=False, left=True, labelbottom=False, labelright=False, labelleft=True)
+    cax_CII.text(-1.6, 0.5, 'CII-weighted $\sigma_v$', fontsize=14, ha='center', va='center', rotation=90, transform=cax_CII.transAxes)
+    
+    proj_OVI_vdisp = yt.ProjectionPlot(ds, 'x', ('gas', 'vx_corrected'), weight_field=('gas','O_p5_number_density'), moment=2, center=ds.halo_center_kpc, width=(width, 'kpc'), data_source=box, buff_size=(buff_size, buff_size))
+    proj_OVI_vdisp.set_cmap(('gas','vx_corrected'), cmap_vdisp)
+    proj_OVI_vdisp.set_zlim(('gas','vx_corrected'), 0., 200.)
+    proj_OVI_vdisp.set_log(('gas', 'vx_corrected'), False)
+    proj_OVI_vdisp.render()
+    frb_OVI_vdisp = proj_OVI_vdisp.frb[('gas','vx_corrected')]
+    frb_OVI_vdisp[frb_OVI < 10.5] = 0.
+    im_OVI_vdisp = ax_OVI_vdisp.imshow(frb_OVI_vdisp, aspect='equal', origin='lower', extent=[-width/2., width/2., -width/2., width/2.], cmap=cmap_vdisp, norm=colors.Normalize(vmin=0., vmax=200.))
+    ax_OVI_vdisp.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+            top=False, right=False, left=False, bottom=False, labelbottom=False, labelleft=False)
+    pos_OVI = ax_OVI_vdisp.get_position()
+    cax_OVI = fig.add_axes([pos_OVI.x1, pos_OVI.y0+0.05*pos_OVI.height, 0.03, 0.9*pos_OVI.height])  # [left, bottom, width, height]
+    fig.colorbar(im_OVI_vdisp, cax=cax_OVI, orientation='vertical')
+    cax_OVI.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=12, \
+                    top=False, right=True, left=False, bottom=False, labelbottom=False, labelleft=False, labelright=True)
+    cax_OVI.text(2.9, 0.5, 'OVI-weighted $\sigma_v$', fontsize=14, ha='center', va='center', rotation=90, transform=cax_OVI.transAxes)
+
+    fig.savefig(save_dir + 'Movie_frames/' + snap + '_OVI_CII_weighted_vdisp_x.png')
+
+    center = buff_size/2.
+    dx = width/buff_size
+    radius_bins = np.linspace(0., width/2., 21)
+
+    # Get the x, y, z values of every cell in this grid
+    x_vals = np.arange(buff_size)*dx - center*dx
+    y_vals = np.arange(buff_size)*dx - center*dx
+    x, y  = np.meshgrid(x_vals, y_vals, indexing='ij')
+    radius = np.sqrt(x**2.+y**2.)
+
+    f = open(save_dir + 'Tables/' + snap + '_weighted_vdisp_avg.dat', 'w')
+    f.write('# inner_r [kpc]  outer_r [kpc]  OVI_vdisp_avg [km/s]  OVI_vdisp_std [km/s]  OVI_vdisp_med [km/s]  OVI_vdisp_iqr [km/s]  CII_vdisp_avg [km/s]  CII_vdisp_std [km/s]  CII_vdisp_med [km/s]  CII_vdisp_iqr [km/s]\n')
+
+    for i in range(len(radius_bins)-1):
+        low_r = radius_bins[i]
+        upp_r = radius_bins[i+1]
+
+        OVI_bin = frb_OVI[(radius >= low_r) & (radius < upp_r)]
+        CII_bin = frb_CII[(radius >= low_r) & (radius < upp_r)]
+        OVI_vdisp_bin = frb_OVI_vdisp[(radius >= low_r) & (radius < upp_r)]
+        CII_vdisp_bin = frb_CII_vdisp[(radius >= low_r) & (radius < upp_r)]
+
+        OVI_vdisp_avg, OVI_vdisp_std = weighted_avg_and_std(OVI_vdisp_bin, OVI_bin)
+        OVI_vdisp_25, OVI_vdisp_med, OVI_vdisp_75 = weighted_quantile(OVI_vdisp_bin, OVI_bin, [0.25, 0.5, 0.75])
+        OVI_vdisp_iqr = OVI_vdisp_75 - OVI_vdisp_25
+        CII_vdisp_avg, CII_vdisp_std = weighted_avg_and_std(CII_vdisp_bin, CII_bin)
+        CII_vdisp_25, CII_vdisp_med, CII_vdisp_75 = weighted_quantile(CII_vdisp_bin, CII_bin, [0.25, 0.5, 0.75])
+        CII_vdisp_iqr = CII_vdisp_75 - CII_vdisp_25
+
+        f.write('  %.2f'%(low_r)+10*' ' + '%.2f'%(upp_r)+10*' ' + '%.2f'%(OVI_vdisp_avg)+17*' ' + '%.2f'%(OVI_vdisp_std)+17*' ' + '%.2f'%(OVI_vdisp_med)+17*' ' + '%.2f'%(OVI_vdisp_iqr)+17*' ' + \
+                '%.2f'%(CII_vdisp_avg)+17*' ' + '%.2f'%(CII_vdisp_std)+17*' ' + '%.2f'%(CII_vdisp_med)+17*' ' + '%.2f'%(CII_vdisp_iqr) + '\n')
+        
+    f.close()
+
+
+
     
 
 if __name__ == "__main__":
@@ -3213,6 +3353,13 @@ if __name__ == "__main__":
         else:
             target = vdisp_projection
             target_dir = 'vdisp_projection'
+    elif (args.plot=='ion_weighted_vdisp'):
+        if (args.nproc==1):
+            for i in range(len(outs)):
+                save_ion_weighted_LOSvdisp(outs[i])
+        else:
+            target = save_ion_weighted_LOSvdisp
+            target_dir = 'ion_weighted_vdisp'
     elif (args.plot=='outflow_projection'):
         if (args.nproc==1):
             for i in range(len(outs)):
@@ -3331,5 +3478,4 @@ if __name__ == "__main__":
                         shutil.rmtree(snap_dir + snaps[s])
             outs = skipped_outs
 
-    print(str(datetime.datetime.now()))
     print("All snapshots finished!")
