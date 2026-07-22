@@ -300,6 +300,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--output', metavar='output', type=str, action='store', default=None, required=True, help='Output to run a halo catalog for. Single output or comma-separated list or range like DD0400-DD0500.') 
+    parser.add_argument('--output_step', metavar='output_step', type=int, action='store', default=1, required=False, help='If specifying a run of outputs, what spacing do you want between them? Default is 1.') 
     parser.add_argument('--directory', metavar='directory', type=str, action='store', default='./', required=False, help='Pathname to simulation directory') 
     parser.add_argument('--trackfile_name', metavar='trackfile_name', type=str, action='store', default=None, required=False, help='Track file for this halo (center of box subregion)')
     parser.add_argument('--boxwidth', metavar='boxwidth', type=float, action='store', default=0.04, required=False, help='Width of subregion box in code units')
@@ -325,7 +326,7 @@ if __name__ == "__main__":
 
     else:
         import multiprocessing as multi
-        outs = make_output_list(args.output)
+        outs = make_output_list(args.output, output_step=args.output_step)
         for i in range(len(outs)//args.nproc):
             threads = []
             for j in range(args.nproc):
