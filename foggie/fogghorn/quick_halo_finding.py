@@ -217,7 +217,17 @@ def find_root_particles(simulation_dir, ds, hc):
 
 def make_halo_plots(ds, simulation_dir, snapname): 
 
-    print("Looking for halo catalog at, to plot them: ", simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.h5') 
+    print("Looking for halo catalog at, to plot them: ", simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.h5')
+    # yt.load() raises an error trying to parse a halo catalog h5 file that
+    # contains zero halos, since no field data was saved to it. Check the
+    # halo count directly from the h5 attrs first to avoid that crash.
+    with h5py.File(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.h5', 'r') as f:
+        num_halos = f.attrs['num_halos']
+
+    if num_halos == 0:
+        print("No halos found in ", simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.h5', " -- skipping plots.")
+        return
+    
     new_ds = yt.load(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.h5')
     all_data = new_ds.all_data()
 
