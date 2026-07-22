@@ -2,6 +2,7 @@
 # coding: utf-8
 
 import yt
+import h5py
 import argparse, os
 from yt_astro_analysis.halo_analysis import HaloCatalog, add_quantity
 from foggie.utils.foggie_load import foggie_load
@@ -163,17 +164,34 @@ def repair_halo_catalog(ds, simulation_dir, snapname, min_rvir=10., min_halo_mas
 
     return hc 
 
-def export_to_astropy(simulation_dir, snapname): 
-    new_ds = yt.load(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.h5')
+def export_to_astropy(simulation_dir, snapname):
+    filename = simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.h5'
+    fits_name = simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.fits'
+    txt_name = simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.txt'
+
+    # yt.load() raises an error trying to parse a halo catalog h5 file that
+    # contains zero halos, since no field data was saved to it. Check the
+    # halo count directly from the h5 attrs first to avoid that crash.
+    with h5py.File(filename, 'r') as f:
+        num_halos = f.attrs['num_halos']
+
+    if num_halos == 0:
+        print("No halos found in ", filename, " -- writing zeroed-out output files instead.")
+        halo_table = QTable({'num_halos': [0]})
+        halo_table.write(fits_name, format='fits', overwrite=True)
+        halo_table.write(txt_name, format='ascii', overwrite=True)
+        return
+
+    new_ds = yt.load(filename)
     all_data = new_ds.all_data()
-    halo_table = QTable() 
+    halo_table = QTable()
 
-    for field in new_ds.field_list: 
+    for field in new_ds.field_list:
         if (field[0] == 'halos'):
-            halo_table[field[1]] = all_data[field].to_astropy() 
+            halo_table[field[1]] = all_data[field].to_astropy()
 
-    halo_table.write(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.fits', format='fits', overwrite=True) 
-    halo_table.write(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.txt', format='ascii', overwrite=True) 
+    halo_table.write(fits_name, format='fits', overwrite=True)
+    halo_table.write(txt_name, format='ascii', overwrite=True)
 
 def find_root_particles(simulation_dir, ds, hc):
     '''Find and save to file the indices of DM particles within 1Rvir of the
