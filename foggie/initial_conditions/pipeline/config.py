@@ -233,14 +233,48 @@ def enabled_halos(table):
     return [row for row in table if bool(row["enabled"])]
 
 
-def stage_plan(row, include_gas=False):
-    """Ordered list of (level, phase) stages for one registry row.
+def dm_ladder(row):
+    """The sequential DM stages, L1 .. final_level."""
+    return [(level, "DM") for level in range(1, int(row["final_level"]) + 1)]
 
-    The DM ladder always runs L1..final_level.  The gas stage is appended only
-    when the row asks for it *and* the caller has enabled the gas phase, so the
-    column can be curated before the feature is switched on.
+
+def gas_stage(row, include_gas=True):
+    """The gas stage for a row, or None.  Gas runs at the final level only."""
+    if not include_gas or not bool(row["gas"]):
+        return None
+    return (int(row["final_level"]), "gas")
+
+
+def gas_prerequisite(box, halo_id, level):
+    """The file the gas stage needs before it can be built.
+
+    Gas ICs are made by running MUSIC directly on the DM MUSIC config for the
+    same level with baryons switched on, so the gas stage depends on that
+    config existing.  The level-N DM *build* writes it, which in turn requires
+    level N-1's Enzo run to have finished -- L2 must be done before L3-gas is
+    possible.
+
+    It does NOT depend on level N's own Enzo run.  That is what lets the gas
+    run proceed alongside the DM run at the same level instead of queueing
+    behind it.
     """
-    stages = [(level, "DM") for level in range(1, int(row["final_level"]) + 1)]
-    if include_gas and bool(row["gas"]):
-        stages.append((int(row["final_level"]), "gas"))
+    return os.path.join(box.halo_dir(halo_id), "%s-L%d.conf" % (box.sim_name, level))
+
+
+def gas_ready(box, halo_id, level):
+    """True once the gas stage's prerequisite config exists."""
+    return os.path.exists(gas_prerequisite(box, halo_id, level))
+
+
+def stage_plan(row, include_gas=True):
+    """All stages for one registry row: the DM ladder, then gas.
+
+    These are not one sequential chain.  The gas stage hangs off the DM *build*
+    at the same level, not off its run, so it can be in flight at the same time
+    as the DM run.  See gas_prerequisite().
+    """
+    stages = dm_ladder(row)
+    gas = gas_stage(row, include_gas)
+    if gas:
+        stages.append(gas)
     return stages

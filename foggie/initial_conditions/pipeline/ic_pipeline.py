@@ -227,8 +227,12 @@ def collect_registry_records(table, include_gas=False, qstat=None):
             jobid, job_state, action = ledger.live_job(halo_dir, level, phase, qstat)
             if action == "build" and job_state in (stagestate.QUEUED, stagestate.RUNNING):
                 job_state = stagestate.BUILDING
+            # The gas stage hangs off the DM build at the same level, not off
+            # the DM run, so its prerequisite is that config file existing.
+            stage_prereq = (config.gas_ready(box, halo_id, level) if phase == "gas"
+                            else prereq_done)
             st = stagestate.stage_state(stage_dir, job_state=job_state,
-                                        prereq_done=prereq_done)
+                                        prereq_done=stage_prereq)
             records.append({"halo": str(halo_id), "box": box.sim_name,
                             "stage": "L%d-%s" % (level, phase), "state": st,
                             "level": level, "phase": phase,
@@ -239,7 +243,8 @@ def collect_registry_records(table, include_gas=False, qstat=None):
                             "gas": bool(row["gas"]),
                             "rvir_min": (float(row["rvir_min"])
                                          if "rvir_min" in row.colnames else None)})
-            prereq_done = prereq_done and st.state == stagestate.DONE
+            if phase != "gas":
+                prereq_done = prereq_done and st.state == stagestate.DONE
     return records
 
 
@@ -317,7 +322,7 @@ def cmd_status(args):
     return 0
 
 
-def advance_halo(row, qstat, include_gas=False, dry_run=False, verbose=True):
+def advance_halo(row, qstat, include_gas=True, dry_run=False, verbose=True):
     """Take at most one action for one halo, then stop.
 
     Walks the stage ladder in order and acts on the first stage that is not
@@ -341,8 +346,8 @@ def advance_halo(row, qstat, include_gas=False, dry_run=False, verbose=True):
                    if "allow_mixed_outputs" in row.colnames else False)
     rvir_min = float(row["rvir_min"]) if "rvir_min" in row.colnames else None
 
-    prereq_done = True
-    for level, phase in config.stage_plan(row, include_gas=include_gas):
+    def act_on(level, phase, prereq_done):
+        """Take the one action this stage warrants, or report why not."""
         stage_dir = box.stage_dir(halo_id, level, phase)
         jobid, job_state, action = ledger.live_job(halo_dir, level, phase, qstat)
         if action == "build" and job_state in (stagestate.QUEUED, stagestate.RUNNING):
@@ -350,35 +355,60 @@ def advance_halo(row, qstat, include_gas=False, dry_run=False, verbose=True):
         st = stagestate.stage_state(stage_dir, job_state=job_state, prereq_done=prereq_done)
         key = ledger.stage_key(level, phase)
 
-        if st.state == stagestate.DONE:
-            continue
-
         if st.state == stagestate.READY:
             if verbose:
                 print("halo %s %s is READY -- submitting IC build" % (halo_id, key))
-            # Surface a cadence mismatch here, at submit time, rather than
-            # letting the build job fail on a compute node ten minutes later.
             build.check_output_consistency(box, halo_id, level, phase,
                                            allow_mixed=allow_mixed)
             extra = "--allow-mixed-outputs" if allow_mixed else ""
             build.submit_build_job(box, halo_id, level, phase, dry_run=dry_run,
                                    extra_args=extra)
-            return "%s %s submitted IC build" % (halo_id, key)
+            return st, "%s %s submitted IC build" % (halo_id, key)
 
         if st.state == stagestate.BUILT:
             if verbose:
                 print("halo %s %s is BUILT -- submitting Enzo run" % (halo_id, key))
             build.submit_enzo_run(box, halo_id, level, phase, dry_run=dry_run)
-            return "%s %s submitted Enzo run" % (halo_id, key)
+            return st, "%s %s submitted Enzo run" % (halo_id, key)
 
-        if verbose:
+        if st.state != stagestate.DONE and verbose:
             print("halo %s %s is %s%s -- nothing to do"
                   % (halo_id, key, st.state, " (%s)" % st.note if st.note else ""))
-        return None
+        return st, None
 
-    if verbose:
-        print("halo %s: all stages DONE" % halo_id)
-    return None
+    actions = []
+
+    # --- DM ladder: strictly sequential -------------------------------------
+    prereq_done = True
+    for level, phase in config.dm_ladder(row):
+        st, did = act_on(level, phase, prereq_done)
+        if did:
+            actions.append(did)
+        if st.state != stagestate.DONE:
+            break
+    else:
+        if verbose:
+            print("halo %s: DM ladder complete" % halo_id)
+
+    # --- gas: a parallel branch, not the next rung --------------------------
+    #
+    # Gas depends on the DM *build* at the same level having written its MUSIC
+    # config, not on the DM *run* finishing, so it is checked independently of
+    # where the ladder above got to and can be in flight at the same time.
+    gas = config.gas_stage(row, include_gas)
+    if gas:
+        level, phase = gas
+        if config.gas_ready(box, halo_id, level):
+            _, did = act_on(level, phase, True)
+            if did:
+                actions.append(did)
+        elif verbose:
+            print("halo %s L%d-gas is BLOCKED -- waiting on %s"
+                  % (halo_id, level,
+                     os.path.basename(config.gas_prerequisite(box, halo_id, level))))
+
+    return actions
+
 
 
 def cmd_advance(args):
@@ -415,8 +445,7 @@ def cmd_advance(args):
         except Exception as exc:
             print("halo %s BLOCKED: %s" % (row["halo_id"], exc))
             continue
-        if did:
-            actions.append(did)
+        actions.extend(did or [])
 
     print("\nadvance: %s" % ("; ".join(actions) if actions else "no action taken"))
     return 0
@@ -706,8 +735,8 @@ def main(argv=None):
     p.add_argument("--registry", default=None)
     p.add_argument("--include-manual", action="store_true",
                    help="also report frozen halo directories the pipeline does not manage")
-    p.add_argument("--include-gas", action="store_true",
-                   help="include gas stages for registry halos that ask for them")
+    p.add_argument("--no-gas", dest="include_gas", action="store_false", default=True,
+                   help="omit gas stages even for halos whose registry row asks for them")
     p.add_argument("--by-halo", action="store_true",
                    help="also print a one-row-per-halo rollup")
     p.add_argument("--write", action="store_true",
@@ -726,7 +755,8 @@ def main(argv=None):
                        help="submit the next actionable stage (the engine both triggers call)")
     p.add_argument("--halo", default=None, help="one halo; omit for every enabled halo")
     p.add_argument("--registry", default=None)
-    p.add_argument("--include-gas", action="store_true")
+    p.add_argument("--no-gas", dest="include_gas", action="store_false", default=True,
+                   help="skip gas stages even for halos whose registry row asks for them")
     p.add_argument("--dry-run", action="store_true",
                    help="report what would be submitted without submitting it")
     p.set_defaults(func=cmd_advance)
