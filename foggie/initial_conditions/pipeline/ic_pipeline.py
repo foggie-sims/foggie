@@ -524,6 +524,68 @@ def cmd_poll(args):
         notify=args.notify, notify_to=args.notify_to, notify_dry_run=args.dry_run))
 
 
+def cmd_resume(args):
+    """Resubmit stages that are STALLED.
+
+    `advance` deliberately never retries a STALLED stage: normally a stall
+    means the run hit something that will kill it again, and resubmitting just
+    burns allocation.  But when a shared external cause stops everything at
+    once -- a full filesystem, a bad node, a scheduler outage -- and that cause
+    has been fixed, restarting each stage by hand is tedious and easy to get
+    half-done.
+
+    This is the human-initiated escape hatch for that case.  It is never called
+    by the poller or the job-chained hook; you run it when you know why things
+    stalled and that the reason is gone.
+    """
+    table = config.read_registry(args.registry)
+    rows = config.enabled_halos(table)
+    if args.halo is not None:
+        rows = [r for r in rows if int(r["halo_id"]) == int(args.halo)]
+
+    qstat = stagestate.qstat_states()
+    resumed, skipped = [], []
+    for row in rows:
+        box = config.get_box(row["box"])
+        halo_id = row["halo_id"]
+        halo_dir = box.halo_dir(halo_id)
+        prereq_done = True
+        for level, phase in config.stage_plan(row, include_gas=args.include_gas):
+            stage_dir = box.stage_dir(halo_id, level, phase)
+            jobid, job_state, action = ledger.live_job(halo_dir, level, phase, qstat)
+            st = stagestate.stage_state(stage_dir, job_state=job_state,
+                                        prereq_done=prereq_done)
+            prereq_done = st.state == stagestate.DONE
+            key = ledger.stage_key(level, phase)
+
+            if st.state != stagestate.STALLED:
+                continue
+            if not os.path.exists(os.path.join(stage_dir, "RunScript.sh")):
+                skipped.append("%s %s (no RunScript.sh -- ICs never built)" % (halo_id, key))
+                continue
+
+            print("halo %s %s STALLED at %s (%s) -- resubmitting"
+                  % (halo_id, key, st.last or "nothing", st.note or "no reason recorded"))
+            if args.dry_run:
+                print("    [dry-run] qsub -koed RunScript.sh   (in %s)" % stage_dir)
+                resumed.append("%s %s" % (halo_id, key))
+                continue
+            try:
+                with ledger.halo_lock(halo_dir):
+                    build.submit_enzo_run(box, halo_id, level, phase)
+                resumed.append("%s %s" % (halo_id, key))
+            except Exception as exc:
+                skipped.append("%s %s (%s)" % (halo_id, key, exc))
+
+    print("")
+    print("resumed: %s" % (", ".join(resumed) if resumed else "nothing"))
+    if skipped:
+        print("skipped: %s" % ", ".join(skipped))
+    print("\nsimrun.pl restarts each run from its last output. Anything still READY or")
+    print("BUILT is picked up by `advance` or the next poll sweep.")
+    return 0
+
+
 def cmd_build(args):
     """Generate ICs and the run script for one stage, and submit it."""
     table = config.read_registry(args.registry)
@@ -689,6 +751,14 @@ def main(argv=None):
     p.add_argument("--notify-to", default=None)
     p.add_argument("--dry-run", action="store_true")
     p.set_defaults(func=cmd_poll)
+
+    p = sub.add_parser("resume",
+                       help="resubmit STALLED stages, after fixing whatever stopped them")
+    p.add_argument("--halo", default=None, help="one halo; omit for every enabled halo")
+    p.add_argument("--registry", default=None)
+    p.add_argument("--include-gas", action="store_true")
+    p.add_argument("--dry-run", action="store_true")
+    p.set_defaults(func=cmd_resume)
 
     p = sub.add_parser("build", help="generate ICs for one stage and submit it")
     p.add_argument("--halo", required=True)
