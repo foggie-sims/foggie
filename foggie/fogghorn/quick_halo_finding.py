@@ -2,6 +2,7 @@
 # coding: utf-8
 
 import yt
+import h5py
 import argparse, os
 from yt_astro_analysis.halo_analysis import HaloCatalog, add_quantity
 from foggie.utils.foggie_load import foggie_load
@@ -163,17 +164,34 @@ def repair_halo_catalog(ds, simulation_dir, snapname, min_rvir=10., min_halo_mas
 
     return hc 
 
-def export_to_astropy(simulation_dir, snapname): 
-    new_ds = yt.load(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.h5')
+def export_to_astropy(simulation_dir, snapname):
+    filename = simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.h5'
+    fits_name = simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.fits'
+    txt_name = simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.txt'
+
+    # yt.load() raises an error trying to parse a halo catalog h5 file that
+    # contains zero halos, since no field data was saved to it. Check the
+    # halo count directly from the h5 attrs first to avoid that crash.
+    with h5py.File(filename, 'r') as f:
+        num_halos = f.attrs['num_halos']
+
+    if num_halos == 0:
+        print("No halos found in ", filename, " -- writing zeroed-out output files instead.")
+        halo_table = QTable({'num_halos': [0]})
+        halo_table.write(fits_name, format='fits', overwrite=True)
+        halo_table.write(txt_name, format='ascii', overwrite=True)
+        return
+
+    new_ds = yt.load(filename)
     all_data = new_ds.all_data()
-    halo_table = QTable() 
+    halo_table = QTable()
 
-    for field in new_ds.field_list: 
+    for field in new_ds.field_list:
         if (field[0] == 'halos'):
-            halo_table[field[1]] = all_data[field].to_astropy() 
+            halo_table[field[1]] = all_data[field].to_astropy()
 
-    halo_table.write(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.fits', format='fits', overwrite=True) 
-    halo_table.write(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.txt', format='ascii', overwrite=True) 
+    halo_table.write(fits_name, format='fits', overwrite=True)
+    halo_table.write(txt_name, format='ascii', overwrite=True)
 
 def find_root_particles(simulation_dir, ds, hc):
     '''Find and save to file the indices of DM particles within 1Rvir of the
@@ -199,7 +217,17 @@ def find_root_particles(simulation_dir, ds, hc):
 
 def make_halo_plots(ds, simulation_dir, snapname): 
 
-    print("Looking for halo catalog at, to plot them: ", simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.h5') 
+    print("Looking for halo catalog at, to plot them: ", simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.h5')
+    # yt.load() raises an error trying to parse a halo catalog h5 file that
+    # contains zero halos, since no field data was saved to it. Check the
+    # halo count directly from the h5 attrs first to avoid that crash.
+    with h5py.File(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.h5', 'r') as f:
+        num_halos = f.attrs['num_halos']
+
+    if num_halos == 0:
+        print("No halos found in ", simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.h5', " -- skipping plots.")
+        return
+    
     new_ds = yt.load(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.h5')
     all_data = new_ds.all_data()
 
@@ -278,7 +306,7 @@ def parallel_loop_over_halos(snap, args):
     hc = halo_finding_step(ds, box, simulation_dir=args.directory, threshold=args.threshold) 
     hc = repair_halo_catalog(ds, args.directory, snap, min_rvir = args.min_rvir, min_halo_mass=args.min_mass) 
     export_to_astropy(args.directory, snap)
-    if (args.make_plots): make_halo_plots(ds, args.directory, args.output)
+    if (args.make_plots): make_halo_plots(ds, args.directory, snap)
 
 
 if __name__ == "__main__":
@@ -300,6 +328,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--output', metavar='output', type=str, action='store', default=None, required=True, help='Output to run a halo catalog for. Single output or comma-separated list or range like DD0400-DD0500.') 
+    parser.add_argument('--output_step', metavar='output_step', type=int, action='store', default=1, required=False, help='If specifying a run of outputs, what spacing do you want between them? Default is 1.') 
     parser.add_argument('--directory', metavar='directory', type=str, action='store', default='./', required=False, help='Pathname to simulation directory') 
     parser.add_argument('--trackfile_name', metavar='trackfile_name', type=str, action='store', default=None, required=False, help='Track file for this halo (center of box subregion)')
     parser.add_argument('--boxwidth', metavar='boxwidth', type=float, action='store', default=0.04, required=False, help='Width of subregion box in code units')
@@ -325,7 +354,7 @@ if __name__ == "__main__":
 
     else:
         import multiprocessing as multi
-        outs = make_output_list(args.output)
+        outs = make_output_list(args.output, output_step=args.output_step)
         for i in range(len(outs)//args.nproc):
             threads = []
             for j in range(args.nproc):

@@ -12,24 +12,40 @@ from foggie.fogghorn.header import *
 from foggie.fogghorn.util import *
 from datetime import datetime
 import seaborn as sns
+import h5py
+
+def catalog_has_halos(halo_catalog_path):
+    '''yt.load() errors out on a halo catalog h5 file that contains zero halos,
+    since no field data was saved to it. Check the halo count directly from the
+    h5 attrs first so callers can skip that catalog instead of crashing.'''
+
+    with h5py.File(halo_catalog_path, 'r') as f:
+        return f.attrs['num_halos'] > 0
 
 def get_halo_catalog(ds, args, snap):
     '''This function either checks if the halo catalog already exists for this snapshot 'snap'
-    and returns it if so, or runs the halo finder and both saves it to file and returns it.'''
+    and returns it if so, or runs the halo finder and both saves it to file and returns it.
+    Returns None if the catalog exists but contains zero halos.'''
 
     print(args.directory)
     halo_catalog_path = args.directory + '/halo_catalogs/' + snap + '/' + snap + '.0.h5'
     print('Checking for halo catalog at: ' + halo_catalog_path)
     if os.path.exists(args.directory + '/halo_catalogs/' + snap + '/' + snap + '.0.h5'):
         print('Halo catalog found for snapshot ' + snap)
+        if not catalog_has_halos(halo_catalog_path):
+            print('Halo catalog for snapshot ' + snap + ' contains zero halos; skipping.')
+            return None
         hc = yt.load(args.directory + '/halo_catalogs/' + snap + '/' + snap + '.0.h5')
         return hc
     else:
         print('No halo catalog found, creating halo catalog for snapshot ' + snap)
         from foggie.fogghorn.quick_halo_finding import prep_dataset_for_halo_finding, halo_finding_step, repair_halo_catalog, export_to_astropy
-        ds, box = prep_dataset_for_halo_finding(args.directory, snap, trackfile_name=args.trackfile_name) 
-        hc = halo_finding_step(ds, box, simulation_dir=args.directory) 
+        ds, box = prep_dataset_for_halo_finding(args.directory, snap, trackfile_name=args.trackfile_name)
+        hc = halo_finding_step(ds, box, simulation_dir=args.directory)
         hc = repair_halo_catalog(ds, args.directory, snap, min_halo_mass=args.min_halo_mass)
+        if not catalog_has_halos(halo_catalog_path):
+            print('Halo catalog for snapshot ' + snap + ' contains zero halos; skipping.')
+            return None
         hc = yt.load(args.directory + '/halo_catalogs/' + snap + '/' + snap + '.0.h5')
         return hc
     
@@ -39,9 +55,12 @@ def halos_density_projection(ds, region, args, output_filename):
 
     box_length = ds.quan(500., 'kpc')
     box = ds.r[ds.halo_center_kpc[0]-box_length:ds.halo_center_kpc[0]+box_length, 
-            ds.halo_center_kpc[1]-box_length:ds.halo_center_kpc[1]+box_length, 
+            ds.halo_center_kpc[1]-box_length:ds.halo_center_kpc[1]+box_length,
             ds.halo_center_kpc[2]-box_length:ds.halo_center_kpc[2]+box_length]
     hc = get_halo_catalog(ds, args, args.snap)
+    if hc is None:
+        print('No halos found for snapshot ' + args.snap + '; skipping halos_density_projection.')
+        return
     p = yt.ProjectionPlot(ds, 'z', ('gas','density'), weight_field=('gas','density'), data_source=box, center=ds.halo_center_code, width=(500, 'kpc'))
     p.set_cmap('density', density_color_map)
     p.annotate_title(args.snap)
@@ -95,6 +114,9 @@ def halos_SMHM(ds, region, args, output_filename):
     '''Plots the stellar-mass halo-mass relation for all halos in the halo catalog.'''
 
     hc = get_halo_catalog(ds, args, args.snap)
+    if hc is None:
+        print('No halos found for snapshot ' + args.snap + '; skipping halos_SMHM.')
+        return
     all_data = hc.all_data()
 
     total_halo_mass = all_data[('halos','particle_mass')].in_units('Msun')
@@ -143,6 +165,9 @@ def halos_SFMS(ds, region, args, output_filename):
     '''Plots the star formation rate main sequence relation for all halos in the halo catalog.'''
 
     hc = get_halo_catalog(ds, args, args.snap)
+    if hc is None:
+        print('No halos found for snapshot ' + args.snap + '; skipping halos_SFMS.')
+        return
     all_data = hc.all_data()
 
     total_star_mass = all_data[('halos','total_star_mass')].in_units('Msun')
@@ -187,6 +212,9 @@ def halos_MZR(ds, region, args, output_filename):
     '''Plots the mass-metallicity relation for all halos in the halo catalog.'''
 
     hc = get_halo_catalog(ds, args, args.snap)
+    if hc is None:
+        print('No halos found for snapshot ' + args.snap + '; skipping halos_MZR.')
+        return
     all_data = hc.all_data()
 
     halo_metallicity = all_data[('halos','average_metallicity')].in_units('Zsun')
@@ -231,6 +259,9 @@ def halos_gasMHM(ds, region, args, output_filename):
     '''Plots total gas mass vs. halo mass for all halos in the halo catalog.'''
 
     hc = get_halo_catalog(ds, args, args.snap)
+    if hc is None:
+        print('No halos found for snapshot ' + args.snap + '; skipping halos_gasMHM.')
+        return
     all_data = hc.all_data()
 
     total_gas_mass = all_data[('halos','total_gas_mass')].in_units('Msun')
@@ -255,6 +286,9 @@ def halos_ismMHM(ds, region, args, output_filename):
     '''Plots total gas mass vs. halo mass for all halos in the halo catalog.'''
 
     hc = get_halo_catalog(ds, args, args.snap)
+    if hc is None:
+        print('No halos found for snapshot ' + args.snap + '; skipping halos_ismMHM.')
+        return
     all_data = hc.all_data()
 
     total_ism_gas_mass = all_data[('halos','total_ism_gas_mass')].in_units('Msun')
@@ -279,6 +313,9 @@ def halos_cgmMHM(ds, region, args, output_filename):
     '''Plots total gas mass vs. halo mass for all halos in the halo catalog.'''
 
     hc = get_halo_catalog(ds, args, args.snap)
+    if hc is None:
+        print('No halos found for snapshot ' + args.snap + '; skipping halos_cgmMHM.')
+        return
     all_data = hc.all_data()
 
     total_cgm_gas_mass = all_data[('halos','total_cgm_gas_mass')].in_units('Msun')
@@ -304,6 +341,9 @@ def baryon_budget(ds, region, args, output_filename):
     current_datetime = datetime.now()
 
     hc = get_halo_catalog(ds, args, args.snap)
+    if hc is None:
+        print('No halos found for snapshot ' + args.snap + '; skipping baryon_budget.')
+        return
     all_data = hc.all_data()
 
     total_halo_mass = all_data["halos", "total_mass"].in_units('Msun')
@@ -365,9 +405,12 @@ def baryon_budget(ds, region, args, output_filename):
 def halos_h2_frac(ds, region, args, output_filename):
     '''Plots average H2 fraction vs. halo mass for all halos in the halo catalog.'''
 
-    if (ds.parameters['MultiSpecies'] == 2): 
+    if (ds.parameters['MultiSpecies'] == 2):
 
         hc = get_halo_catalog(ds, args, args.snap)
+        if hc is None:
+            print('No halos found for snapshot ' + args.snap + '; skipping halos_h2_frac.')
+            return
         all_data = hc.all_data()
 
         avg_h2_frac = all_data[('halos','average_fH2')]
@@ -431,7 +474,11 @@ def all_halos_SMHM(snap, args):
 
     for i in range(len(args.halo_list)):
         halo = args.halo_list[i]
-        hc = yt.load(args.directory + '/' + halo + '/' + args.run + '/plots/halo_catalogs/' + snap + '/' + snap + '.0.h5')
+        halo_catalog_path = args.directory + '/' + halo + '/' + args.run + '/plots/halo_catalogs/' + snap + '/' + snap + '.0.h5'
+        if not catalog_has_halos(halo_catalog_path):
+            print('Halo catalog for ' + halo + ' snapshot ' + snap + ' contains zero halos; skipping.')
+            continue
+        hc = yt.load(halo_catalog_path)
         all_data = hc.all_data()
 
         total_halo_mass = all_data[('halos','particle_mass')].in_units('Msun')
@@ -484,7 +531,11 @@ def all_halos_SFMS(snap, args):
 
     for i in range(len(args.halo_list)):
         halo = args.halo_list[i]
-        hc = yt.load(args.directory + '/' + halo + '/' + args.run + '/plots/halo_catalogs/' + snap + '/' + snap + '.0.h5')
+        halo_catalog_path = args.directory + '/' + halo + '/' + args.run + '/plots/halo_catalogs/' + snap + '/' + snap + '.0.h5'
+        if not catalog_has_halos(halo_catalog_path):
+            print('Halo catalog for ' + halo + ' snapshot ' + snap + ' contains zero halos; skipping.')
+            continue
+        hc = yt.load(halo_catalog_path)
         all_data = hc.all_data()
 
         total_star_mass = all_data[('halos','total_star_mass')].in_units('Msun')
@@ -532,7 +583,11 @@ def all_halos_MZR(snap, args):
 
     for i in range(len(args.halo_list)):
         halo = args.halo_list[i]
-        hc = yt.load(args.directory + '/' + halo + '/' + args.run + '/plots/halo_catalogs/' + snap + '/' + snap + '.0.h5')
+        halo_catalog_path = args.directory + '/' + halo + '/' + args.run + '/plots/halo_catalogs/' + snap + '/' + snap + '.0.h5'
+        if not catalog_has_halos(halo_catalog_path):
+            print('Halo catalog for ' + halo + ' snapshot ' + snap + ' contains zero halos; skipping.')
+            continue
+        hc = yt.load(halo_catalog_path)
         all_data = hc.all_data()
 
         halo_metallicity = all_data[('halos','average_metallicity')].in_units('Zsun')
@@ -578,7 +633,11 @@ def all_halos_gasMHM(snap, args):
 
     for i in range(len(args.halo_list)):
         halo = args.halo_list[i]
-        hc = yt.load(args.directory + '/' + halo + '/' + args.run + '/plots/halo_catalogs/' + snap + '/' + snap + '.0.h5')
+        halo_catalog_path = args.directory + '/' + halo + '/' + args.run + '/plots/halo_catalogs/' + snap + '/' + snap + '.0.h5'
+        if not catalog_has_halos(halo_catalog_path):
+            print('Halo catalog for ' + halo + ' snapshot ' + snap + ' contains zero halos; skipping.')
+            continue
+        hc = yt.load(halo_catalog_path)
         all_data = hc.all_data()
 
         total_gas_mass = all_data[('halos','total_gas_mass')].in_units('Msun')
@@ -605,7 +664,11 @@ def all_halos_h2_frac(snap, args):
 
     for i in range(len(args.halo_list)):
         halo = args.halo_list[i]
-        hc = yt.load(args.directory + '/' + halo + '/' + args.run + '/plots/halo_catalogs/' + snap + '/' + snap + '.0.h5')
+        halo_catalog_path = args.directory + '/' + halo + '/' + args.run + '/plots/halo_catalogs/' + snap + '/' + snap + '.0.h5'
+        if not catalog_has_halos(halo_catalog_path):
+            print('Halo catalog for ' + halo + ' snapshot ' + snap + ' contains zero halos; skipping.')
+            continue
+        hc = yt.load(halo_catalog_path)
         all_data = hc.all_data()
 
         avg_h2_frac = all_data[('halos','average_fH2')]
