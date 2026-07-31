@@ -589,6 +589,14 @@ def cmd_validate_registry(args):
             problems += 1
             continue
 
+        box_issues = config.box_problems(box)
+        if box_issues:
+            print("  halo %-8s box %r is not usable:" % (halo_id, row["box"]))
+            for issue in box_issues:
+                print("      %s" % issue)
+            problems += 1
+            continue
+
         if int(row["final_level"]) > box.max_level:
             print("  halo %-8s final_level %d exceeds box max_level %d"
                   % (halo_id, int(row["final_level"]), box.max_level))

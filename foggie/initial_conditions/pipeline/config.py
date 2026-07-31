@@ -145,6 +145,12 @@ BOXES = {
         # floor are untouched, so halo42189 keeps its 88.963.
         rvir_floor_kpc=80.0,
     ),
+    # NOT YET PORTED.  The 256 box needs templates_256/ (the collapsed .enzo
+    # templates, RunScript and simrun.pl, as done for 512) and its Rockstar
+    # catalog put in place.  Kept here so the shape of a second box is visible,
+    # but `validate-registry` will refuse a halo that names it until the files
+    # exist.  The parent_ngrid difference is the important one: shifts divide by
+    # 255 here and 511 for the 512 box.
     "25Mpc_DM_256": Box(
         sim_name="25Mpc_DM_256",
         parent_ngrid=256,
@@ -166,6 +172,27 @@ def get_box(name):
     if name not in BOXES:
         raise KeyError("Unknown box %r.  Known boxes: %s" % (name, ", ".join(sorted(BOXES))))
     return BOXES[name]
+
+
+def box_problems(box):
+    """Missing pieces that would make this box fail, as a list of strings.
+
+    A box entry can reference templates or a catalog that were never put in
+    place.  Reporting that up front beats a confusing failure inside a build
+    job on a compute node.
+    """
+    problems = []
+    template_dir = box.template_dir_path()
+    if not os.path.isdir(template_dir):
+        problems.append("template directory missing: %s" % template_dir)
+    else:
+        for f in ("DM-LX.enzo", "gas-LX.enzo", "RunScript.sh", "simrun.pl",
+                  "halo_DM_NtoN.conf"):
+            if not os.path.exists(os.path.join(template_dir, f)):
+                problems.append("template missing: %s" % os.path.join(template_dir, f))
+    if not os.path.exists(box.catalog_path()):
+        problems.append("halo catalog missing: %s" % box.catalog_path())
+    return problems
 
 
 # ---------------------------------------------------------------------------

@@ -324,6 +324,27 @@ per-level files differed only in ``CosmologySimulationNumberOfInitialGrids``,
 ``MustRefineParticlesRefineToLevel`` and ``MinimumOverDensityForRefinement``,
 all of which are now substituted at build time.
 
+Per-level parameter edits
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Historically, each new refinement level needed four edits to the Enzo parameter
+file by hand, recorded in ``enzo-mrp-music/bds_notes``. The pipeline now makes
+all four, and it is worth knowing which, both to recognise them in a generated
+file and because getting one wrong produces a run that works and is wrong:
+
+1. **Divide** ``MinimumOverDensityForRefinement`` **by 8 per level.** Rendered
+   as ``8**-(L-1)``: ``1.`` at L1, ``0.125`` at L2, ``0.015625`` at L3.
+2. **Add** ``8`` **to** ``CellFlaggingMethod``, the must-refine-particle method.
+   Already present in the templates.
+3. **Set** ``MustRefineParticlesCreateParticles = 3`` **and**
+   ``MustRefineParticlesRefineToLevel`` **to the level.** Written by
+   enzo-mrp-music into ``parameter_file.txt``, and set in the template.
+4. **Copy the nested grid geometry** -- the ``CosmologySimulationGrid*`` lines
+   -- from MUSIC's ``parameter_file.txt`` into the parameter file, and nothing
+   else from that file. Substituted at build time.
+
+``CosmologySimulationNumberOfInitialGrids`` is likewise set to ``level + 1``.
+
 If you change a template, re-approve it::
 
     python3 .../ic_pipeline.py validate-templates              # check
