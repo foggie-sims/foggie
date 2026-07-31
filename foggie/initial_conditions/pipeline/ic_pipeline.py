@@ -25,6 +25,7 @@ import sys
 try:
     from . import build
     from . import config
+    from . import ledger
     from . import report
     from . import state as stagestate
 except ImportError:
@@ -35,6 +36,7 @@ except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import build
     import config
+    import ledger
     import report
     import state as stagestate
 
@@ -172,22 +174,23 @@ def cmd_validate_templates(args):
     return 0
 
 
-def collect_registry_records(table, include_gas=False):
+def collect_registry_records(table, include_gas=False, qstat=None):
     """Stage records for every enabled registry halo, in dependency order."""
+    qstat = stagestate.qstat_states() if qstat is None else qstat
     records = []
     for row in config.enabled_halos(table):
         box = config.get_box(row["box"])
         halo_id = row["halo_id"]
+        halo_dir = box.halo_dir(halo_id)
         prereq_done = True
         for level, phase in config.stage_plan(row, include_gas=include_gas):
             stage_dir = box.stage_dir(halo_id, level, phase)
-            # A ledger of live job ids arrives in phase 2; until then a stage
-            # with no completed outputs and no directory reads as READY, and one
-            # with a directory but no completion reads as STALLED.
-            st = stagestate.stage_state(stage_dir, job_state=None, prereq_done=prereq_done)
+            jobid, job_state = ledger.live_job(halo_dir, level, phase, qstat)
+            st = stagestate.stage_state(stage_dir, job_state=job_state,
+                                        prereq_done=prereq_done)
             records.append({"halo": str(halo_id), "box": box.sim_name,
                             "stage": "L%d-%s" % (level, phase), "state": st,
-                            "jobid": None, "frozen": False})
+                            "jobid": jobid, "frozen": False})
             prereq_done = prereq_done and st.state == stagestate.DONE
     return records
 
@@ -240,6 +243,53 @@ def cmd_status(args):
         report.write_html(rows, htm)
         print("\nWrote %s\n      %s" % (ecsv, htm))
     return 0
+
+
+def cmd_build(args):
+    """Generate ICs and the run script for one stage, and submit it."""
+    table = config.read_registry(args.registry)
+    match = [r for r in table if int(r["halo_id"]) == int(args.halo)]
+    if not match:
+        print("halo %s is not in the registry (%s).\n"
+              "Add it there rather than passing it ad hoc -- the registry is the "
+              "only list of halos the pipeline acts on."
+              % (args.halo, args.registry or config.default_registry_path()))
+        return 1
+    row = match[0]
+    box = config.get_box(args.box or row["box"])
+
+    try:
+        with ledger.halo_lock(box.halo_dir(args.halo)) if not args.dry_run \
+                else _nullcontext():
+            if args.as_job:
+                # enzo-mrp-music is far too heavy for a login node, so the
+                # default path pushes IC generation onto a compute node.
+                extra = []
+                if args.no_submit:
+                    extra.append("--no-submit")
+                if args.no_hook:
+                    extra.append("--no-hook")
+                build.submit_build_job(box, args.halo, args.level, args.phase,
+                                       dry_run=args.dry_run, adopt=args.adopt,
+                                       extra_args=" ".join(extra))
+            else:
+                build.build_stage(
+                    box, args.halo, args.level, args.phase,
+                    dry_run=args.dry_run, adopt=args.adopt,
+                    submit=not args.no_submit, hook=not args.no_hook,
+                    rvir_min=row["rvir_min"] if "rvir_min" in row.colnames else None)
+    except ledger.UnmanagedHaloError as exc:
+        print("REFUSED: %s" % exc)
+        return 1
+    return 0
+
+
+class _nullcontext:
+    def __enter__(self):
+        return None
+
+    def __exit__(self, *exc):
+        return False
 
 
 def cmd_validate_registry(args):
@@ -307,6 +357,24 @@ def main(argv=None):
     p.add_argument("--write", action="store_true",
                    help="also write pipeline_status.{ecsv,html} into FOGGIE_ICS_DIR")
     p.set_defaults(func=cmd_status)
+
+    p = sub.add_parser("build", help="generate ICs for one stage and submit it")
+    p.add_argument("--halo", required=True)
+    p.add_argument("--level", type=int, required=True)
+    p.add_argument("--phase", default="DM", choices=["DM", "gas"])
+    p.add_argument("--box", default=None)
+    p.add_argument("--registry", default=None)
+    p.add_argument("--dry-run", action="store_true",
+                   help="show every file that would be written and command run, without acting")
+    p.add_argument("--no-submit", action="store_true", help="build the ICs but do not qsub")
+    p.add_argument("--no-hook", action="store_true",
+                   help="omit the advance hook from the generated RunScript")
+    p.add_argument("--adopt", action="store_true",
+                   help="allow writing into a halo directory the pipeline did not create")
+    p.add_argument("--as-job", action="store_true",
+                   help="submit IC generation as a PBS job instead of running it here "
+                        "(required in practice: enzo-mrp-music must not run on a login node)")
+    p.set_defaults(func=cmd_build)
 
     p = sub.add_parser("validate-templates",
                        help="check the collapsed .enzo templates re-render the per-level originals")

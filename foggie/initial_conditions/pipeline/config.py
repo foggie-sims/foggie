@@ -78,6 +78,12 @@ class Box:
     gas_walltime: str = "120:00:00"
     # Maximum refinement level for gas runs (__MAX_REFINE_LEVEL__).
     gas_max_refine_level: int = 9
+    # PBS resources for the IC-generation job.  enzo-mrp-music loads the parent
+    # box in yt and traces particles back to z = 99, so it needs a whole node
+    # and must never run on a login node.
+    build_select: str = "1:ncpus=64:mpiprocs=1:model=mil_ait"
+    build_walltime: str = "2:00:00"
+    build_queue: str = "devel"
 
     @property
     def shift_divisor(self):
@@ -151,8 +157,11 @@ def get_box(name):
 # Halo registry
 # ---------------------------------------------------------------------------
 
+# rvir_min: per-halo floor on the zoom radius in kpc, 0 meaning "use the
+# catalog Rvir".  Exists because halo11177 was hand-built at 80 kpc against a
+# catalog Rvir of 33.66 kpc via an --rvir_min flag that no script implemented.
 REGISTRY_COLUMNS = ("halo_id", "box", "enabled", "final_level", "gas",
-                    "queue", "nodes", "model", "notes")
+                    "rvir_min", "queue", "nodes", "model", "notes")
 
 
 def default_registry_path():
