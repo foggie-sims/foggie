@@ -37,7 +37,7 @@ the only file you normally edit.
 
 | Module | Description |
 |--------|-------------|
-| `ic_pipeline.py` | The command line entry point. Run it **by path**, not with `python -m` -- importing the `foggie` package pulls in yt, and nothing here needs it. Subcommands: `status`, `advance`, `build`, `poll`, `validate-registry`, `validate-templates`. |
+| `ic_pipeline.py` | The command line entry point. Run it **by path**, not with `python -m` -- importing the `foggie` package pulls in yt, and nothing here needs it. Subcommands: `status`, `advance`, `resume`, `build`, `poll`, `validate-registry`, `validate-templates`. |
 | `config.py` | Box definitions and the registry reader. Everything that used to be a literal in `script512.py` lives here: parent grid size, halo catalog, MUSIC and Enzo binaries, baryon fraction, PBS resources, Rvir floor. |
 | `state.py` | Works out what state each stage is in, entirely from files Enzo and `simrun.pl` already write. Opens no HDF5 and imports no yt, so `status` stays fast. |
 | `build.py` | Renders the configs, parameter files and run scripts, runs enzo-mrp-music or MUSIC, and submits jobs. |
@@ -67,3 +67,7 @@ raises on a MUSIC failure instead of continuing silently.
   a self-rescheduling `at` chain instead.
 * IC generation needs roughly 10 GB and must run on a compute node, which is
   what `build --as-job` is for.
+* A `STALLED` stage is never restarted automatically, by anything. Use
+  `resume` once you have fixed whatever stopped it. This matters after a
+  shared outage such as a full filesystem, which stalls every running stage at
+  once.

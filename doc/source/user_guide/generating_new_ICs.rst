@@ -289,18 +289,58 @@ registry to accept it for a specific halo.
 Recovering a stalled run
 ------------------------
 
-``STALLED`` is never retried automatically, because resubmitting into whatever
-killed the run just burns allocation. The note in ``status`` says what
-happened: ``walltime kill``, ``reached RD0014 but no RunFinished``,
-``RunFinished but never reached RD0014``, and so on.
+``STALLED`` is never retried automatically. Neither ``advance``, the
+job-chained hook, nor the poller will touch a stalled stage, because a stall
+usually means the run hit something that will stop it again, and resubmitting
+into that just burns allocation. Restarting is always a decision you make.
 
-To restart a stalled Enzo run, resubmit it by hand from its stage directory::
+Start by reading why it stopped. The note in ``status`` says what happened:
+``walltime kill``, ``reached RD0014 but no RunFinished``, ``RunFinished but
+never reached RD0014``, ``simrun.pl: in trouble``, or a PBS message such as a
+node failure. Fix that cause before restarting anything, or the run will simply
+stall again in the same place.
+
+One stage
+~~~~~~~~~
+
+Resubmit it from its stage directory::
 
     cd $FOGGIE_ICS_DIR/halo51541/25Mpc_DM_512-L1
     qsub -koed RunScript.sh
 
-``simrun.pl`` restarts from the last output automatically. Once it reaches its
-final dump the chain resumes on its own.
+``simrun.pl`` restarts from the last output, so nothing is recomputed. Once the
+run reaches its final dump the chain resumes on its own.
+
+Several stages, one shared cause
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Sometimes one external problem stops everything at once: the filesystem fills,
+a node fails, the scheduler has an outage. Every affected stage goes
+``STALLED`` for the same reason, and once that reason is fixed they can all be
+restarted together::
+
+    python3 .../ic_pipeline.py resume --dry-run   # what would restart
+    python3 .../ic_pipeline.py resume             # restart it
+
+``resume`` resubmits every ``STALLED`` stage that has a ``RunScript.sh``,
+reporting where each one stopped, and skips stages whose ICs were never built.
+``--halo <id>`` restricts it to one halo, which is useful when only some of
+the stalled runs are worth restarting.
+
+It is the human-initiated escape hatch, and is deliberately never called by the
+poller or the hook. Run it when you know why things stalled and that the reason
+is gone.
+
+.. warning::
+
+   Check the cause is genuinely fixed first. After a full filesystem, confirm
+   there is enough space for the runs to finish, not merely enough to start:
+   a stage part-way through a dense output list can still have hundreds of
+   gigabytes left to write, and will stall again at the same point.
+
+Stages that are ``READY`` or ``BUILT`` rather than ``STALLED`` are not
+``resume``'s business -- ``advance`` or the next poll sweep picks those up
+normally.
 
 
 What gets generated, and where
@@ -367,7 +407,12 @@ most take ``--dry-run``.
 
 ``advance``
     Submit the next actionable stage. ``--halo <id>`` for one halo, otherwise
-    every enabled halo. This is what the hook and the poller call.
+    every enabled halo. This is what the hook and the poller call. Never acts
+    on a ``STALLED`` stage.
+
+``resume``
+    Resubmit ``STALLED`` stages after fixing whatever stopped them. ``--halo``,
+    ``--dry-run``. Never called automatically; see `Recovering a stalled run`_.
 
 ``build``
     Generate ICs for one stage and submit it. ``--halo``, ``--level``,
