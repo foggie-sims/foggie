@@ -129,10 +129,12 @@ def stage_key(level, phase):
 
 
 def live_job(halo_dir, level, phase, qstat_states):
-    """The (jobid, state) of a live job for this stage, or (None, None).
+    """The (jobid, state, action) of a live job for this stage.
 
     Cross-references the ledger against the queue, so a job id that has since
-    finished or been deleted does not read as live.
+    finished or been deleted does not read as live.  `action` is "build" for
+    IC generation and "enzo" for the run itself, which lets the caller show a
+    queued IC build as BUILDING rather than QUEUED.
     """
     key = stage_key(level, phase)
     for record in reversed(read_ledger(halo_dir)):
@@ -143,5 +145,5 @@ def live_job(halo_dir, level, phase, qstat_states):
             continue
         short = str(jobid).split(".")[0]
         if short in qstat_states:
-            return jobid, qstat_states[short]
-    return None, None
+            return jobid, qstat_states[short], record.get("action")
+    return None, None, None

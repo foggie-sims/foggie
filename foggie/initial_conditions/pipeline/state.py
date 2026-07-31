@@ -231,6 +231,13 @@ def stage_state(stage_dir, job_state=None, prereq_done=True):
     the ledger crossed with qstat); None means no live job is known.
     """
     if not os.path.isdir(stage_dir):
+        # A live job with no stage directory yet means IC generation is in
+        # flight.  This must take precedence over READY: otherwise `advance`
+        # would see READY and submit a second build job on top of the queued
+        # one, which is exactly the double-submission the ledger prevents.
+        if job_state in (BUILDING, QUEUED, RUNNING):
+            return StageState(state=job_state, last=None, cycle=None, redshift=None,
+                              final=None, note="generating ICs", updated=None)
         return StageState(state=READY if prereq_done else BLOCKED,
                           last=None, cycle=None, redshift=None,
                           final=None, note="" if prereq_done else "prerequisite not done",

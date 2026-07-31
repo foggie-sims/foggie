@@ -185,7 +185,9 @@ def collect_registry_records(table, include_gas=False, qstat=None):
         prereq_done = True
         for level, phase in config.stage_plan(row, include_gas=include_gas):
             stage_dir = box.stage_dir(halo_id, level, phase)
-            jobid, job_state = ledger.live_job(halo_dir, level, phase, qstat)
+            jobid, job_state, action = ledger.live_job(halo_dir, level, phase, qstat)
+            if action == "build" and job_state in (stagestate.QUEUED, stagestate.RUNNING):
+                job_state = stagestate.BUILDING
             st = stagestate.stage_state(stage_dir, job_state=job_state,
                                         prereq_done=prereq_done)
             records.append({"halo": str(halo_id), "box": box.sim_name,
