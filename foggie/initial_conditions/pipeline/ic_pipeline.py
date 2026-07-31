@@ -366,6 +366,47 @@ def cmd_advance(args):
     return 0
 
 
+def cmd_poll(args):
+    """Sweep every enabled halo: advance what is actionable, refresh status.
+
+    The job-chained hook is the primary trigger and fires within seconds; this
+    exists for the case where that hook never runs at all, such as a hard node
+    failure. It is cheap enough for a login node -- it reads OutputLog and
+    RunFinished and calls qstat, nothing more.
+
+    --install writes a self-rescheduling PBS job that re-submits itself with
+    `qsub -a`, so nothing sleeps on an allocated node.
+    """
+    box = config.get_box(args.box)
+    script_path = os.path.abspath(__file__)
+    log_dir = args.out_dir or config.foggie_ics_dir()
+
+    if args.install:
+        text = build.render_pollscript(box, script_path, log_dir,
+                                       args.interval, reschedule=not args.once)
+        path = os.path.join(log_dir, "PollScript.sh")
+        if args.dry_run:
+            print(text)
+            print("[dry-run] would write %s and qsub it" % path)
+            return 0
+        with open(path, "w") as fp:
+            fp.write(text)
+        os.chmod(path, 0o755)
+        jobid = subprocess.check_output(["qsub", path], cwd=log_dir).decode().strip()
+        print("Wrote %s\nSubmitted poller %s (every %d min)" % (path, jobid, args.interval))
+        print("Stop it with: qdel %s   (and delete %s)" % (jobid.split(".")[0], path))
+        return 0
+
+    # One sweep, here and now.
+    rc = cmd_advance(argparse.Namespace(
+        registry=args.registry, halo=None,
+        include_gas=args.include_gas, dry_run=args.dry_run))
+    print("")
+    return rc or cmd_status(argparse.Namespace(
+        registry=args.registry, include_manual=False, include_gas=args.include_gas,
+        by_halo=True, write=not args.dry_run, out_dir=args.out_dir))
+
+
 def cmd_build(args):
     """Generate ICs and the run script for one stage, and submit it."""
     table = config.read_registry(args.registry)
@@ -492,6 +533,19 @@ def main(argv=None):
     p.add_argument("--dry-run", action="store_true",
                    help="report what would be submitted without submitting it")
     p.set_defaults(func=cmd_advance)
+
+    p = sub.add_parser("poll", help="one sweep of every halo; --install to run it periodically")
+    p.add_argument("--registry", default=None)
+    p.add_argument("--box", default=config.DEFAULT_BOX)
+    p.add_argument("--include-gas", action="store_true")
+    p.add_argument("--interval", type=int, default=30, help="minutes between sweeps")
+    p.add_argument("--install", action="store_true",
+                   help="submit a self-rescheduling PBS poller instead of sweeping now")
+    p.add_argument("--once", action="store_true",
+                   help="with --install, do not reschedule after the sweep")
+    p.add_argument("--out-dir", default=None)
+    p.add_argument("--dry-run", action="store_true")
+    p.set_defaults(func=cmd_poll)
 
     p = sub.add_parser("build", help="generate ICs for one stage and submit it")
     p.add_argument("--halo", required=True)

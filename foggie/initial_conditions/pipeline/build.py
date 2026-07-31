@@ -545,3 +545,25 @@ def check_queue_fits(queue, walltime, label=""):
             "the queue unset so PBS routes on walltime."
             % (label and label + ": ", walltime, queue, cap // 3600,
                (cap % 3600) // 60, cap % 60))
+
+
+def render_pollscript(box, script_path, log_dir, interval_minutes, reschedule=True):
+    """Render the self-rescheduling poller job."""
+    template = os.path.join(box.template_dir_path(), "PollScript.sh")
+    with open(template) as fp:
+        text = fp.read()
+
+    poll_script = os.path.join(log_dir, "PollScript.sh")
+    if reschedule:
+        # `date -d` computes the deferred start; qsub -a takes [[CC]YY]MMDDhhmm.
+        line = ('qsub -a $(date -d "+%d minutes" +%%Y%%m%%d%%H%%M) %s'
+                % (interval_minutes, poll_script))
+    else:
+        line = "# rescheduling disabled: this is a one-shot sweep"
+
+    return replace_keywords(text, {
+        "__GROUP__": box.group_list,
+        "__LOG_DIR__": log_dir,
+        "__SCRIPT__": script_path,
+        "__RESCHEDULE__": line,
+    })
