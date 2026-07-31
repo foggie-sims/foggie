@@ -7,16 +7,18 @@
 # - {name: final_level, datatype: int64}
 # - {name: gas, datatype: bool}
 # - {name: rvir_min, datatype: float64}
+# - {name: allow_mixed_outputs, datatype: bool}
 # - {name: queue, datatype: string}
 # - {name: nodes, datatype: int64}
 # - {name: model, datatype: string}
-# - {name: notes, datatype: string}
+# - {name: notes, datatype: string, subtype: json}
 # meta: !!omap
 # - comments: [FOGGIE IC pipeline halo registry -- hand curated., This file is the sole source of truth for which halos the pipeline runs.,
 #     Only rows with enabled=True are acted on., gas=True is honoured once the gas phase is enabled (phase 5)., rvir_min is a floor on
 #       the zoom radius in kpc; 0 means use the catalog Rvir., Existing manually-run halo directories are frozen and deliberately absent.]
 # schema: astropy-2.0
-halo_id box enabled final_level gas rvir_min queue nodes model notes
-11177 25Mpc_DM_512 True 3 False 80.0 normal 1 mil_ait "manual L1 never completed (DD0041); rvir_min 80 reproduces its --rvir_min=80 vs catalog Rvir 33.66"
-42189 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "regression reference: halo42189-manual completed L1-L3; catalog Rvir 88.96 used as-is"
-79628 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "started fresh" 
+halo_id box enabled final_level gas rvir_min allow_mixed_outputs queue nodes model notes
+11177 25Mpc_DM_512 True 3 False 80.0 True normal 1 mil_ait """manual L1 never completed (DD0041); rvir_min 80 reproduces its --rvir_min=80 vs catalog Rvir 33.66; L1 predates the 15-entry output list, mixed cadence accepted"""
+42189 25Mpc_DM_512 True 3 False 0.0 True normal 1 mil_ait """regression reference: reproduces halo42189-manual exactly (cycle 1208, bit-identical ICs); L1 predates the 15-entry output list, mixed cadence accepted"""
+51541 25Mpc_DM_512 True 3 False 0.0 False normal 1 mil_ait """started fresh"""
+79628 25Mpc_DM_512 True 3 False 0.0 False normal 1 mil_ait """started fresh"""

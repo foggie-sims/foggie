@@ -337,6 +337,9 @@ def advance_halo(row, qstat, include_gas=False, dry_run=False, verbose=True):
     box = config.get_box(row["box"])
     halo_id = row["halo_id"]
     halo_dir = box.halo_dir(halo_id)
+    allow_mixed = (bool(row["allow_mixed_outputs"])
+                   if "allow_mixed_outputs" in row.colnames else False)
+    rvir_min = float(row["rvir_min"]) if "rvir_min" in row.colnames else None
 
     prereq_done = True
     for level, phase in config.stage_plan(row, include_gas=include_gas):
@@ -353,7 +356,13 @@ def advance_halo(row, qstat, include_gas=False, dry_run=False, verbose=True):
         if st.state == stagestate.READY:
             if verbose:
                 print("halo %s %s is READY -- submitting IC build" % (halo_id, key))
-            build.submit_build_job(box, halo_id, level, phase, dry_run=dry_run)
+            # Surface a cadence mismatch here, at submit time, rather than
+            # letting the build job fail on a compute node ten minutes later.
+            build.check_output_consistency(box, halo_id, level, phase,
+                                           allow_mixed=allow_mixed)
+            extra = "--allow-mixed-outputs" if allow_mixed else ""
+            build.submit_build_job(box, halo_id, level, phase, dry_run=dry_run,
+                                   extra_args=extra)
             return "%s %s submitted IC build" % (halo_id, key)
 
         if st.state == stagestate.BUILT:

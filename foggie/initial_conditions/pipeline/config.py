@@ -175,8 +175,11 @@ def get_box(name):
 # rvir_min: per-halo floor on the zoom radius in kpc, 0 meaning "use the
 # catalog Rvir".  Exists because halo11177 was hand-built at 80 kpc against a
 # catalog Rvir of 33.66 kpc via an --rvir_min flag that no script implemented.
+# allow_mixed_outputs: accept a halo whose levels disagree about their redshift
+# output list.  Needed only for halos whose lower levels were built before the
+# list was changed; new halos should leave it False so the guard applies.
 REGISTRY_COLUMNS = ("halo_id", "box", "enabled", "final_level", "gas",
-                    "rvir_min", "queue", "nodes", "model", "notes")
+                    "rvir_min", "allow_mixed_outputs", "queue", "nodes", "model", "notes")
 
 
 def default_registry_path():
