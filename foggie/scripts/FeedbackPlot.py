@@ -42,35 +42,47 @@ class Run:
     label: str
     color: str
     linestyle: str = 'solid'
+    marker: str = None
     table: Table = field(default=None, repr=False)
 
 
 RUNS = [
-    Run('pr63',        '/u/jtumlins/nobackup/pr63/H2radtest', 'PR63 Rad',     'cyan'),
-    Run('therm',       'H2therm_ff',                          'Thermal',      'blue'),
-    Run('mech',        'H2mech_tab_cont_ff',                  'Mech',         'orange', 'dashed'),
-    Run('rad',         'H2radtest100',                        'Rad100',       'green',  'dashed'),
-    Run('default',     'H2mech_tab_cont_cassi',               '_default',     'orange'),
+     # PR63 runs grouped first (see key-list ordering below) and marked with
+     # a star so they stand out as a family in crowded legends.
+     Run('pr63',        '/u/jtumlins/nobackup/pr63/H2radtest', 'PR63 Rad',     'cyan',    marker='*'),
+     Run('pr63_mom5',   '/u/jtumlins/nobackup/pr63/H2radtest_5mom',            'PR63 Mom x5',       'teal', 'dashed', '*'),
+     Run('pr63_radius3_mom5', '/u/jtumlins/nobackup/pr63/H2radtest_radius3_5mom', 'PR63 Rad=3,Mom x5', 'darkcyan', 'dotted', '*'),
+     Run('therm',       'H2therm_ff',                          'Thermal',      'blue'),
+     Run('mech',        'H2mech_tab_cont_ff',                  'Mech',         'orange', 'dashed'),
+     Run('rad',         'H2radtest100',                        'Rad100',       'green',  'dashed'),
+#    Run('rad1000',     'H2radtest1000',                       'Rad1000',      'darkgreen', 'dashed'),
+#    Run('default',     'H2mech_tab_cont_cassi',               '_default',     'orange'),
     Run('mom5',        'H2mech_tab_cont_5mom_ff',             'Mom x5',       'darkslateblue'),
     Run('mom_rad',     'H2mech_tab_cont_mom3x_rad100_ff',     'Mom+Rad',      'pink'),
     Run('radius3',     'H2mech_tab_cont_radius3_ff',          'Radius=3',     'red'),
     Run('rad3_rad100', 'H2mech_tab_cont_radius3_rad100_ff',   'Rad=3,Rad100', 'purple'),
-    Run('numerical',   'H2numerical',                         'Numerical',    'gray'),
+#    Run('numerical',   'H2numerical',                         'Numerical',    'gray'),
 ]
 
 BY_KEY = {r.key: r for r in RUNS}
 
-# Which runs appear in which class of figure. pr63 is now in all of them.
-WITH_DEFAULT = ['therm', 'mech', 'rad', 'default', 'mom5', 'mom_rad', 'radius3', 'rad3_rad100', 'pr63']
-NO_DEFAULT   = ['therm', 'mech', 'rad', 'mom5', 'mom_rad', 'radius3', 'rad3_rad100', 'pr63']
-CGM_KEYS     = ['therm', 'mech', 'mom5', 'mom_rad', 'radius3', 'rad3_rad100', 'pr63']
+# Which runs appear in which class of figure. PR63 runs are listed first so
+# they're grouped together (and visually distinct via their star marker) in
+# the legend. rad1000 is dropped from the comparison figures (still defined
+# above, commented out, in case it's needed again).
+WITH_DEFAULT = ['pr63', 'pr63_mom5', 'pr63_radius3_mom5', 'therm', 'rad', 'radius3', 'mom5', 'mom_rad', 'mech', 'rad3_rad100']
+NO_DEFAULT   = ['pr63', 'pr63_mom5', 'pr63_radius3_mom5', 'therm', 'rad', 'radius3', 'mom5', 'mom_rad', 'mech', 'rad3_rad100']
+CGM_KEYS     = ['pr63', 'pr63_mom5', 'pr63_radius3_mom5', 'therm', 'rad', 'radius3', 'mom5', 'mom_rad', 'mech', 'rad3_rad100']
 
+# Shared legend styling: small font, placed outside the axes so it never
+# overlaps a crowded set of curves.
+LEGEND_KW = dict(fontsize=8, loc='upper left', bbox_to_anchor=(1.02, 1.0), borderaxespad=0)
 
 def load_runs(runs=RUNS):
     for r in runs:
+        print(f'About to read the {r.label} table')
         r.table = catalogs_to_table(r.path)
-        print(f'Read the {r.label} table')
-
+        print(f'    Just read the {r.label} table')
 
 # ---------------------------------------------------------------------------
 # Generic single-panel figure. yfunc (and optional xfunc) map a run's table to
@@ -89,17 +101,20 @@ def plot_lines(yfunc, ylabel, title, filename, keys,
         x, y = xfunc(r.table), yfunc(r.table)
         ls = linestyle if linestyle is not None else r.linestyle
         if kind == 'scatter':
-            plt.scatter(x, y, s=7, label=r.label, color=r.color, **plot_kw)
+            marker = r.marker or 'o'
+            size = 40 if r.marker else 7
+            plt.scatter(x, y, s=size, marker=marker, label=r.label, color=r.color, **plot_kw)
         else:
-            plt.plot(x, y, label=r.label, color=r.color, linestyle=ls, **plot_kw)
+            plt.plot(x, y, label=r.label, color=r.color, linestyle=ls,
+                     marker=r.marker, markevery=0.1, markersize=8, **plot_kw)
 
     if xlim: plt.xlim(*xlim)
     if ylim: plt.ylim(*ylim)
     plt.xlabel(xlabel); plt.ylabel(ylabel); plt.title(title)
     for tx, ty, ts in (texts or []):
         plt.text(tx, ty, ts)
-    plt.legend(loc=legend_loc)
-    plt.savefig(filename, **(save_kw or {}))
+    plt.legend(**LEGEND_KW)
+    plt.savefig(filename, **{**dict(bbox_inches='tight'), **(save_kw or {})})
     print(filename)
     plt.close()
 
@@ -108,19 +123,23 @@ def plot_rvir_pair(field_name, scale, ylabel, titles, filename, keys,
                    xlim=(3.2, 0.0), ylim=(0, 4)):
     """Two-panel figure: field within Rvir (left) and 2Rvir (right)."""
 
-    _, axes = plt.subplots(1, 2, figsize=(10, 6))
+    fig, axes = plt.subplots(1, 2, figsize=(10, 6))
     for ax, suffix in zip(axes, ['', '_2rvir']):
         for key in keys:
             r = BY_KEY[key]
             ax.plot(r.table['z'], r.table[field_name + suffix].to('Msun') / scale,
-                    color=r.color, label=r.label)
+                    color=r.color, label=r.label, linestyle=r.linestyle,
+                    marker=r.marker, markevery=0.1, markersize=8)
         ax.set_box_aspect(1)
         ax.set_xlim(*xlim); ax.set_ylim(*ylim)
         ax.set_xlabel('Redshift')
-        ax.legend()
+    # One shared legend for the figure (both panels plot the same runs)
+    # instead of a duplicate per panel.
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, **LEGEND_KW)
     axes[0].set_title(titles[0]); axes[1].set_title(titles[1])
     axes[0].set_ylabel(ylabel)
-    plt.savefig(filename)
+    plt.savefig(filename, bbox_inches='tight')
     print(filename)
     plt.close()
 
@@ -194,21 +213,23 @@ def plot_ism_HI_H2(keys, filename='total_ism_HI_H2_gas_mass.png'):
     for key in keys:
         r = BY_KEY[key]
         plt.plot(r.table['z'], r.table['total_ism_HI_mass'].to('Msun') / 1e10,
-                 color=r.color, linestyle='dotted')
+                 color=r.color, linestyle='dotted',
+                 marker=r.marker, markevery=0.1, markersize=8)
     for key in keys:
         r = BY_KEY[key]
         plt.plot(r.table['z'], r.table['total_ism_H2_mass'].to('Msun') / 1e10,
-                 label=r.label, color=r.color, linestyle='dashed')
+                 label=r.label, color=r.color, linestyle='dashed',
+                 marker=r.marker, markevery=0.1, markersize=8)
 
     plt.xlabel('Redshift')
     plt.ylabel('M_HI or M_H2 / 1e10')
     plt.text(3.0, 2.25, 'dotted = HI')
     plt.text(3.0, 2.15, 'dashed = H2')
-    plt.legend(loc='upper left', ncols=3)
     plt.title('ISM Mass vs. Feedback Scheme')
     plt.xlim(3.2, 0.0)
     plt.ylim(0, 3)
-    plt.savefig(filename)
+    plt.legend(**LEGEND_KW)
+    plt.savefig(filename, bbox_inches='tight')
     print(filename)
     plt.close()
 
@@ -224,14 +245,15 @@ def plot_tacconi(keys, filename='Mmol_over_Mstar.png'):
         r = BY_KEY[key]
         y = np.log10(r.table['total_ism_H2_mass'].to('Msun').value
                      / r.table['total_star_mass'].to('Msun').value)
-        ax.plot(np.log10(1. + r.table['z']), y, label=r.label, color=r.color)
+        ax.plot(np.log10(1. + r.table['z']), y, label=r.label, color=r.color,
+                linestyle=r.linestyle, marker=r.marker, markevery=0.1, markersize=8)
 
     ax.set_xlim(-0.1, 0.9)
     ax.set_ylim(-2, 1)
     ax.set_xlabel('log z')
     ax.set_ylabel('log [M_mol / Mstar]')
     ax.set_title('Molecular Mass to Stellar Mass')
-    ax.legend(loc='lower right')
+    ax.legend(**LEGEND_KW)
     plt.savefig(filename, dpi=200, bbox_inches='tight', transparent=True)
     print(filename)
     plt.close()
@@ -260,14 +282,15 @@ def plot_mstar_ratio(keys, filename='Mstar_ratio.png'):
         in_range = (z >= therm_z[0]) & (z <= therm_z[-1])
         therm_at_z = np.interp(z[in_range], therm_z, therm_mstar)
         plt.plot(z[in_range], mstar[in_range] / therm_at_z,
-                 color=r.color, label=r.label)
+                 color=r.color, label=r.label, linestyle=r.linestyle,
+                 marker=r.marker, markevery=0.1, markersize=8)
 
-    plt.legend(loc='upper right', ncols=3)
     plt.xlim(3.2, 0.0)
     plt.ylim(0.0, 1.2)
     plt.xlabel('Redshift')
     plt.ylabel('Stellar Mass Ratio to Thermal')
-    plt.savefig(filename)
+    plt.legend(**LEGEND_KW)
+    plt.savefig(filename, bbox_inches='tight')
     print(filename)
     plt.close()
 
@@ -279,6 +302,7 @@ def plot_mstar_ratio(keys, filename='Mstar_ratio.png'):
 if __name__ == '__main__':
 
     load_runs()
+    print(' All specified RUNS have been loaded.') 
 
     # Outflow mass (>500 km/s) vs. SFR7
     plot_lines(
@@ -377,12 +401,15 @@ if __name__ == '__main__':
         ('therm',       'Thermal Feedback',                'thermal'),
         ('mech',        'Mechanical Feedback',             'mechanical'),
         ('rad',         '100x Rad & Thermal Feedback',     'rad100'),
+#        ('rad1000',     '1000x Rad & Thermal Feedback',    'rad1000'),
         ('mom5',        'Momemtum x5 Feedback',            'mom5x'),
         ('mom_rad',     'Momemtum x3 + Rad100 Feedback',   'mom3x_rad'),
-        ('radius3',     'Momemtum x5 + Radius=3 ',         'mom5x_radius3'),
+#        ('radius3',     'Momemtum x5 + Radius=3 ',         'mom5x_radius3'),
         ('rad3_rad100', 'Mom x5,Radius=3,Rad100 ',         'mom5x_radius3_rad100'),
-        ('numerical',   'H2numerical nref11n ',            'H2numerical'),
+#        ('numerical',   'H2numerical nref11n ',            'H2numerical'),
         ('pr63',        'PR63 Radiation',                  'PR63'),
+        ('pr63_mom5',   'PR63 Radiation + Mom x5',         'PR63_mom5'),
+        ('pr63_radius3_mom5', 'PR63 Radiation + Mom x5, Radius=3', 'PR63_radius3_mom5'),
     ]
 
     for key, stem, fstem in BARYON_BUDGETS:
@@ -390,7 +417,13 @@ if __name__ == '__main__':
         baryons_vs_z(BY_KEY[key].table, zrange=[3, 0.0],
                      title=f'Tempest Baryon Budget with {stem}',
                      filename=f'baryon_budget_{fstem}.png')
-        # parallel 2Rvir budget (numerators summed within 2Rvir, normalized by Mvir)
+        # parallel 2Rvir budget (numerators summed within 2Rvir, normalized by Mvir);
+        # older catalogs lack some _2rvir columns, so skip runs that don't have them all
+        needed = ['total_mass_2rvir'] + [c + '_2rvir' for c in _MASS_COL.values()]
+        missing = [c for c in needed if c not in BY_KEY[key].table.colnames]
+        if missing:
+            print(f'Skipping 2Rvir baryon budget for {key}: catalogs missing {missing}')
+            continue
         baryons_vs_z(BY_KEY[key].table, zrange=[3, 0.0], suffix='_2rvir',
                      title=f'Tempest 2Rvir Baryon Budget with {stem}',
                      filename=f'baryon_budget_{fstem}_2rvir.png')
