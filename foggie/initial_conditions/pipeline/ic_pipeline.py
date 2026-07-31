@@ -404,7 +404,7 @@ def cmd_advance(args):
             print("halo %s REFUSED: %s" % (row["halo_id"], exc))
             continue
         except Exception as exc:
-            print("halo %s ERROR: %s" % (row["halo_id"], exc))
+            print("halo %s BLOCKED: %s" % (row["halo_id"], exc))
             continue
         if did:
             actions.append(did)
@@ -547,7 +547,8 @@ def cmd_build(args):
                     box, args.halo, args.level, args.phase,
                     dry_run=args.dry_run, adopt=args.adopt,
                     submit=not args.no_submit, hook=not args.no_hook,
-                    rvir_min=row["rvir_min"] if "rvir_min" in row.colnames else None)
+                    rvir_min=row["rvir_min"] if "rvir_min" in row.colnames else None,
+                    allow_mixed=args.allow_mixed_outputs)
     except ledger.UnmanagedHaloError as exc:
         print("REFUSED: %s" % exc)
         return 1
@@ -685,6 +686,8 @@ def main(argv=None):
                    help="omit the advance hook from the generated RunScript")
     p.add_argument("--adopt", action="store_true",
                    help="allow writing into a halo directory the pipeline did not create")
+    p.add_argument("--allow-mixed-outputs", action="store_true",
+                   help="build even if this level's output list differs from the level below")
     p.add_argument("--as-job", action="store_true",
                    help="submit IC generation as a PBS job instead of running it here "
                         "(required in practice: enzo-mrp-music must not run on a login node)")

@@ -66,6 +66,21 @@ def output_redshifts(param_file):
     return redshifts
 
 
+def output_signature(param_file):
+    """Fingerprint of a stage's redshift output list.
+
+    Used to detect a halo whose levels disagree about their output cadence,
+    which happens whenever the template's list is edited part-way through a
+    ladder.  Two stages with different signatures are not directly comparable:
+    RD0014 means z=0 under a 15-entry list and z~7 under the 266-entry one, so
+    anything assuming a fixed RD -> redshift mapping across levels is wrong.
+    """
+    redshifts = output_redshifts(param_file)
+    if not redshifts:
+        return None
+    return (len(redshifts), max(redshifts), round(redshifts[max(redshifts)], 6))
+
+
 def final_dump(param_file):
     """Name of the last redshift dump this run is configured to produce.
 
