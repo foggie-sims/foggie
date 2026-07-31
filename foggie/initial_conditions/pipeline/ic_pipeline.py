@@ -391,9 +391,45 @@ def cmd_poll(args):
     script_path = os.path.abspath(__file__)
     log_dir = args.out_dir or config.foggie_ics_dir()
 
+    if args.install_cron:
+        # A sweep is ~1.4 s and ~90 MB: it belongs in cron on a front end, not
+        # in a PBS job.  Pleiades allocates whole nodes, so waking an Aitken
+        # node every 30 minutes to read a few log files would burn allocation
+        # for nothing.  The PBS poller (--install) stays available for sites
+        # where front-end cron is not permitted.
+        env = "FOGGIE_REPO=%s FOGGIE_ICS_DIR=%s" % (config.foggie_repo(),
+                                                    config.foggie_ics_dir())
+        notify_args = " --notify" + (" --notify-to %s" % args.notify_to
+                                     if args.notify_to else "") if args.notify else ""
+        line = ("*/%d * * * * %s %s %s poll%s >> %s/poll.log 2>&1"
+                % (args.interval, env, sys.executable, script_path,
+                   notify_args, log_dir))
+        print("crontab line:\n  %s\n" % line)
+        if args.dry_run:
+            print("[dry-run] not installing")
+            return 0
+
+        existing = subprocess.run(["crontab", "-l"], stdout=subprocess.PIPE,
+                                  stderr=subprocess.DEVNULL).stdout.decode()
+        kept = [l for l in existing.splitlines() if "ic_pipeline.py poll" not in l]
+        new = "\n".join([l for l in kept if l.strip()] +
+                         ["# FOGGIE IC pipeline poller -- safety net for the RunScript hook",
+                          line, ""])
+        proc = subprocess.run(["crontab", "-"], input=new.encode(),
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        if proc.returncode != 0:
+            print("crontab install failed: %s" % proc.stdout.decode().strip())
+            return 1
+        print("Installed. Current crontab:")
+        print(subprocess.run(["crontab", "-l"], stdout=subprocess.PIPE).stdout.decode())
+        print("Remove with: crontab -l | grep -v ic_pipeline | crontab -")
+        return 0
+
     if args.install:
-        text = build.render_pollscript(box, script_path, log_dir,
-                                       args.interval, reschedule=not args.once)
+        build.check_queue_fits(box.poll_queue, box.poll_walltime, "poller")
+        text = build.render_pollscript(box, script_path, log_dir, args.interval,
+                                       reschedule=not args.once,
+                                       notify=args.notify, notify_to=args.notify_to)
         path = os.path.join(log_dir, "PollScript.sh")
         if args.dry_run:
             print(text)
@@ -555,8 +591,11 @@ def main(argv=None):
     p.add_argument("--box", default=config.DEFAULT_BOX)
     p.add_argument("--include-gas", action="store_true")
     p.add_argument("--interval", type=int, default=30, help="minutes between sweeps")
+    p.add_argument("--install-cron", action="store_true",
+                   help="install a front-end crontab entry (preferred: a sweep is ~1.4 s "
+                        "and needs no allocation)")
     p.add_argument("--install", action="store_true",
-                   help="submit a self-rescheduling PBS poller instead of sweeping now")
+                   help="submit a self-rescheduling PBS poller instead (for sites without cron)")
     p.add_argument("--once", action="store_true",
                    help="with --install, do not reschedule after the sweep")
     p.add_argument("--out-dir", default=None)

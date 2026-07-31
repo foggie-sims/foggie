@@ -547,7 +547,8 @@ def check_queue_fits(queue, walltime, label=""):
                (cap % 3600) // 60, cap % 60))
 
 
-def render_pollscript(box, script_path, log_dir, interval_minutes, reschedule=True):
+def render_pollscript(box, script_path, log_dir, interval_minutes, reschedule=True,
+                      notify=False, notify_to=None):
     """Render the self-rescheduling poller job."""
     template = os.path.join(box.template_dir_path(), "PollScript.sh")
     with open(template) as fp:
@@ -561,9 +562,20 @@ def render_pollscript(box, script_path, log_dir, interval_minutes, reschedule=Tr
     else:
         line = "# rescheduling disabled: this is a one-shot sweep"
 
+    notify_args = ""
+    if notify:
+        notify_args = "--notify"
+        if notify_to:
+            notify_args += " --notify-to %s" % notify_to
+
     return replace_keywords(text, {
         "__GROUP__": box.group_list,
+        "__POLL_SELECT__": box.poll_select,
+        "__POLL_WALLTIME__": box.poll_walltime,
+        "__POLL_QUEUE_LINE__": ("#PBS -q %s" % box.poll_queue if box.poll_queue
+                                else "# no queue requested"),
         "__LOG_DIR__": log_dir,
         "__SCRIPT__": script_path,
+        "__NOTIFY_ARGS__": notify_args,
         "__RESCHEDULE__": line,
     })

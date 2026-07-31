@@ -88,6 +88,11 @@ class Box:
     build_select: str = "1:ncpus=64:mpiprocs=1:model=mil_ait"
     build_walltime: str = "2:00:00"
     build_queue: str = "devel"
+    # Poller resources.  Deliberately NOT devel: the IC build jobs use devel,
+    # and a poller waking every 30 minutes should not compete with them for it.
+    poll_select: str = "1:ncpus=1:model=mil_ait"
+    poll_walltime: str = "00:10:00"
+    poll_queue: str = "normal"
 
     @property
     def shift_divisor(self):
