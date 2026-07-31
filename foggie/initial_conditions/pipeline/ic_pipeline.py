@@ -561,9 +561,13 @@ def cmd_validate_registry(args):
             continue
 
         stages = config.stage_plan(row, include_gas=args.include_gas)
-        print("  halo %-8s %-14s enabled=%-5s Rvir=%7.2f kpc  stages: %s"
-              % (halo_id, row["box"], bool(row["enabled"]), match["Rvir"][0],
-                 " ".join("L%d-%s" % s for s in stages)))
+        catalog_rvir = float(match["Rvir"][0])
+        rvir_min = float(row["rvir_min"]) if "rvir_min" in row.colnames else 0.0
+        _, effective = build.halo_center_and_radius(box, halo_id, rvir_min)
+        floored = " (floored)" if effective > catalog_rvir else ""
+        print("  halo %-8s %-14s enabled=%-5s Rvir %6.2f -> %6.2f kpc%-10s stages: %s"
+              % (halo_id, row["box"], bool(row["enabled"]), catalog_rvir, effective,
+                 floored, " ".join("L%d-%s" % s for s in stages)))
 
     print("")
     if problems:

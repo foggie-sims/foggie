@@ -137,7 +137,13 @@ BOXES = {
         max_level=3,
         omega_b=0.04576,
         omega_m=0.291,
-        rvir_floor_kpc=None,
+        # Floor the zoom radius at 80 kpc: max(catalog Rvir, 80).  Several of
+        # these dwarfs have Rvir well under that (halo79628 is 25.8 kpc,
+        # halo11177 is 33.7) and too small a Lagrangian region makes a poor
+        # zoom.  This generalises the hand-built halo11177 config, which used
+        # 80 kpc against a catalog Rvir of 33.66.  Halos already above the
+        # floor are untouched, so halo42189 keeps its 88.963.
+        rvir_floor_kpc=80.0,
     ),
     "25Mpc_DM_256": Box(
         sim_name="25Mpc_DM_256",
