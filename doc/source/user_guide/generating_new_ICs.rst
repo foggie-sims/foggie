@@ -38,7 +38,10 @@ the halo. That dependency is why the old workflow needed a human at every
 level, and it is the thing the pipeline automates.
 
 The default ladder is ``L1-DM -> L2-DM -> L3-DM``, with a gas run at the final
-level as an optional extra stage.
+level for halos whose registry row asks for one.
+
+The gas stage is **not** the next rung of that ladder. It hangs off the DM
+build at the same level and runs alongside the DM run -- see `The gas stage`_.
 
 
 Prerequisites
@@ -141,7 +144,8 @@ One row per halo:
     Top DM level, normally 3.
 
 ``gas``
-    Whether to run a gas stage at the final level.
+    Run a gas stage at the final level. It runs in parallel with the DM run at
+    that level rather than after it; see `The gas stage`_.
 
 ``rvir_min``
     Floor on the zoom radius in kpc, overriding the box default. ``0`` uses the
@@ -232,6 +236,49 @@ failure, where the hook never ran at all.
 Concurrency is safe because state is re-derived from disk every time, each halo
 is locked with ``flock``, and the submission ledger is cross-checked against
 ``qstat`` before anything is submitted.
+
+The gas stage
+~~~~~~~~~~~~~
+
+Set ``gas`` to ``True`` in a halo's registry row and it gains a gas stage at
+its final level. It is enabled by default; ``--no-gas`` on ``status`` or
+``advance`` suppresses it.
+
+Gas ICs are not made with enzo-mrp-music. They are made by running MUSIC
+directly on the DM MUSIC config for the same level, with ``baryons = yes`` and
+the box's ``omega_b``. So the gas stage depends on that config file existing::
+
+    $FOGGIE_ICS_DIR/halo<ID>/<sim>-L<N>.conf
+
+which is written by the level-N DM **build**, and which in turn requires level
+N-1's Enzo run to have finished. In the usual three-level setup that means
+**L2 must be done before L3-gas is possible.**
+
+What it does *not* depend on is level N's own Enzo run. Nothing about the gas
+ICs comes from it. So once the DM build at that level has written its config,
+the gas stage can be generated and submitted **while the DM run at the same
+level is still going**::
+
+    halo 42189 L2-DM  is QUEUED -- nothing to do
+    halo 42189 L2-gas is READY  -- submitting IC build
+
+``advance`` therefore treats gas as an independent branch rather than the next
+rung, and can act on the DM ladder and the gas stage in the same sweep. Until
+the config exists the stage reports what it is waiting for::
+
+    halo 42189 L3-gas is BLOCKED -- waiting on 25Mpc_DM_512-L3.conf
+
+Gas runs get their own PBS resources (``gas_select``, ``gas_nranks``,
+``gas_walltime`` in the box config), which are larger than the DM ones, and
+their own ``gas-LX.enzo`` template. That template is not a collapsed copy of
+the DM one: the gas physics genuinely differs by level, so it derives from the
+L3 gas file rather than being merged across levels.
+
+.. note::
+
+   Gas snapshots are much larger than DM ones at the same level, so the
+   redshift output list matters far more for a gas run. Keep ``gas-LX.enzo``
+   and ``DM-LX.enzo`` in step unless you have a reason not to.
 
 Running the poller
 ~~~~~~~~~~~~~~~~~~
@@ -402,13 +449,14 @@ All commands take ``--registry`` to use a registry other than the default, and
 most take ``--dry-run``.
 
 ``status``
-    Progress table. ``--by-halo``, ``--include-manual``, ``--include-gas``,
+    Progress table. ``--by-halo``, ``--include-manual``, ``--no-gas``,
     ``--write``, ``--out-dir``, ``--notify``.
 
 ``advance``
-    Submit the next actionable stage. ``--halo <id>`` for one halo, otherwise
-    every enabled halo. This is what the hook and the poller call. Never acts
-    on a ``STALLED`` stage.
+    Submit the next actionable stage on the DM ladder, and independently the
+    gas stage if its prerequisite exists. ``--halo <id>`` for one halo,
+    otherwise every enabled halo; ``--no-gas`` to skip gas. This is what the
+    hook and the poller call. Never acts on a ``STALLED`` stage.
 
 ``resume``
     Resubmit ``STALLED`` stages after fixing whatever stopped them. ``--halo``,
