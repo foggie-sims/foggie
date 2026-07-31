@@ -391,6 +391,30 @@ def cmd_poll(args):
     script_path = os.path.abspath(__file__)
     log_dir = args.out_dir or config.foggie_ics_dir()
 
+    if args.install_at:
+        # Preferred on the NAS front ends: cron is accepted but never executed
+        # there, while atd runs.  Costs no allocation, unlike the PBS poller.
+        text = build.render_atpoll(box, script_path, log_dir, args.interval,
+                                   python=sys.executable, reschedule=not args.once,
+                                   notify=args.notify, notify_to=args.notify_to)
+        path = os.path.join(log_dir, "AtPoll.sh")
+        if args.dry_run:
+            print(text)
+            print("[dry-run] would write %s and schedule it" % path)
+            return 0
+        with open(path, "w") as fp:
+            fp.write(text)
+        os.chmod(path, 0o755)
+        proc = subprocess.run(["at", "now", "+", "1", "minute", "-f", path],
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        print(proc.stdout.decode().strip())
+        if proc.returncode != 0:
+            return 1
+        print("Wrote %s\nPoller chain started (every %d min, first sweep in ~1 min)."
+              % (path, args.interval))
+        print("Inspect with: atq        Stop with: atrm <job>  (and delete %s)" % path)
+        return 0
+
     if args.install_cron:
         # A sweep is ~1.4 s and ~90 MB: it belongs in cron on a front end, not
         # in a PBS job.  Pleiades allocates whole nodes, so waking an Aitken
@@ -591,6 +615,9 @@ def main(argv=None):
     p.add_argument("--box", default=config.DEFAULT_BOX)
     p.add_argument("--include-gas", action="store_true")
     p.add_argument("--interval", type=int, default=30, help="minutes between sweeps")
+    p.add_argument("--install-at", action="store_true",
+                   help="self-rescheduling `at` chain on the front end (preferred: "
+                        "cron is not executed on NAS front ends, and this costs no allocation)")
     p.add_argument("--install-cron", action="store_true",
                    help="install a front-end crontab entry (preferred: a sweep is ~1.4 s "
                         "and needs no allocation)")

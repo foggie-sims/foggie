@@ -579,3 +579,33 @@ def render_pollscript(box, script_path, log_dir, interval_minutes, reschedule=Tr
         "__NOTIFY_ARGS__": notify_args,
         "__RESCHEDULE__": line,
     })
+
+
+def render_atpoll(box, script_path, log_dir, interval_minutes, python=None,
+                  reschedule=True, notify=False, notify_to=None):
+    """Render the `at`-driven poller.
+
+    Used in preference to both cron and PBS on the NAS front ends: cron is not
+    executed there, and a PBS poller wakes a whole node for a 1.4 s sweep.
+    """
+    template = os.path.join(box.template_dir_path(), "AtPoll.sh")
+    with open(template) as fp:
+        text = fp.read()
+
+    self_path = os.path.join(log_dir, "AtPoll.sh")
+    line = ('at now + %d minutes -f %s >/dev/null 2>&1' % (interval_minutes, self_path)
+            if reschedule else "# rescheduling disabled: one-shot sweep")
+
+    notify_args = ""
+    if notify:
+        notify_args = "--notify" + (" --notify-to %s" % notify_to if notify_to else "")
+
+    return replace_keywords(text, {
+        "__FOGGIE_REPO__": _config.foggie_repo(),
+        "__FOGGIE_ICS_DIR__": _config.foggie_ics_dir(),
+        "__LOG_DIR__": log_dir,
+        "__PYTHON__": python or "python3",
+        "__SCRIPT__": script_path,
+        "__NOTIFY_ARGS__": notify_args,
+        "__RESCHEDULE__": line,
+    })
