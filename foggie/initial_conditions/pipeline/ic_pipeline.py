@@ -192,7 +192,14 @@ def collect_registry_records(table, include_gas=False, qstat=None):
                                         prereq_done=prereq_done)
             records.append({"halo": str(halo_id), "box": box.sim_name,
                             "stage": "L%d-%s" % (level, phase), "state": st,
-                            "jobid": jobid, "frozen": False})
+                            "level": level, "phase": phase,
+                            "jobid": jobid, "frozen": False,
+                            "stage_dir": stage_dir,
+                            "enabled": bool(row["enabled"]),
+                            "final_level": int(row["final_level"]),
+                            "gas": bool(row["gas"]),
+                            "rvir_min": (float(row["rvir_min"])
+                                         if "rvir_min" in row.colnames else None)})
             prereq_done = prereq_done and st.state == stagestate.DONE
     return records
 
@@ -222,7 +229,9 @@ def collect_frozen_records(table):
                 st = stagestate.stage_state(stage_dir, job_state=None, prereq_done=True)
                 records.append({"halo": entry.replace("halo", "", 1), "box": box.sim_name,
                                 "stage": "L%d%s" % (level, suffix or "-DM"), "state": st,
-                                "jobid": None, "frozen": True})
+                                "level": level, "phase": (suffix or "-DM").lstrip("-"),
+                                "jobid": None, "frozen": True,
+                                "stage_dir": stage_dir})
     return records
 
 
@@ -237,13 +246,23 @@ def cmd_status(args):
     print("")
     print(report.summarize(rows))
 
+    if args.by_halo:
+        print("")
+        print(report.render_text(report.to_halo_rows(rows), report.HALO_COLUMNS))
+
     if args.write:
         ics_dir = config.foggie_ics_dir()
-        ecsv = os.path.join(ics_dir, "pipeline_status.ecsv")
-        htm = os.path.join(ics_dir, "pipeline_status.html")
-        report.write_ecsv(rows, ecsv)
+        stage_ecsv = os.path.join(ics_dir, "status.ecsv")
+        halo_ecsv = os.path.join(ics_dir, "status_by_halo.ecsv")
+        htm = os.path.join(ics_dir, "status.html")
+        report.write_ecsv(rows, stage_ecsv)
+        report.write_ecsv(report.to_halo_rows(rows), halo_ecsv,
+                          columns=report.HALO_COLUMNS,
+                          extra_comments=["One row per halo; see status.ecsv for per-stage detail."])
         report.write_html(rows, htm)
-        print("\nWrote %s\n      %s" % (ecsv, htm))
+        print("\nWrote %s   (one row per stage)" % stage_ecsv)
+        print("      %s   (one row per halo)" % halo_ecsv)
+        print("      %s" % htm)
     return 0
 
 
@@ -356,8 +375,11 @@ def main(argv=None):
                    help="also report frozen halo directories the pipeline does not manage")
     p.add_argument("--include-gas", action="store_true",
                    help="include gas stages for registry halos that ask for them")
+    p.add_argument("--by-halo", action="store_true",
+                   help="also print a one-row-per-halo rollup")
     p.add_argument("--write", action="store_true",
-                   help="also write pipeline_status.{ecsv,html} into FOGGIE_ICS_DIR")
+                   help="write status.ecsv, status_by_halo.ecsv and status.html "
+                        "into FOGGIE_ICS_DIR")
     p.set_defaults(func=cmd_status)
 
     p = sub.add_parser("build", help="generate ICs for one stage and submit it")

@@ -27,10 +27,17 @@ import subprocess
 BLOCKED = "BLOCKED"
 READY = "READY"
 BUILDING = "BUILDING"
+BUILT = "BUILT"
 QUEUED = "QUEUED"
 RUNNING = "RUNNING"
 STALLED = "STALLED"
 DONE = "DONE"
+
+# BUILT and STALLED both mean "no live job and not finished", but they are not
+# the same thing and must not be merged: BUILT is ICs generated and Enzo never
+# started, which `advance` should submit; STALLED is a run that produced output
+# and then stopped, which deliberately does NOT auto-retry because resubmitting
+# into whatever killed it just burns allocation.
 
 
 # ---------------------------------------------------------------------------
@@ -256,6 +263,9 @@ def stage_state(stage_dir, job_state=None, prereq_done=True):
         state, note = DONE, ""
     elif job_state in (RUNNING, QUEUED, BUILDING):
         state, note = job_state, ""
+    elif not log and param_file and os.path.exists(os.path.join(stage_dir, "RunScript.sh")):
+        # ICs generated, Enzo never started: ready to submit, not stalled.
+        state, note = BUILT, "ICs ready, Enzo not submitted"
     else:
         state, note = STALLED, stall_reason(stage_dir, log, run_finished, final)
 
