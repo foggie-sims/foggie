@@ -12,6 +12,7 @@ import os
 import re
 import shutil
 import subprocess
+from functools import lru_cache
 
 try:
     from . import config as _config
@@ -130,6 +131,14 @@ def render_runscript(box, halo_id, level, phase="DM", pipeline_hook=""):
 # Halo lookup
 # ---------------------------------------------------------------------------
 
+@lru_cache(maxsize=4)
+def _read_catalog(path):
+    """Read a Rockstar catalog once per process; out_0.list is ~31 MB."""
+    from astropy.io import ascii as ascii_io
+
+    return ascii_io.read(path, header_start=0, data_start=2)
+
+
 def halo_center_and_radius(box, halo_id, rvir_min=None):
     """Base (L0) halo center in code units and the zoom radius in kpc.
 
@@ -142,9 +151,7 @@ def halo_center_and_radius(box, halo_id, rvir_min=None):
     in its L1.sh -- an argument no version of script512.py ever defined.  That
     intent now lives in the registry instead of in a broken command line.
     """
-    from astropy.io import ascii as ascii_io
-
-    halos = ascii_io.read(box.catalog_path(), header_start=0, data_start=2)
+    halos = _read_catalog(box.catalog_path())
     match = halos[halos["ID"] == int(halo_id)]
     if len(match) != 1:
         raise RuntimeError("halo %s not found in %s" % (halo_id, box.catalog_path()))
@@ -157,44 +164,85 @@ def halo_center_and_radius(box, halo_id, rvir_min=None):
 
 
 _SHIFT_RE = re.compile(r"setup/shift_([xyz])\s*=\s*(-?\d+)")
+_DOMAIN_RE = re.compile(r"Domain shifted by\s*\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*\)")
 
 
 def read_shifts(conf_log):
     """MUSIC's (shift_x, shift_y, shift_z) for a level, from its .conf_log.txt.
 
-    Replaces the old `grep shift_x ... | awk '{print $7}'` / paste sequence.
+    A mis-parse here silently displaces the zoom region and yields ICs that look
+    plausible and are wrong, so the value is read two independent ways and the
+    two must agree:
+
+        setup/shift_x = -164                (settings dump, 3 lines)
+        Domain shifted by ( -164, ...)      (runtime message, 2 lines)
+
+    Every occurrence must be identical.  The old code was
+    `grep shift_x ... | awk '{print $7}'`, which took whichever line came last
+    with no cross-check at all.
     """
-    shifts = {}
+    settings, domains = {}, []
     with open(conf_log, errors="replace") as fp:
         for line in fp:
             m = _SHIFT_RE.search(line)
             if m:
-                shifts[m.group(1)] = int(m.group(2))
-    missing = [a for a in "xyz" if a not in shifts]
+                axis, value = m.group(1), int(m.group(2))
+                if axis in settings and settings[axis] != value:
+                    raise RuntimeError(
+                        "%s: conflicting setup/shift_%s values (%d and %d); the log "
+                        "may cover more than one MUSIC run"
+                        % (conf_log, axis, settings[axis], value))
+                settings[axis] = value
+            m = _DOMAIN_RE.search(line)
+            if m:
+                domains.append([int(g) for g in m.groups()])
+
+    missing = [a for a in "xyz" if a not in settings]
     if missing:
-        raise RuntimeError("No shift_%s in %s" % ("/".join(missing), conf_log))
-    return [shifts["x"], shifts["y"], shifts["z"]]
+        raise RuntimeError("No setup/shift_%s in %s" % ("/".join(missing), conf_log))
+    shifts = [settings["x"], settings["y"], settings["z"]]
+
+    if not domains:
+        raise RuntimeError("No 'Domain shifted by' line in %s to cross-check "
+                           "setup/shift_* against" % conf_log)
+    for domain in domains:
+        if domain != shifts:
+            raise RuntimeError("%s: 'Domain shifted by' %s disagrees with "
+                               "setup/shift_* %s" % (conf_log, domain, shifts))
+    return shifts
 
 
 def center_for_level(box, halo_id, level, halo_dir, rvir_min=None):
     """Halo center in the frame of the level-N ICs.
 
-    Each MUSIC level re-centers the box, so the center must be walked forward
-    through the accumulated shifts of every preceding level, converting each
-    from parent-grid units to code units by dividing by (parent_ngrid - 1).
-    Verified against halo42189: 0.79833 + (-165/511) = 0.475434, matching the
-    0.475433 in the hand-built halo42189_DM_1to2.conf.
+    The shift MUSIC reports is the ABSOLUTE displacement of the domain from the
+    original box, not an increment over the previous level, so the center is the
+    catalog center plus the shift from level N-1's log alone.  Do not accumulate
+    across levels.
+
+    halo42189 makes the distinction concrete: its L1 log says -165 and its L2
+    log says -164 (x axis).  The hand-built configs are
+
+        0to1  0.79833   = catalog center
+        1to2  0.475433  = 0.79833 + (-165/511)   <- L1 log
+        2to3  0.47739   = 0.79833 + (-164/511)   <- L2 log, NOT L1 + L2
+
+    Summing the two would put L3 at 0.15453, roughly a third of a box off, with
+    nothing downstream to flag it.  This mirrors the old scripts, where
+    set_1to2_conf and set_2to3_conf both added a single shift to the catalog
+    center x0 rather than chaining.
     """
     center, _ = halo_center_and_radius(box, halo_id, rvir_min)
-    for prev in range(1, level):
-        conf_log = os.path.join(halo_dir, "%s-L%d.conf_log.txt" % (box.sim_name, prev))
-        if not os.path.exists(conf_log):
-            raise RuntimeError(
-                "Cannot build L%d: missing %s (level %d ICs were never generated)"
-                % (level, conf_log, prev))
-        shifts = read_shifts(conf_log)
-        center = [c + s / box.shift_divisor for c, s in zip(center, shifts)]
-    return center
+    if level == 1:
+        return center
+
+    conf_log = os.path.join(halo_dir, "%s-L%d.conf_log.txt" % (box.sim_name, level - 1))
+    if not os.path.exists(conf_log):
+        raise RuntimeError(
+            "Cannot build L%d: missing %s (level %d ICs were never generated)"
+            % (level, conf_log, level - 1))
+    shifts = read_shifts(conf_log)
+    return [c + s / box.shift_divisor for c, s in zip(center, shifts)]
 
 
 # ---------------------------------------------------------------------------
