@@ -11,14 +11,16 @@
 # - {name: queue, datatype: string}
 # - {name: nodes, datatype: int64}
 # - {name: model, datatype: string}
-# - {name: notes, datatype: string, subtype: json}
+# - {name: notes, datatype: string}
 # meta: !!omap
-# - comments: [FOGGIE IC pipeline halo registry -- hand curated., This file is the sole source of truth for which halos the pipeline runs.,
-#     Only rows with enabled=True are acted on., gas=True is honoured once the gas phase is enabled (phase 5)., rvir_min is a floor on
-#       the zoom radius in kpc; 0 means use the catalog Rvir., Existing manually-run halo directories are frozen and deliberately absent.]
+# - comments: [FOGGIE IC pipeline halo registry -- HAND EDITED. This file is the input., '', 'Add a halo by appending one whitespace-separated
+#       row below, in the column', order given by the header line. Quote any field containing spaces., 'Then run:  ic_pipeline.py validate-registry',
+#     '', enabled              only True rows are ever acted on, 'final_level          top DM level, normally 3', gas                  run
+#       a gas stage at the final level, rvir_min             floor on the zoom radius in kpc; 0 uses the box default (80), allow_mixed_outputs  accept
+#       levels with differing redshift output lists; leave False, '', Status is NOT written here -- see status.ecsv in FOGGIE_ICS_DIR.]
 # schema: astropy-2.0
 halo_id box enabled final_level gas rvir_min allow_mixed_outputs queue nodes model notes
-11177 25Mpc_DM_512 True 3 False 80.0 True normal 1 mil_ait """manual L1 never completed (DD0041); rvir_min 80 reproduces its --rvir_min=80 vs catalog Rvir 33.66; L1 predates the 15-entry output list, mixed cadence accepted"""
-42189 25Mpc_DM_512 True 3 False 0.0 True normal 1 mil_ait """regression reference: reproduces halo42189-manual exactly (cycle 1208, bit-identical ICs); L1 predates the 15-entry output list, mixed cadence accepted"""
-51541 25Mpc_DM_512 True 3 False 0.0 False normal 1 mil_ait """started fresh"""
-79628 25Mpc_DM_512 True 3 False 0.0 False normal 1 mil_ait """started fresh"""
+11177 25Mpc_DM_512 True 3 False 80.0 True normal 1 mil_ait "manual L1 never completed (DD0041); rvir_min 80 reproduces its --rvir_min=80 vs catalog Rvir 33.66; L1 predates the 15-entry output list, mixed cadence accepted"
+42189 25Mpc_DM_512 True 3 False 0.0 True normal 1 mil_ait "regression reference: reproduces halo42189-manual exactly (cycle 1208, bit-identical ICs); L1 predates the 15-entry output list, mixed cadence accepted"
+51541 25Mpc_DM_512 True 3 False 0.0 False normal 1 mil_ait "started fresh"
+79628 25Mpc_DM_512 True 3 False 0.0 False normal 1 mil_ait "started fresh"

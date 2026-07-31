@@ -90,8 +90,40 @@ The halo registry
 -----------------
 
 ``foggie/initial_conditions/halo_registry.ecsv`` is the single hand-curated
-input, and the only file you normally edit. It is ECSV, so it is plain text
-with a typed header and astropy reads it directly.
+input, and the only file you normally edit. **You edit it by hand, in a text
+editor, and commit it like any other source file.** Nothing writes to it: the
+pipeline only ever reads it, so your edits are never overwritten and two people
+changing it resolve as an ordinary git conflict.
+
+It is ECSV -- plain text, with a commented header declaring the column types,
+followed by one whitespace-separated row per halo::
+
+    halo_id box          enabled final_level gas   rvir_min allow_mixed_outputs queue  nodes model   notes
+    51541   25Mpc_DM_512 True    3           False 0.0      False               normal 1     mil_ait "started fresh"
+    79628   25Mpc_DM_512 True    3           False 0.0      False               normal 1     mil_ait "started fresh"
+
+To add a halo, append a row in the order given by the header line. A few
+things to get right, because a malformed row fails when the file is read
+rather than when you save it:
+
+* Fields are separated by whitespace, so **quote anything containing spaces**.
+  In practice that means ``notes``, which should always be in double quotes.
+* ``enabled``, ``gas`` and ``allow_mixed_outputs`` are booleans: write ``True``
+  or ``False``, capitalised.
+* ``rvir_min`` is a float, so write ``0.0`` rather than ``0``.
+* Do not edit the commented header block above the column line. It declares
+  the column types, and changing it will produce confusing parse errors.
+
+Then check it before waiting on a sweep::
+
+    python3 .../ic_pipeline.py validate-registry
+
+which confirms the file parses, every ``halo_id`` resolves in that box's
+Rockstar catalog, ``final_level`` is within range, and reports the effective
+zoom radius for each halo.
+
+Columns
+~~~~~~~
 
 One row per halo:
 
