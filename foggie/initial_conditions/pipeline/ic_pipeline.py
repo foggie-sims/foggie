@@ -25,6 +25,8 @@ import sys
 try:
     from . import build
     from . import config
+    from . import report
+    from . import state as stagestate
 except ImportError:
     # Allow running this file directly by path:
     #     python foggie/initial_conditions/pipeline/ic_pipeline.py status
@@ -33,6 +35,8 @@ except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import build
     import config
+    import report
+    import state as stagestate
 
 
 # ---------------------------------------------------------------------------
@@ -168,6 +172,76 @@ def cmd_validate_templates(args):
     return 0
 
 
+def collect_registry_records(table, include_gas=False):
+    """Stage records for every enabled registry halo, in dependency order."""
+    records = []
+    for row in config.enabled_halos(table):
+        box = config.get_box(row["box"])
+        halo_id = row["halo_id"]
+        prereq_done = True
+        for level, phase in config.stage_plan(row, include_gas=include_gas):
+            stage_dir = box.stage_dir(halo_id, level, phase)
+            # A ledger of live job ids arrives in phase 2; until then a stage
+            # with no completed outputs and no directory reads as READY, and one
+            # with a directory but no completion reads as STALLED.
+            st = stagestate.stage_state(stage_dir, job_state=None, prereq_done=prereq_done)
+            records.append({"halo": str(halo_id), "box": box.sim_name,
+                            "stage": "L%d-%s" % (level, phase), "state": st,
+                            "jobid": None, "frozen": False})
+            prereq_done = prereq_done and st.state == stagestate.DONE
+    return records
+
+
+def collect_frozen_records(table):
+    """Stage records for halo directories the pipeline does not manage.
+
+    These are the hand-built runs, including the *-manual copies.  They are
+    read-only ground truth: reporting them correctly without touching them is
+    what validates the state detector.
+    """
+    ics_dir = config.foggie_ics_dir()
+    managed = {"halo%s" % row["halo_id"] for row in table}
+    records = []
+    for entry in sorted(os.listdir(ics_dir)):
+        if not entry.startswith("halo") or entry in managed:
+            continue
+        halo_dir = os.path.join(ics_dir, entry)
+        if not os.path.isdir(halo_dir):
+            continue
+        for box in config.BOXES.values():
+            try:
+                stages = stagestate.discover_stage_dirs(halo_dir, box.sim_name)
+            except OSError:
+                continue
+            for level, suffix, stage_dir in stages:
+                st = stagestate.stage_state(stage_dir, job_state=None, prereq_done=True)
+                records.append({"halo": entry.replace("halo", "", 1), "box": box.sim_name,
+                                "stage": "L%d%s" % (level, suffix or "-DM"), "state": st,
+                                "jobid": None, "frozen": True})
+    return records
+
+
+def cmd_status(args):
+    table = config.read_registry(args.registry)
+    records = collect_registry_records(table, include_gas=args.include_gas)
+    if args.include_manual:
+        records += collect_frozen_records(table)
+
+    rows = report.to_rows(records)
+    print(report.render_text(rows))
+    print("")
+    print(report.summarize(rows))
+
+    if args.write:
+        ics_dir = config.foggie_ics_dir()
+        ecsv = os.path.join(ics_dir, "pipeline_status.ecsv")
+        htm = os.path.join(ics_dir, "pipeline_status.html")
+        report.write_ecsv(rows, ecsv)
+        report.write_html(rows, htm)
+        print("\nWrote %s\n      %s" % (ecsv, htm))
+    return 0
+
+
 def cmd_validate_registry(args):
     table = config.read_registry(args.registry)
     print("Registry: %s" % (args.registry or config.default_registry_path()))
@@ -223,6 +297,16 @@ def main(argv=None):
         prog="ic_pipeline",
         description="Automated IC generation and Enzo job chaining for 25 Mpc zooms.")
     sub = parser.add_subparsers(dest="command")
+
+    p = sub.add_parser("status", help="progress table over all halos and levels")
+    p.add_argument("--registry", default=None)
+    p.add_argument("--include-manual", action="store_true",
+                   help="also report frozen halo directories the pipeline does not manage")
+    p.add_argument("--include-gas", action="store_true",
+                   help="include gas stages for registry halos that ask for them")
+    p.add_argument("--write", action="store_true",
+                   help="also write pipeline_status.{ecsv,html} into FOGGIE_ICS_DIR")
+    p.set_defaults(func=cmd_status)
 
     p = sub.add_parser("validate-templates",
                        help="check the collapsed .enzo templates re-render the per-level originals")
