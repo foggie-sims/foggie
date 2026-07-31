@@ -25,7 +25,15 @@ def parse_config(config_fn):
         simulation_name = "auto-wrapper",
         template_config = "template.conf",
         original_config = None,
+        # Where the *previous* level's Enzo outputs are read from.
         simulation_run_directory = ".",
+        # Where the *new* ICs for this level are written.  Kept separate from
+        # simulation_run_directory so a zoom can read its parent level from a
+        # shared directory while depositing its own ICs in the halo directory.
+        # Defaults to "." so existing configs behave as before.
+        new_ics_directory = ".",
+        # Runtime environment for the MUSIC subprocess.
+        music_ld_library_path = "/nasa/hdf5/1.8.18_serial/lib:/u/jtumlins/installs/gsl-2.4/lib",
         num_cores = None,
         final_type = "halo",
         final_redshift = 0.0,
@@ -112,10 +120,14 @@ def startup():
     return params
 
 def get_previous_run_params(params):
-    # Set simulation directories
+    # Set simulation directories.
+    #
+    # prev_sim_dir is where we look for the level N-1 outputs (e.g. level 0
+    # when we are making level 1); sim_dir is where we deposit the new level N
+    # ICs.  These are deliberately rooted in different config options.
     params["prev_sim_dir"] = os.path.join(params["simulation_run_directory"], "%s-L%d" %
                                           (params["simulation_name"], params["level"]-1))
-    params["sim_dir"] = os.path.join(params["simulation_run_directory"],
+    params["sim_dir"] = os.path.join(params["new_ics_directory"],
                                      "%s-L%d" % (params["simulation_name"], params["level"]))
     #
     # Obtain the maxlevel of the original run
@@ -199,7 +211,7 @@ def run_music(params):
             music_cf1.remove_option("setup", option)
 
     music_cf1.set("setup", "levelmax", "%d" % (params["initial_min_level"] + params["level"]))
-    music_cf1.set("output", "filename", os.path.join(params["simulation_run_directory"],"%s-L%d" % (params["simulation_name"], params["level"])))
+    music_cf1.set("output", "filename", os.path.join(params["new_ics_directory"], "%s-L%d" % (params["simulation_name"], params["level"])))
     music_cf1.set("setup", "region",
                   "convex_hull" if params["shape_type"] == "exact" else params["shape_type"])
     if params["shape_type"] == "box":
@@ -216,17 +228,23 @@ def run_music(params):
                                       params["region_shift"][2]))
         music_cf1.set("setup", "region_point_levelmin", "%d" % (params["initial_min_level"]))
 
-    new_config_file = os.path.join(params["simulation_run_directory"],"%s-L%d.conf" % (params["simulation_name"], params["level"]))
+    os.makedirs(params["new_ics_directory"], exist_ok=True)
+    new_config_file = os.path.join(params["new_ics_directory"], "%s-L%d.conf" % (params["simulation_name"], params["level"]))
+    print('new_config_file: ', new_config_file)
     with open(new_config_file, "w") as fp:
         music_cf1.write(fp)
 
     os.environ["OMP_NUM_THREADS"] = "%d" % (params["num_cores"])
-    os.environ["LD_LIBRARY_PATH"] = "/nasa/hdf5/1.8.18_serial/lib:/u/jtumlins/installs/gsl-2.4/lib"
-    os.environ["DYLD_LIBRARY_PATH"] = "/nasa/hdf5/1.8.18_serial/lib:/u/jtumlins/installs/gsl-2.4/lib"
-    command = """ echo $LD_LIBRARY_PATH ;
-                  /nobackupnfs1/jtumlins/foggie/foggie/initial_conditions/music/MUSIC """ + new_config_file
+    os.environ["LD_LIBRARY_PATH"] = params["music_ld_library_path"]
+    os.environ["DYLD_LIBRARY_PATH"] = params["music_ld_library_path"]
+    # Use the MUSIC binary that startup() already verified exists, rather than
+    # a second hardcoded copy of the path.
+    music_exe = os.path.join(params["music_exe_dir"], "MUSIC")
+    command = "%s %s" % (music_exe, new_config_file)
     print('about to run ', command)
-    os.system(command)
+    status = os.system(command)
+    if status != 0:
+        raise RuntimeError("MUSIC failed (exit status %d): %s" % (status, command))
     print('control has returned from MUSIC to the enzo_mrp script')
 
     # If we require the exact Lagrangian region, then we directly modify

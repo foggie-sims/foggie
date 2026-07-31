@@ -1,0 +1,20 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: halo_id, datatype: int64}
+# - {name: box, datatype: string}
+# - {name: enabled, datatype: bool}
+# - {name: final_level, datatype: int64}
+# - {name: gas, datatype: bool}
+# - {name: queue, datatype: string}
+# - {name: nodes, datatype: int64}
+# - {name: model, datatype: string}
+# - {name: notes, datatype: string}
+# meta: !!omap
+# - comments: [FOGGIE IC pipeline halo registry -- hand curated., This file is the sole source of truth for which halos the pipeline runs.,
+#     Only rows with enabled=True are acted on., gas=True is honoured once the gas phase is enabled (phase 5)., Existing manually-run
+#       halo directories are frozen and deliberately absent.]
+# schema: astropy-2.0
+halo_id box enabled final_level gas queue nodes model notes
+42189 25Mpc_DM_512 True 3 False normal 1 mil_ait "regression reference: halo42189-manual completed L1-L3"
+11177 25Mpc_DM_512 True 3 False normal 1 mil_ait "manual L1 never completed (DD0041)"
