@@ -26,6 +26,7 @@ try:
     from . import build
     from . import config
     from . import ledger
+    from . import notify
     from . import report
     from . import state as stagestate
 except ImportError:
@@ -37,6 +38,7 @@ except ImportError:
     import build
     import config
     import ledger
+    import notify
     import report
     import state as stagestate
 
@@ -259,6 +261,14 @@ def cmd_status(args):
         stage_ecsv = os.path.join(ics_dir, "status.ecsv")
         halo_ecsv = os.path.join(ics_dir, "status_by_halo.ecsv")
         htm = os.path.join(ics_dir, "status.html")
+
+        # Diff against the previous sweep BEFORE overwriting it: last sweep's
+        # status.ecsv is the snapshot, so there is no separate state to keep.
+        if args.notify:
+            notify.notify_changes(stage_ecsv, rows, report.to_halo_rows(rows),
+                                  args.notify_to or config.get_box(config.DEFAULT_BOX).email,
+                                  dry_run=args.notify_dry_run)
+
         report.write_ecsv(rows, stage_ecsv)
         report.write_ecsv(report.to_halo_rows(rows), halo_ecsv,
                           columns=report.HALO_COLUMNS,
@@ -404,7 +414,8 @@ def cmd_poll(args):
     print("")
     return rc or cmd_status(argparse.Namespace(
         registry=args.registry, include_manual=False, include_gas=args.include_gas,
-        by_halo=True, write=not args.dry_run, out_dir=args.out_dir))
+        by_halo=True, write=not args.dry_run, out_dir=args.out_dir,
+        notify=args.notify, notify_to=args.notify_to, notify_dry_run=args.dry_run))
 
 
 def cmd_build(args):
@@ -523,6 +534,11 @@ def main(argv=None):
     p.add_argument("--out-dir", default=None,
                    help="where to write them (default: FOGGIE_ICS_DIR, i.e. next to "
                         "the simulations and outside version control)")
+    p.add_argument("--notify", action="store_true",
+                   help="email stage state changes since the previous sweep (needs --write)")
+    p.add_argument("--notify-to", default=None, help="recipient (default: the box email)")
+    p.add_argument("--notify-dry-run", action="store_true",
+                   help="print the message instead of sending it")
     p.set_defaults(func=cmd_status)
 
     p = sub.add_parser("advance",
@@ -544,6 +560,8 @@ def main(argv=None):
     p.add_argument("--once", action="store_true",
                    help="with --install, do not reschedule after the sweep")
     p.add_argument("--out-dir", default=None)
+    p.add_argument("--notify", action="store_true", help="email state changes each sweep")
+    p.add_argument("--notify-to", default=None)
     p.add_argument("--dry-run", action="store_true")
     p.set_defaults(func=cmd_poll)
 
