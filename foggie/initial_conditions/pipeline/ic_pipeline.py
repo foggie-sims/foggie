@@ -70,6 +70,14 @@ def _repo_root():
         return None
 
 
+def baseline_dir(box):
+    return os.path.join(box.template_dir_path(), "baseline")
+
+
+def baseline_path(box, level, phase):
+    return os.path.join(baseline_dir(box), "%s.enzo" % box.stage_dirname(level, phase))
+
+
 def read_reference(filename, git_ref):
     """Read an original per-level .enzo file, preferring git over the worktree."""
     root = _repo_root()
@@ -145,14 +153,43 @@ def compare_stage(box, level, phase, filename, git_ref):
 
 def cmd_validate_templates(args):
     box = config.get_box(args.box)
+
+    if args.rebaseline:
+        os.makedirs(baseline_dir(box), exist_ok=True)
+        for level, phase, _ in _REFERENCE_STAGES:
+            path = baseline_path(box, level, phase)
+            with open(path, "w") as fp:
+                fp.write(build.render_enzo_param(box, level, phase, grid_parameters=""))
+            print("  baselined %s" % path)
+        print("\nBaseline updated.  Future runs check against these rather than the\n"
+              "original per-level files, so intentional template changes are approved\n"
+              "once and accidental ones still fail.")
+        return 0
+
     print("Validating collapsed templates for box %s" % box.sim_name)
-    print("Template dir: %s\n" % box.template_dir_path())
+    print("Template dir: %s" % box.template_dir_path())
+    print("Checking against: %s\n"
+          % ("the original per-level files in git %s" % args.git_ref if args.original
+             else "the approved baseline"))
 
     failures = 0
     for level, phase, filename in _REFERENCE_STAGES:
         label = "L%d-%s" % (level, phase)
         try:
-            diff, source = compare_stage(box, level, phase, filename, args.git_ref)
+            if args.original:
+                diff, source = compare_stage(box, level, phase, filename, args.git_ref)
+            else:
+                path = baseline_path(box, level, phase)
+                if not os.path.exists(path):
+                    raise RuntimeError("no baseline at %s -- run with --rebaseline" % path)
+                rendered = build.render_enzo_param(box, level, phase, grid_parameters="")
+                with open(path) as fp:
+                    expected = fp.read()
+                diff = list(difflib.unified_diff(
+                    normalize(expected), normalize(rendered),
+                    fromfile="baseline  %s" % os.path.basename(path),
+                    tofile="rendered  %s" % label, lineterm="", n=1))
+                source = os.path.relpath(path, box.template_dir_path())
         except Exception as exc:
             print("  %-8s ERROR  %s" % (label, exc))
             failures += 1
@@ -657,7 +694,12 @@ def main(argv=None):
                        help="check the collapsed .enzo templates re-render the per-level originals")
     p.add_argument("--box", default=config.DEFAULT_BOX)
     p.add_argument("--git-ref", default="master",
-                   help="git ref to read the original per-level files from (default: master)")
+                   help="git ref holding the original per-level files (with --original)")
+    p.add_argument("--original", action="store_true",
+                   help="check against the original hand-written per-level files instead "
+                        "of the approved baseline")
+    p.add_argument("--rebaseline", action="store_true",
+                   help="approve the current templates as the new reference")
     p.set_defaults(func=cmd_validate_templates)
 
     p = sub.add_parser("validate-registry", help="check the halo registry parses and resolves")

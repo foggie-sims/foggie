@@ -26,7 +26,7 @@ CosmologySimulationParticleDisplacement2Name = ParticleDisplacements_y
 CosmologySimulationParticleDisplacement3Name = ParticleDisplacements_z
 CosmologySimulationParticleTypeName     = RefinementMask
 CosmologySimulationCalculatePositions    = 1
-CosmologySimulationNumberOfInitialGrids  = __NUM_INITIAL_GRIDS__
+CosmologySimulationNumberOfInitialGrids  = 4
 
 #
 #  define cosmology parameters
@@ -81,17 +81,17 @@ ParticleCourantSafetyNumber     = 0.5
 #  set grid refinement parameters
 #
 StaticHierarchy                = 0    // dynamic hierarchy
-MaximumRefinementLevel         = __MAX_REFINE_LEVEL__
-MaximumGravityRefinementLevel  = __MAX_REFINE_LEVEL__
-MaximumParticleRefinementLevel = __MAX_REFINE_LEVEL__
+MaximumRefinementLevel         = 9
+MaximumGravityRefinementLevel  = 9
+MaximumParticleRefinementLevel = 9
 RefineBy                       = 2    // refinement factor
 CellFlaggingMethod             = 2 4 8 
 MinimumEfficiency              = 0.4  // fraction efficiency
-MinimumOverDensityForRefinement = __MIN_OVERDENSITY_GAS__
+MinimumOverDensityForRefinement = 0.015625 0.015625 1. 1. 1. 1. 1
 
 MinimumMassForRefinementLevelExponent = 0.0 0.0
 MustRefineParticlesCreateParticles = 3
-MustRefineParticlesRefineToLevel   = __MRP_REFINE_TO_LEVEL__
+MustRefineParticlesRefineToLevel   = 3
 NumberOfBufferZones                      = 2
 
 RebuildHierarchyCycleSkip[0] = 2
@@ -170,4 +170,4 @@ LoadBalancingMaxLevel  = 50
 #
 #  nested grid geometry, written by MUSIC into parameter_file.txt
 #
-__GRID_PARAMETERS__
+
