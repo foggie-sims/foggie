@@ -251,7 +251,11 @@ def cmd_status(args):
         print(report.render_text(report.to_halo_rows(rows), report.HALO_COLUMNS))
 
     if args.write:
-        ics_dir = config.foggie_ics_dir()
+        # Defaults next to the simulations rather than into the repo: this is
+        # regenerated on every sweep, so versioning it would churn history and
+        # collide with a poller running unattended.  --out-dir overrides.
+        ics_dir = args.out_dir or config.foggie_ics_dir()
+        os.makedirs(ics_dir, exist_ok=True)
         stage_ecsv = os.path.join(ics_dir, "status.ecsv")
         halo_ecsv = os.path.join(ics_dir, "status_by_halo.ecsv")
         htm = os.path.join(ics_dir, "status.html")
@@ -378,8 +382,10 @@ def main(argv=None):
     p.add_argument("--by-halo", action="store_true",
                    help="also print a one-row-per-halo rollup")
     p.add_argument("--write", action="store_true",
-                   help="write status.ecsv, status_by_halo.ecsv and status.html "
-                        "into FOGGIE_ICS_DIR")
+                   help="write status.ecsv, status_by_halo.ecsv and status.html")
+    p.add_argument("--out-dir", default=None,
+                   help="where to write them (default: FOGGIE_ICS_DIR, i.e. next to "
+                        "the simulations and outside version control)")
     p.set_defaults(func=cmd_status)
 
     p = sub.add_parser("build", help="generate ICs for one stage and submit it")
