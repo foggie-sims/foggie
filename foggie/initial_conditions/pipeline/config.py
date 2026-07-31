@@ -69,6 +69,10 @@ class Box:
     music_exe_dir: str = None       # defaults to FOGGIE_REPO/initial_conditions/music
     email: str = "tumlinson@stsci.edu"
     group_list: str = "s3128"
+    # Queue for the Enzo runs.  Empty means emit no "#PBS -q" line and let PBS
+    # route on walltime, which is what the hand-built scripts do.  Naming a
+    # queue whose walltime cap is below dm_walltime gets the job rejected.
+    queue: str = ""
     # PBS resources for the Enzo runs.
     dm_select: str = "1:ncpus=64:mpiprocs=64:model=mil_ait"
     dm_nranks: int = 64

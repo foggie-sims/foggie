@@ -115,7 +115,12 @@ def render_runscript(box, halo_id, level, phase="DM", pipeline_hook=""):
         "__GROUP__": box.group_list,
         "__SELECT__": box.gas_select if is_gas else box.dm_select,
         "__WALLTIME__": walltime,
-        "__QUEUE__": "normal",
+        # No -q line unless one is configured.  The hand-built RunScripts that
+        # ran successfully specify no queue and let PBS route by walltime;
+        # naming `normal` explicitly caps the job at 8 h and gets a 24 h request
+        # rejected outright ("Job violates queue and/or server resource limits").
+        "__QUEUE_LINE__": ("#PBS -q %s" % box.queue if box.queue
+                           else "# no queue requested: PBS routes on walltime"),
         "__NRANKS__": box.gas_nranks if is_gas else box.dm_nranks,
         # simrun.pl needs the walltime in seconds so it knows when to resubmit.
         "__SIMRUN_WALL__": hours * 3600 + minutes * 60 + seconds,
@@ -413,6 +418,24 @@ def build_stage(box, halo_id, level, phase="DM", dry_run=False, adopt=False,
     if not submit:
         print("  (not submitting)")
         return None
+    return submit_enzo_run(box, halo_id, level, phase, dry_run=dry_run)
+
+
+def submit_enzo_run(box, halo_id, level, phase="DM", dry_run=False):
+    """Submit the Enzo run for a stage whose ICs already exist.
+
+    Separate from build_stage so `advance` can submit a BUILT stage -- one whose
+    ICs were generated but whose run was never started -- without regenerating
+    the initial conditions.
+    """
+    halo_dir = box.halo_dir(halo_id)
+    stage_dir = box.stage_dir(halo_id, level, phase)
+    runscript = os.path.join(stage_dir, "RunScript.sh")
+    if not os.path.exists(runscript):
+        raise RuntimeError("No RunScript.sh in %s; the ICs are not built" % stage_dir)
+    check_queue_fits(box.queue, box.gas_walltime if phase == "gas" else box.dm_walltime,
+                     "halo %s %s" % (halo_id, ledger.stage_key(level, phase)))
+
     if dry_run:
         print("    [dry-run] qsub -koed RunScript.sh   (in %s)" % stage_dir)
         return None
@@ -425,7 +448,8 @@ def build_stage(box, halo_id, level, phase="DM", dry_run=False, adopt=False,
         "jobid": jobid,
         "stage_dir": stage_dir,
     })
-    print("  submitted %s" % jobid)
+    print("  submitted Enzo run %s for halo %s %s"
+          % (jobid, halo_id, ledger.stage_key(level, phase)))
     return jobid
 
 
@@ -455,6 +479,8 @@ def submit_build_job(box, halo_id, level, phase="DM", dry_run=False, adopt=False
     halo_dir = box.halo_dir(halo_id)
     ledger.guard_unmanaged(halo_dir, box.sim_name, adopt=adopt)
 
+    check_queue_fits(box.build_queue, box.build_walltime,
+                     "halo %s %s IC build" % (halo_id, ledger.stage_key(level, phase)))
     text = render_buildscript(box, halo_id, level, phase, extra_args)
     path = os.path.join(halo_dir, "BuildScript-L%d-%s.sh" % (level, phase))
     print("Submitting IC build job for halo %s %s"
@@ -480,3 +506,42 @@ def submit_build_job(box, halo_id, level, phase="DM", dry_run=False, adopt=False
     })
     print("  submitted %s" % jobid)
     return jobid
+
+
+@lru_cache(maxsize=8)
+def queue_max_walltime(queue):
+    """Max walltime a PBS queue allows, in seconds, or None if unknown."""
+    try:
+        out = subprocess.check_output(["qstat", "-Qf", queue],
+                                      stderr=subprocess.DEVNULL, timeout=30).decode()
+    except Exception:
+        return None
+    for line in out.splitlines():
+        if "resources_max.walltime" in line:
+            parts = line.split("=")[-1].strip().split(":")
+            if len(parts) == 3:
+                return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+    return None
+
+
+def check_queue_fits(queue, walltime, label=""):
+    """Fail early and legibly if a walltime exceeds its queue's cap.
+
+    Without this, an over-long request comes back from qsub only as
+    "Job violates queue and/or server resource limits" and exit status 188,
+    which says nothing about which limit or by how much.
+    """
+    if not queue:
+        return
+    cap = queue_max_walltime(queue)
+    if cap is None:
+        return
+    h, m, s = (int(x) for x in walltime.split(":"))
+    want = h * 3600 + m * 60 + s
+    if want > cap:
+        raise RuntimeError(
+            "%swalltime %s exceeds the '%s' queue limit of %02d:%02d:%02d. "
+            "Either request a queue that allows it (long allows 120 h) or leave "
+            "the queue unset so PBS routes on walltime."
+            % (label and label + ": ", walltime, queue, cap // 3600,
+               (cap % 3600) // 60, cap % 60))

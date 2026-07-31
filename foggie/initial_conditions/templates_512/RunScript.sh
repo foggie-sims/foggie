@@ -8,7 +8,7 @@
 #PBS -W group_list=__GROUP__
 #PBS -l select=__SELECT__
 #PBS -l walltime=__WALLTIME__
-#PBS -q __QUEUE__
+__QUEUE_LINE__
 #PBS -j oe
 #PBS -m abe
 #PBS -V

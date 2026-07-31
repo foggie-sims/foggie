@@ -270,6 +270,102 @@ def cmd_status(args):
     return 0
 
 
+def advance_halo(row, qstat, include_gas=False, dry_run=False, verbose=True):
+    """Take at most one action for one halo, then stop.
+
+    Walks the stage ladder in order and acts on the first stage that is not
+    DONE.  The ladder is strictly sequential -- level N's ICs are traced from
+    level N-1's Enzo outputs -- so there is never more than one actionable
+    stage, and anything other than READY or BUILT means do nothing:
+
+        READY    prerequisite done, no ICs yet  -> submit the IC build job
+        BUILT    ICs exist, Enzo never started  -> submit the Enzo run
+        DONE     finished                       -> move on to the next stage
+        BUILDING/QUEUED/RUNNING                 -> already in the queue
+        BLOCKED                                 -> waiting on the level below
+        STALLED  produced output, then stopped  -> wants a human, never retried
+
+    Returns a short description of what it did, or None.
+    """
+    box = config.get_box(row["box"])
+    halo_id = row["halo_id"]
+    halo_dir = box.halo_dir(halo_id)
+
+    prereq_done = True
+    for level, phase in config.stage_plan(row, include_gas=include_gas):
+        stage_dir = box.stage_dir(halo_id, level, phase)
+        jobid, job_state, action = ledger.live_job(halo_dir, level, phase, qstat)
+        if action == "build" and job_state in (stagestate.QUEUED, stagestate.RUNNING):
+            job_state = stagestate.BUILDING
+        st = stagestate.stage_state(stage_dir, job_state=job_state, prereq_done=prereq_done)
+        key = ledger.stage_key(level, phase)
+
+        if st.state == stagestate.DONE:
+            continue
+
+        if st.state == stagestate.READY:
+            if verbose:
+                print("halo %s %s is READY -- submitting IC build" % (halo_id, key))
+            build.submit_build_job(box, halo_id, level, phase, dry_run=dry_run)
+            return "%s %s submitted IC build" % (halo_id, key)
+
+        if st.state == stagestate.BUILT:
+            if verbose:
+                print("halo %s %s is BUILT -- submitting Enzo run" % (halo_id, key))
+            build.submit_enzo_run(box, halo_id, level, phase, dry_run=dry_run)
+            return "%s %s submitted Enzo run" % (halo_id, key)
+
+        if verbose:
+            print("halo %s %s is %s%s -- nothing to do"
+                  % (halo_id, key, st.state, " (%s)" % st.note if st.note else ""))
+        return None
+
+    if verbose:
+        print("halo %s: all stages DONE" % halo_id)
+    return None
+
+
+def cmd_advance(args):
+    """Submit the next actionable stage, for one halo or for all of them.
+
+    Called two ways, both of which must be safe at any moment: from the tail of
+    a generated RunScript when an Enzo job exits, and from the poller.  Safety
+    comes from re-deriving state from disk every time, holding a per-halo lock,
+    and cross-checking the ledger against qstat before submitting anything.
+    """
+    table = config.read_registry(args.registry)
+    rows = config.enabled_halos(table)
+    if args.halo is not None:
+        rows = [r for r in rows if int(r["halo_id"]) == int(args.halo)]
+        if not rows:
+            print("halo %s is not an enabled registry row; doing nothing" % args.halo)
+            return 0
+
+    qstat = stagestate.qstat_states()
+    actions = []
+    for row in rows:
+        halo_dir = config.get_box(row["box"]).halo_dir(row["halo_id"])
+        try:
+            if args.dry_run:
+                did = advance_halo(row, qstat, args.include_gas, dry_run=True)
+            else:
+                # The lock is what makes the RunScript hook and the poller safe
+                # to fire at the same instant.
+                with ledger.halo_lock(halo_dir):
+                    did = advance_halo(row, qstat, args.include_gas, dry_run=False)
+        except ledger.UnmanagedHaloError as exc:
+            print("halo %s REFUSED: %s" % (row["halo_id"], exc))
+            continue
+        except Exception as exc:
+            print("halo %s ERROR: %s" % (row["halo_id"], exc))
+            continue
+        if did:
+            actions.append(did)
+
+    print("\nadvance: %s" % ("; ".join(actions) if actions else "no action taken"))
+    return 0
+
+
 def cmd_build(args):
     """Generate ICs and the run script for one stage, and submit it."""
     table = config.read_registry(args.registry)
@@ -387,6 +483,15 @@ def main(argv=None):
                    help="where to write them (default: FOGGIE_ICS_DIR, i.e. next to "
                         "the simulations and outside version control)")
     p.set_defaults(func=cmd_status)
+
+    p = sub.add_parser("advance",
+                       help="submit the next actionable stage (the engine both triggers call)")
+    p.add_argument("--halo", default=None, help="one halo; omit for every enabled halo")
+    p.add_argument("--registry", default=None)
+    p.add_argument("--include-gas", action="store_true")
+    p.add_argument("--dry-run", action="store_true",
+                   help="report what would be submitted without submitting it")
+    p.set_defaults(func=cmd_advance)
 
     p = sub.add_parser("build", help="generate ICs for one stage and submit it")
     p.add_argument("--halo", required=True)
