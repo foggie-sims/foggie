@@ -22,6 +22,150 @@ Once the ICs exist, `Starting a Fresh FOGGIE Run from Initial Conditions
    :depth: 2
 
 
+Getting started
+---------------
+
+Start here if you have a working Enzo build and nothing else. Nine steps, in
+order. Later sections explain what any of it means.
+
+**What you need first**
+
+* A **working Enzo executable**. The pipeline does not build Enzo.
+* The **parent box already run to z = 0**. A zoom is cut out of an existing
+  unigrid simulation, so the L0 run must exist and be finished before any zoom
+  can be made. For the 25 Mpc box that is ``25Mpc_DM_512-L0`` under
+  ``$FOGGIE_ICS_DIR``, along with the MUSIC config that produced it
+  (``25Mpc_DM_512_planck18.conf``) and its log (``.conf_log.txt``).
+* A **Rockstar halo catalog** for that box, so halos can be looked up by ID.
+  One is in the repo at ``initial_conditions/halo_catalogs_512/512/z0/out_0.list``.
+
+If you do not have the parent box, you are not ready for this page: make that
+first, the ordinary way, and come back.
+
+**1. Get the code**
+
+::
+
+    git clone git@github.com:foggie-sims/foggie.git
+    cd foggie
+
+Nothing needs installing. The pipeline is run as a script.
+
+**2. Set two environment variables**
+
+Everything reads these, so put them in your shell profile::
+
+    export FOGGIE_REPO=/path/to/foggie/foggie            # note: the inner dir
+    export FOGGIE_ICS_DIR=/path/to/25Mpc_new_cosmology   # where runs live
+
+``FOGGIE_REPO`` points at the *package* directory inside the clone, the one
+containing ``initial_conditions/``.
+
+**3. Build MUSIC**
+
+The source is in the repo; the compiled binary is not, so build it once on the
+machine you will run on::
+
+    cd $FOGGIE_REPO/initial_conditions/music
+    make
+
+MUSIC needs a C++ compiler, **FFTW3**, **GSL** and **HDF5**. On a cluster,
+load those modules first. The ``Makefile`` has include and library paths
+hardcoded near the top -- edit ``CC``, ``CPATHS`` and ``LPATHS`` to match where
+yours are installed. On NAS that looks like::
+
+    module load comp-intel hdf5/1.8.18_serial
+
+The result must be an executable at::
+
+    $FOGGIE_REPO/initial_conditions/music/MUSIC
+
+That exact path is where the pipeline looks. Check with ``./MUSIC --help``.
+
+**4. Point the pipeline at your Enzo**
+
+Edit ``enzo_exe`` in ``$FOGGIE_REPO/initial_conditions/pipeline/config.py``,
+in the ``25Mpc_DM_512`` entry, to your Enzo executable. While you are there,
+check ``group_list`` is an account you can charge to, and that the PBS
+resource lines (``dm_select``, ``build_select``) name a node model your site
+has.
+
+**5. Check it is wired up correctly**
+
+::
+
+    cd $FOGGIE_REPO/initial_conditions/pipeline
+    python3 ic_pipeline.py validate-templates
+    python3 ic_pipeline.py validate-registry
+
+.. note::
+
+   Always run it as a **script**, as above, not as
+   ``python -m foggie.initial_conditions.pipeline.ic_pipeline``. Importing the
+   ``foggie`` package pulls in yt, which nothing here needs and which slows
+   ``status`` from about a second to ten.
+
+The first confirms the parameter-file templates render as approved. The second
+confirms the registry parses and every halo in it resolves in the catalog. Both
+should say ``OK``. Fix anything they report before going further -- they are
+much cheaper than finding the same problem inside a job.
+
+**6. Pick a halo and add it to the registry**
+
+Open ``$FOGGIE_REPO/initial_conditions/halo_registry.ecsv`` in a text editor
+and append one row, using the column order in the header line::
+
+    82812 25Mpc_DM_512 True 3 False 0.0 False normal 1 mil_ait "my first zoom"
+
+That is: halo ID, box, enabled, top level, gas on/off, Rvir floor override,
+allow mixed outputs, queue, nodes, node model, a note. Re-run
+``validate-registry`` -- it will print the halo's virial radius, which is a
+good check you chose the ID you meant.
+
+**7. Launch it**
+
+::
+
+    python3 ic_pipeline.py advance --halo 82812
+
+This submits the level 1 IC generation job. That job generates the ICs and then
+submits the Enzo run itself.
+
+Use ``--dry-run`` first if you want to see exactly what it would do without
+submitting anything.
+
+**8. Watch**
+
+::
+
+    python3 ic_pipeline.py status --by-halo
+
+Your halo moves ``READY -> BUILDING -> QUEUED -> RUNNING -> DONE``, then the
+next level starts on its own. A full three-level ladder takes days, mostly
+Enzo time.
+
+**9. Turn on the poller**
+
+::
+
+    python3 ic_pipeline.py poll --install-at --notify
+
+Each Enzo run already triggers the next level when it finishes. The poller is
+the backstop for when that trigger does not fire -- a node dies, a job is
+killed -- and it emails you when anything changes state. Recommended, not
+required.
+
+That is the whole thing. From here the pipeline runs unattended; you add halos
+by adding rows.
+
+.. note::
+
+   Two habits worth forming early. Run ``status`` before assuming anything is
+   wrong -- it will usually tell you. And if a stage says ``STALLED``, read the
+   note in that row before restarting it: nothing restarts automatically, on
+   purpose, and restarting without fixing the cause just stalls again.
+
+
 Overview
 --------
 
@@ -42,51 +186,6 @@ level for halos whose registry row asks for one.
 
 The gas stage is **not** the next rung of that ladder. It hangs off the DM
 build at the same level and runs alongside the DM run -- see `The gas stage`_.
-
-
-Prerequisites
--------------
-
-Two environment variables must be set. Both are read on every invocation::
-
-    export FOGGIE_REPO=/path/to/foggie/foggie          # the package dir
-    export FOGGIE_ICS_DIR=/path/to/25Mpc_new_cosmology # where runs live
-
-You also need MUSIC built in place at ``$FOGGIE_REPO/initial_conditions/music/MUSIC``.
-The source is in the repo; the compiled binary is deliberately gitignored, so
-build it once on the machine you are running on.
-
-The Enzo executable is set per box in ``pipeline/config.py`` (``enzo_exe``).
-
-
-Quick start
------------
-
-To add a halo to the fleet, add one row to the registry and let the pipeline
-pick it up::
-
-    $FOGGIE_REPO/initial_conditions/halo_registry.ecsv
-
-Then check it resolves::
-
-    python3 $FOGGIE_REPO/initial_conditions/pipeline/ic_pipeline.py validate-registry
-
-That is the whole workflow. The poller submits the first build within its
-sweep interval. To start immediately instead of waiting::
-
-    python3 .../ic_pipeline.py advance --halo 51541
-
-and to watch progress::
-
-    python3 .../ic_pipeline.py status --by-halo
-
-.. note::
-
-   Invoke the script **by path**, as above, rather than as
-   ``python -m foggie.initial_conditions.pipeline.ic_pipeline``. Importing the
-   ``foggie`` package pulls in yt through ``foggie/__init__.py``, and nothing
-   in the pipeline needs it. Running by path keeps ``status`` down to about a
-   second.
 
 
 The halo registry
