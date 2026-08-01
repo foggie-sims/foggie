@@ -141,7 +141,11 @@ def _read_catalog(path):
     """Read a Rockstar catalog once per process; out_0.list is ~31 MB."""
     from astropy.io import ascii as ascii_io
 
-    return ascii_io.read(path, header_start=0, data_start=2)
+    # data_start=1, not 2.  The Rockstar file is one header line then data, so
+    # data_start=2 skips the first halo -- ID 0 in the 512 catalog, an ordinary
+    # 1.9e9 Msun object that the pipeline could therefore never select.  The
+    # idiom came from script512.py and was wrong there too.
+    return ascii_io.read(path, header_start=0, data_start=1)
 
 
 def halo_center_and_radius(box, halo_id, rvir_min=None):
