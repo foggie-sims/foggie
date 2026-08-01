@@ -371,52 +371,8 @@ def pipeline_hook_line(halo_id, halo_dir):
             % (script, halo_id, halo_dir))
 
 
-def check_output_consistency(box, halo_id, level, phase, allow_mixed=False):
-    """Refuse to build a level whose output list differs from the level below.
-
-    Editing the redshift list in a template part-way through a ladder silently
-    produces a halo whose levels are not comparable: RD0014 is z=0 under a
-    15-entry list and z~7 under the 266-entry one.  Nothing downstream would
-    flag that, so it is caught here, at the only point where the two can first
-    disagree.
-    """
-    try:
-        from . import state as _state
-    except ImportError:
-        import state as _state
-
-    if level <= 1:
-        return
-    prev_dir = box.stage_dir(halo_id, level - 1, "DM")
-    prev_param = _state.find_param_file(prev_dir)
-    if not prev_param:
-        return
-
-    template = os.path.join(box.template_dir_path(),
-                            "gas-LX.enzo" if phase == "gas" else "DM-LX.enzo")
-    new_sig = _state.output_signature(template)
-    old_sig = _state.output_signature(prev_param)
-    if not new_sig or not old_sig or new_sig == old_sig:
-        return
-
-    message = (
-        "halo %s L%d-%s would use a different output list from L%d.\n"
-        "    L%d (on disk): %d outputs, final RD%04d at z=%s\n"
-        "    L%d (template): %d outputs, final RD%04d at z=%s\n"
-        "  The levels would not be comparable -- the same RD number means a\n"
-        "  different redshift at each level. Rebuild the lower level with the\n"
-        "  current template, or pass --allow-mixed-outputs if this is deliberate."
-        % (halo_id, level, phase, level - 1,
-           level - 1, old_sig[0], old_sig[1], old_sig[2],
-           level, new_sig[0], new_sig[1], new_sig[2]))
-    if allow_mixed:
-        print("  WARNING: %s" % message)
-        return
-    raise RuntimeError(message)
-
-
 def build_stage(box, halo_id, level, phase="DM", dry_run=False, adopt=False,
-                submit=True, hook=True, rvir_min=None, allow_mixed=False):
+                submit=True, hook=True, rvir_min=None):
     """Generate ICs and the run script for one stage, then submit it.
 
     Returns the PBS job id, or None for a dry run.
@@ -425,7 +381,6 @@ def build_stage(box, halo_id, level, phase="DM", dry_run=False, adopt=False,
     halo_dir = box.halo_dir(halo_id)
     stage_dir = box.stage_dir(halo_id, level, phase)
     ledger.guard_unmanaged(halo_dir, box.sim_name, adopt=adopt)
-    check_output_consistency(box, halo_id, level, phase, allow_mixed=allow_mixed)
 
     print("Building halo %s %s" % (halo_id, ledger.stage_key(level, phase)))
     print("  halo dir : %s" % halo_dir)

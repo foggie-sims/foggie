@@ -344,8 +344,6 @@ def advance_halo(row, qstat, include_gas=True, dry_run=False, verbose=True):
     box = config.get_box(row["box"])
     halo_id = row["halo_id"]
     halo_dir = box.halo_dir(halo_id)
-    allow_mixed = (bool(row["allow_mixed_outputs"])
-                   if "allow_mixed_outputs" in row.colnames else False)
     rvir_min = float(row["rvir_min"]) if "rvir_min" in row.colnames else None
 
     def act_on(level, phase, prereq_done):
@@ -360,11 +358,7 @@ def advance_halo(row, qstat, include_gas=True, dry_run=False, verbose=True):
         if st.state == stagestate.READY:
             if verbose:
                 print("halo %s %s is READY -- submitting IC build" % (halo_id, key))
-            build.check_output_consistency(box, halo_id, level, phase,
-                                           allow_mixed=allow_mixed)
-            extra = "--allow-mixed-outputs" if allow_mixed else ""
-            build.submit_build_job(box, halo_id, level, phase, dry_run=dry_run,
-                                   extra_args=extra)
+            build.submit_build_job(box, halo_id, level, phase, dry_run=dry_run)
             return st, "%s %s submitted IC build" % (halo_id, key)
 
         if st.state == stagestate.BUILT:
@@ -675,8 +669,7 @@ def cmd_build(args):
                     box, args.halo, args.level, args.phase,
                     dry_run=args.dry_run, adopt=args.adopt,
                     submit=not args.no_submit, hook=not args.no_hook,
-                    rvir_min=row["rvir_min"] if "rvir_min" in row.colnames else None,
-                    allow_mixed=args.allow_mixed_outputs)
+                    rvir_min=row["rvir_min"] if "rvir_min" in row.colnames else None)
     except ledger.UnmanagedHaloError as exc:
         print("REFUSED: %s" % exc)
         return 1
@@ -844,8 +837,6 @@ def main(argv=None):
                    help="omit the advance hook from the generated RunScript")
     p.add_argument("--adopt", action="store_true",
                    help="allow writing into a halo directory the pipeline did not create")
-    p.add_argument("--allow-mixed-outputs", action="store_true",
-                   help="build even if this level's output list differs from the level below")
     p.add_argument("--as-job", action="store_true",
                    help="submit IC generation as a PBS job instead of running it here "
                         "(required in practice: enzo-mrp-music must not run on a login node)")

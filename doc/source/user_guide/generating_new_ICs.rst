@@ -115,10 +115,10 @@ much cheaper than finding the same problem inside a job.
 Open ``$FOGGIE_REPO/initial_conditions/halo_registry.ecsv`` in a text editor
 and append one row, using the column order in the header line::
 
-    82812 25Mpc_DM_512 True 3 False 0.0 False normal 1 mil_ait "my first zoom"
+    82812 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "my first zoom"
 
 That is: halo ID, box, enabled, top level, gas on/off, Rvir floor override,
-allow mixed outputs, queue, nodes, node model, a note. Re-run
+queue, nodes, node model, a note. Re-run
 ``validate-registry`` -- it will print the halo's virial radius, which is a
 good check you chose the ID you meant.
 
@@ -200,9 +200,9 @@ changing it resolve as an ordinary git conflict.
 It is ECSV -- plain text, with a commented header declaring the column types,
 followed by one whitespace-separated row per halo::
 
-    halo_id box          enabled final_level gas   rvir_min allow_mixed_outputs queue  nodes model   notes
-    51541   25Mpc_DM_512 True    3           False 0.0      False               normal 1     mil_ait "started fresh"
-    79628   25Mpc_DM_512 True    3           False 0.0      False               normal 1     mil_ait "started fresh"
+    halo_id box          enabled final_level gas   rvir_min queue  nodes model   notes
+    51541   25Mpc_DM_512 True    3           False 0.0      normal 1     mil_ait "started fresh"
+    79628   25Mpc_DM_512 True    3           False 0.0      normal 1     mil_ait "started fresh"
 
 To add a halo, append a row in the order given by the header line. A few
 things to get right, because a malformed row fails when the file is read
@@ -210,8 +210,8 @@ rather than when you save it:
 
 * Fields are separated by whitespace, so **quote anything containing spaces**.
   In practice that means ``notes``, which should always be in double quotes.
-* ``enabled``, ``gas`` and ``allow_mixed_outputs`` are booleans: write ``True``
-  or ``False``, capitalised.
+* ``enabled`` and ``gas`` are booleans: write ``True`` or ``False``,
+  capitalised.
 * ``rvir_min`` is a float, so write ``0.0`` rather than ``0``.
 * Do not edit the commented header block above the column line. It declares
   the column types, and changing it will produce confusing parse errors.
@@ -240,7 +240,7 @@ One row per halo:
     deleting its row.
 
 ``final_level``
-    Top DM level, normally 3.
+    Top DM level. Three is usual; four works (halo80181 ran a full L1-L4).
 
 ``gas``
     Run a gas stage at the final level. It runs in parallel with the DM run at
@@ -251,10 +251,6 @@ One row per halo:
     box default (80 kpc for ``25Mpc_DM_512``). The radius is
     ``max(catalog Rvir, floor)``: several of these dwarfs have Rvir well under
     80 kpc, and too small a Lagrangian region makes a poor zoom.
-
-``allow_mixed_outputs``
-    Accept a halo whose levels disagree about their redshift output list. Leave
-    ``False`` unless you know why you need it -- see `Guards`_.
 
 ``queue``, ``nodes``, ``model``
     PBS hints.
@@ -462,7 +458,7 @@ done, not while it is filling in.
 Guards
 ------
 
-Two refusals protect against the mistakes that are otherwise silent.
+One refusal protects against the mistake that is otherwise silent.
 
 **Hand-built directories.** ``build`` refuses to write into a halo directory
 that holds ``<sim>-L*`` run directories but no ``.pipeline/``, which means it
@@ -470,12 +466,13 @@ was built by hand. This is what stops a halo added to the registry from
 overwriting somebody's existing work. ``--adopt`` overrides it, and will write
 generated files into that directory, so do not pass it casually.
 
-**Mixed output cadence.** ``build`` refuses to generate level N when its
-redshift output list differs from level N-1. Editing the list in a template
-part-way through a ladder otherwise produces a halo whose levels are not
-comparable -- the same ``RD`` number means a different redshift at each level,
-and nothing downstream would notice. Set ``allow_mixed_outputs`` in the
-registry to accept it for a specific halo.
+.. note::
+
+   Nothing stops a halo whose levels use different redshift output lists. If
+   you change the list in a template part-way through a ladder, the levels are
+   no longer directly comparable -- the same ``RD`` number means a different
+   redshift at each level -- so either finish a halo before changing it, or
+   regenerate the lower levels afterwards.
 
 
 Recovering a stalled run
@@ -611,7 +608,7 @@ most take ``--dry-run``.
     Generate ICs for one stage and submit it. ``--halo``, ``--level``,
     ``--phase {DM,gas}``, ``--as-job`` (run IC generation on a compute node --
     it needs about 10 GB and must not run on a front end), ``--no-submit``,
-    ``--adopt``, ``--allow-mixed-outputs``.
+    ``--adopt``.
 
 ``poll``
     One sweep. ``--install-at`` to start the recurring chain, ``--interval``,

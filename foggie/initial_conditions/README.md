@@ -68,6 +68,9 @@ raises on a MUSIC failure instead of continuing silently.
   a self-rescheduling `at` chain instead.
 * IC generation needs roughly 10 GB and must run on a compute node, which is
   what `build --as-job` is for.
+* Nothing enforces that a halo's levels share a redshift output list. Change
+  the list in a template mid-ladder and the levels stop being comparable, since
+  the same `RD` number then means a different redshift at each level.
 * The gas stage is not the next rung of the DM ladder. It depends on the DM
   MUSIC config at the same level, not on that level's Enzo run, so it runs in
   parallel with it. L2 must be done before L3-gas is possible, because that is

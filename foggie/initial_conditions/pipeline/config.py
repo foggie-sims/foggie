@@ -134,7 +134,8 @@ BOXES = {
         catalog="initial_conditions/halo_catalogs_512/512/z0/out_0.list",
         template_config="25Mpc_DM_512_planck18.conf",
         template_dir="initial_conditions/templates_512",
-        max_level=3,
+        # 4 levels, not 3: halo80181 ran a full L1-L4 ladder successfully.
+        max_level=4,
         omega_b=0.04576,
         omega_m=0.291,
         # Floor the zoom radius at 80 kpc: max(catalog Rvir, 80).  Several of
@@ -202,11 +203,8 @@ def box_problems(box):
 # rvir_min: per-halo floor on the zoom radius in kpc, 0 meaning "use the
 # catalog Rvir".  Exists because halo11177 was hand-built at 80 kpc against a
 # catalog Rvir of 33.66 kpc via an --rvir_min flag that no script implemented.
-# allow_mixed_outputs: accept a halo whose levels disagree about their redshift
-# output list.  Needed only for halos whose lower levels were built before the
-# list was changed; new halos should leave it False so the guard applies.
 REGISTRY_COLUMNS = ("halo_id", "box", "enabled", "final_level", "gas",
-                    "rvir_min", "allow_mixed_outputs", "queue", "nodes", "model", "notes")
+                    "rvir_min", "queue", "nodes", "model", "notes")
 
 
 def default_registry_path():
