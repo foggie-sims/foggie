@@ -44,6 +44,7 @@ the only file you normally edit.
 | `ledger.py` | Per-halo record of what was submitted, the lock that makes concurrent triggers safe, and the guard that refuses to write into a hand-built directory. |
 | `report.py` | Renders the progress table as text, ECSV and HTML. |
 | `notify.py` | Emails stage state changes. Reports transitions, not status. |
+| `qc.py` | Diagnostic plots per refinement level: is the target a single object, and is the high-resolution region free of coarse particles. The only module that needs yt. |
 
 ### Local modifications to `enzo-mrp-music`
 

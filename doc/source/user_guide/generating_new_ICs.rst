@@ -413,6 +413,52 @@ in the subject line. The recipient is the box ``email`` in ``config.py``, or
 ``--notify-to``.
 
 
+Diagnostic plots
+----------------
+
+``qc`` makes one figure per halo, a row per refinement level, centred on the
+target::
+
+    python3 .../ic_pipeline.py qc --halo 79628
+    python3 .../ic_pipeline.py qc --halo 79628 --as-job     # needs yt and ~10 GB
+
+Each row shows the halo at three zooms and a species panel, and the run prints
+a contamination table. Two questions are being answered:
+
+**Is the target a single object?** A catalog entry can turn out to be two
+clumps mid-merger, or a chance superposition. The wide panels show what is
+around it -- halo79628 has a comparable companion about 150 kpc away, obvious
+at 8 x Rvir and easy to miss otherwise.
+
+**Is the high-resolution region clean?** A zoom is only usable if the coarse
+particles from the parent box stayed out of it. The species panel colours fine
+particles blue and coarse red, and the table gives, per species, how many
+particles lie inside Rvir, how close the nearest one comes, and the fraction of
+the mass inside Rvir that is coarse. Under 1 % reads ``CLEAN``.
+
+Three things worth knowing about how it works, each of which produced a wrong
+answer before it was handled:
+
+* **The halo is not where the analytic centre says.** Catalog position plus the
+  MUSIC domain shift is only a starting guess; the object's z = 0 position
+  differs between the parent box and the zoom. For halo79628 it lands about
+  270 kpc away -- ten virial radii -- and L1 and L2 agree on that, so it is the
+  halo having moved rather than the shift arithmetic being wrong. ``qc``
+  therefore locates the halo by shrinking spheres from the guess and reports
+  the offset. A large offset is itself a result: check it is still the object
+  you meant.
+* **At L0 the catalog position is used unchanged.** Rockstar was run on that
+  very output, so the position is definitional and re-centring can only walk
+  onto a brighter neighbour.
+* **Levels that have not reached z = 0 are marked ``IN PROGRESS``** rather than
+  judged. Rvir and the centre are z = 0 quantities; applying them to a halo at
+  z = 4 gives a confident and meaningless verdict.
+
+Run it after a level finishes. It is deliberately not wired into ``advance``:
+it needs yt and real memory, and the useful moment to look is once a level is
+done, not while it is filling in.
+
+
 Guards
 ------
 
@@ -570,6 +616,10 @@ most take ``--dry-run``.
 ``poll``
     One sweep. ``--install-at`` to start the recurring chain, ``--interval``,
     ``--notify``.
+
+``qc``
+    Diagnostic plots per level, centred on the halo, with a contamination
+    table. ``--halo``, ``--levels``, ``--out``, ``--as-job``.
 
 ``validate-registry``
     Check the registry parses, every halo resolves in the catalog, and report

@@ -168,6 +168,22 @@ def halo_center_and_radius(box, halo_id, rvir_min=None):
     return center, rvir
 
 
+def catalog_rvir(box, halo_id):
+    """The halo's virial radius from the catalog, with no floor applied.
+
+    Distinct from the radius halo_center_and_radius returns, which is the
+    *zoom* radius and may have been floored up to give the Lagrangian region a
+    workable size.  Diagnostics must use this one: quoting a contamination
+    distance in units of an inflated radius understates how far in the coarse
+    particles have come.
+    """
+    halos = _read_catalog(box.catalog_path())
+    match = halos[halos["ID"] == int(halo_id)]
+    if len(match) != 1:
+        raise RuntimeError("halo %s not found in %s" % (halo_id, box.catalog_path()))
+    return float(match["Rvir"][0])
+
+
 _SHIFT_RE = re.compile(r"setup/shift_([xyz])\s*=\s*(-?\d+)")
 _DOMAIN_RE = re.compile(r"Domain shifted by\s*\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*\)")
 
@@ -654,3 +670,29 @@ def render_atpoll(box, script_path, log_dir, interval_minutes, python=None,
         "__NOTIFY_ARGS__": notify_args,
         "__RESCHEDULE__": line,
     })
+
+
+def submit_qc_job(box, halo_id, dry_run=False):
+    """Run the diagnostics on a compute node.  They need yt and several GB."""
+    halo_dir = box.halo_dir(halo_id)
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ic_pipeline.py")
+    text = replace_keywords(
+        open(os.path.join(box.template_dir_path(), "BuildScript.sh")).read(),
+        {"__JOBNAME__": "qc-halo%s" % halo_id,
+         "__GROUP__": box.group_list,
+         "__BUILD_SELECT__": box.build_select,
+         "__BUILD_WALLTIME__": box.build_walltime,
+         "__BUILD_QUEUE__": box.build_queue,
+         "__HALO_DIR__": halo_dir,
+         "__BUILD_CMD__": "python3 %s qc --halo %s" % (script, halo_id)})
+    path = os.path.join(halo_dir, "QCScript.sh")
+    if dry_run:
+        print("    [dry-run] write %s and qsub it" % path)
+        return None
+    write_file(path, text, dry_run=False)
+    os.chmod(path, 0o755)
+    jobid = subprocess.check_output(["qsub", os.path.basename(path)],
+                                    cwd=halo_dir).decode().strip()
+    ledger.append_record(halo_dir, {"stage": "qc", "action": "qc", "jobid": jobid})
+    print("  submitted %s" % jobid)
+    return jobid

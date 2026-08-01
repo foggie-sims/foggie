@@ -27,6 +27,7 @@ try:
     from . import config
     from . import ledger
     from . import notify
+    from . import qc
     from . import report
     from . import state as stagestate
 except ImportError:
@@ -39,6 +40,7 @@ except ImportError:
     import config
     import ledger
     import notify
+    import qc
     import report
     import state as stagestate
 
@@ -553,6 +555,32 @@ def cmd_poll(args):
         notify=args.notify, notify_to=args.notify_to, notify_dry_run=args.dry_run))
 
 
+def cmd_qc(args):
+    """Diagnostic plots for a halo across its refinement levels.
+
+    Deliberately not run automatically after every stage: it needs yt and real
+    memory, and the useful moment to look is once a level has finished, not
+    while it is still filling in.  Run it after the fact, or with --as-job to
+    push it onto a compute node.
+    """
+    table = config.read_registry(args.registry)
+    match = [r for r in table if int(r["halo_id"]) == int(args.halo)]
+    rvir_min = float(match[0]["rvir_min"]) if match and "rvir_min" in match[0].colnames else None
+    box = config.get_box(args.box or (match[0]["box"] if match else config.DEFAULT_BOX))
+
+    if args.as_job:
+        jobid = build.submit_qc_job(box, args.halo, dry_run=args.dry_run)
+        return 0 if (jobid or args.dry_run) else 1
+
+    levels = [int(x) for x in args.levels.split(",")] if args.levels else None
+    print("Diagnostics for halo %s (%s)" % (args.halo, box.sim_name))
+    path, report = qc.make_qc_figure(box, args.halo, levels=levels,
+                                     out_path=args.out, rvir_min=rvir_min)
+    print(qc.format_report(args.halo, report))
+    print("\nWrote %s" % path)
+    return 0
+
+
 def cmd_resume(args):
     """Resubmit stages that are STALLED.
 
@@ -781,6 +809,19 @@ def main(argv=None):
     p.add_argument("--notify-to", default=None)
     p.add_argument("--dry-run", action="store_true")
     p.set_defaults(func=cmd_poll)
+
+    p = sub.add_parser("qc",
+                       help="diagnostic plots per refinement level, centred on the halo")
+    p.add_argument("--halo", required=True)
+    p.add_argument("--box", default=None)
+    p.add_argument("--registry", default=None)
+    p.add_argument("--levels", default=None,
+                   help="comma-separated levels, e.g. 0,1,2 (default: all with data)")
+    p.add_argument("--out", default=None, help="output PNG (default: halo dir)")
+    p.add_argument("--as-job", action="store_true",
+                   help="run on a compute node; this needs yt and several GB")
+    p.add_argument("--dry-run", action="store_true")
+    p.set_defaults(func=cmd_qc)
 
     p = sub.add_parser("resume",
                        help="resubmit STALLED stages, after fixing whatever stopped them")
