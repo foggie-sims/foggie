@@ -55,7 +55,8 @@ GravitationalConstant      = 1       // this must be true for cosmology
 #
 DataDumpDir      = DD
 DataDumpName     = DD
-dtDataDump 	 = 10
+dtDataDump 	 = 0        // no periodic data dumps; see dtRestartDump below
+dtRestartDump    = __RESTART_DUMP_SECONDS__  // wallclock checkpoint before the PBS wall
 StopCycle        = 100000
 StopCPUTime      = 3600000
 

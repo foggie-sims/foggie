@@ -53,9 +53,33 @@ def min_overdensity(level, phase="DM"):
     return "%s %s %s" % (lead, lead, tail)
 
 
+def restart_dump_seconds(box, phase="DM"):
+    """Wallclock seconds after which Enzo checkpoints and stops.
+
+    dtDataDump is 0, so the periodic DD dumps that runs used to restart from no
+    longer exist -- and they were doing real work: halo51541 L3 restarted from
+    DD0003, and DD0028/DD0012/DD0008 were each used ~10 times across the fleet.
+    Without a replacement a walltime kill would lose everything back to the last
+    redshift dump, which under the 15-entry output list can be a fifteenth of
+    the run.
+
+    dtRestartDump is Enzo's purpose-built answer: check the wallclock, write a
+    dump, and stop cleanly.  Set below the PBS wall so Enzo finishes before the
+    scheduler kills it.  The dump is recorded in OutputLog like any other
+    (Group_WriteAllData.C:998), so simrun.pl restarts from it unchanged.
+
+    One checkpoint per job instead of sixty-five per run.
+    """
+    walltime = box.gas_walltime if phase == "gas" else box.dm_walltime
+    h, m, s = (int(x) for x in walltime.split(":"))
+    total = h * 3600 + m * 60 + s
+    return int(total * box.restart_dump_fraction)
+
+
 def enzo_keywords(box, level, phase="DM", grid_parameters=""):
     """Keyword table for the .enzo templates."""
     kw = {
+        "__RESTART_DUMP_SECONDS__": str(restart_dump_seconds(box, phase)),
         "__NUM_INITIAL_GRIDS__": str(level + 1),
         "__MRP_REFINE_TO_LEVEL__": str(level),
         "__GRID_PARAMETERS__": grid_parameters,

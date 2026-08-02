@@ -50,7 +50,8 @@ DataDumpName     = DD
 RedshiftDumpName = RD
 RedshiftDumpDir  = RD
 
-dtDataDump 	 = 1
+dtDataDump 	 = 0        // no periodic data dumps; see dtRestartDump below
+dtRestartDump    = 388800  // wallclock checkpoint before the PBS wall
 
 OutputCoolingTime                        = 1
 OutputTemperature                        = 1

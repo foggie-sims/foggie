@@ -82,6 +82,10 @@ class Box:
     gas_walltime: str = "120:00:00"
     # Maximum refinement level for gas runs (__MAX_REFINE_LEVEL__).
     gas_max_refine_level: int = 9
+    # Fraction of the PBS walltime after which Enzo writes a restart dump and
+    # stops.  Must leave room to write the dump before the scheduler kills the
+    # job; 0.9 of 24 h is 21.6 h.
+    restart_dump_fraction: float = 0.9
     # PBS resources for the IC-generation job.  enzo-mrp-music loads the parent
     # box in yt and traces particles back to z = 99, so it needs a whole node
     # and must never run on a login node.
