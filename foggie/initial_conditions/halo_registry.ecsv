@@ -28,3 +28,8 @@ halo_id box enabled final_level gas rvir_min queue nodes model notes
 48014 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "isolated field dwarf: Theta 10.48, d_host 30.1 Rvir"
 56672 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "void dwarf: nothing at all within 1 Mpc, nearest halo of any mass 1.2 Mpc"
 47314 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "isolated field dwarf: Theta 10.26, d_host 26.1 Rvir"
+51741 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "most isolated above 1e10: 1.14e10, d_host 23.4 Rvir, Theta 10.47, 1211 particles"
+15516 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "isolated massive: 1.03e10, d_host 22.2 Rvir, Theta 10.92"
+75392 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "isolated massive: 1.11e10, d_host 19.5 Rvir, Theta 10.72"
+59186 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "isolated massive: 1.02e10, d_host 16.1 Rvir, Theta 10.89"
+46615 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "isolated massive: 1.27e10, d_host 20.9 Rvir, Theta 10.54, 1345 particles"
