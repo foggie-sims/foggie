@@ -19,7 +19,6 @@
 #       is NOT written here -- see status.ecsv in FOGGIE_ICS_DIR.]
 # schema: astropy-2.0
 halo_id box enabled final_level gas rvir_min queue nodes model notes
-11177 25Mpc_DM_512 True 3 False 80.0 normal 1 mil_ait "regenerated from scratch 2026-08-01 on the 15-entry output list; the old L1 (266 outputs, 2.1 TB, never finished) was deleted"
 42189 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "regression reference: reproduces halo42189-manual exactly (cycle 1208, bit-identical ICs); L1 predates the 15-entry output list, mixed cadence accepted"
 51541 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "started fresh"
 79628 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "started fresh"
