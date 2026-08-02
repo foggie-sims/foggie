@@ -24,3 +24,8 @@ halo_id box enabled final_level gas rvir_min queue nodes model notes
 51541 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "started fresh"
 79628 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "started fresh"
 80181 25Mpc_DM_512 True 4 False 0.0 normal 1 mil_ait "started fresh"
+52675 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "isolated field dwarf: Theta 10.25, no more massive halo within 33 Rvir_host"
+15659 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "isolated field dwarf: 717 particles, Theta 10.26, d_host 31.9 Rvir"
+48014 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "isolated field dwarf: Theta 10.48, d_host 30.1 Rvir"
+56672 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "void dwarf: nothing at all within 1 Mpc, nearest halo of any mass 1.2 Mpc"
+47314 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "isolated field dwarf: Theta 10.26, d_host 26.1 Rvir"
