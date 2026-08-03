@@ -59,7 +59,10 @@ DataDumpName     = DD
 RedshiftDumpName = RD
 RedshiftDumpDir  = RD
 
-dtDataDump 	 = 1        // gas runs dump on a cadence for analysis, unlike DM
+dtDataDump 	 = 0        // no periodic DD dumps: the 266-entry redshift list
+                          // below already provides the analysis cadence, and
+                          // DD dumps merely duplicate it at ~28 TB per run.
+                          // dtRestartDump still checkpoints before the wall.
 dtRestartDump    = 388800  // wallclock checkpoint before the PBS wall
 
 OutputCoolingTime                        = 1

@@ -371,21 +371,15 @@ L3 gas file rather than being merged across levels.
 
 .. warning::
 
-   **A gas run writes about 40 TB if nothing is deleted**, and that is the
-   number to budget against, not the 12 TB a finished run appears to occupy.
+   **A gas run is about 12 TB** -- 266 ``RD`` dumps at 47--56 GB each, growing
+   as structure forms. Check your quota before enabling one, and enable them one
+   at a time.
 
-   Two things are writing snapshots, and they are roughly the same size --
-   47--56 GB each, growing as structure forms:
-
-   * the 266-entry ``CosmologyOutputRedshift`` list, giving 266 ``RD`` dumps
-     (~12 TB);
-   * ``dtDataDump = 1``, giving a ``DD`` dump every code time unit -- 609 of
-     them in the reference run (~28 TB).
-
-   The completed runs *look* like 12 TB because their ``DD`` dumps were deleted
-   afterwards; their ``OutputLog`` still records all 609. Plan either to delete
-   ``DD`` dumps periodically, as was done for those runs, or to raise
-   ``dtDataDump`` before starting. Enable one gas halo at a time regardless.
+``dtDataDump`` is **0** for gas, as it is for DM. The 266-entry redshift list
+already provides the analysis cadence, so periodic ``DD`` dumps only duplicate
+it -- the reference run wrote 609 of them, about 28 TB, and they were deleted
+afterwards. ``dtRestartDump`` still writes one wallclock checkpoint per job, so
+a walltime kill does not lose the work back to the last redshift dump.
 
 Do **not** bring the two output lists into step. They differ deliberately:
 ``DM-LX.enzo`` keeps a 15-entry list, and ``gas-LX.enzo`` carries the 266-entry

@@ -83,12 +83,11 @@ raises on a MUSIC failure instead of continuing silently.
   given the plain one. The `RunFinished` written at z = 15 is a false positive for completion —
   the handoff deletes it and keys off `gas_transition.done` instead, because
   the second leg ends by writing `RunFinished` too.
-* A gas run writes about 40 TB if nothing is deleted: 266 `RD` dumps from the
-  redshift list (~12 TB) plus a `DD` dump per code time unit from
-  `dtDataDump = 1` — 609 of them in the reference run (~28 TB), at the same
-  47–56 GB apiece. A finished run *looks* like 12 TB only because its `DD`
-  dumps were deleted afterwards; its `OutputLog` still lists all 609. Budget
-  against 40 TB, enable one gas halo at a time, and plan to clean `DD` dumps.
+* A gas run is about 12 TB: 266 `RD` dumps at 47–56 GB each. `dtDataDump` is 0
+  for gas as well as DM — the redshift list supplies the cadence, so periodic
+  `DD` dumps only duplicate it. The reference run wrote 609 of them (~28 TB)
+  and they were deleted afterwards, which is why its `OutputLog` lists far more
+  outputs than survive on disk. Enable one gas halo at a time.
 * The `z = 15` entry in the 266-entry redshift list is load-bearing — it is
   what the second leg restarts from. Do not trim the list.
 * A `STALLED` stage is never restarted automatically, by anything. Use
