@@ -75,6 +75,18 @@ raises on a MUSIC failure instead of continuing silently.
   MUSIC config at the same level, not on that level's Enzo run, so it runs in
   parallel with it. L2 must be done before L3-gas is possible, because that is
   what allows the L3 config to be written.
+* A gas run is two legs, not one. It stops at z = 15, where Grackle's cooling
+  switches from unshielded to self-shielded, and `RunScript.sh` rewrites four
+  parameters into the restart file and continues to z = 0 inside the same PBS
+  job. The `RunFinished` written at z = 15 is a false positive for completion —
+  the handoff deletes it and keys off `gas_transition.done` instead, because
+  the second leg ends by writing `RunFinished` too.
+* A gas run is about 12 TB against a DM run's fraction of that: 266 outputs at
+  roughly 47 GB. Enable one at a time and check the quota first.
+* `dtDataDump` does not supply the gas analysis cadence, despite being set. All
+  16 completed gas runs took their outputs from the 266-entry redshift list and
+  wrote essentially no `DD` dumps. The `z = 15` entry in that list is
+  load-bearing — it is what the second leg restarts from.
 * A `STALLED` stage is never restarted automatically, by anything. Use
   `resume` once you have fixed whatever stopped it. This matters after a
   shared outage such as a full filesystem, which stalls every running stage at

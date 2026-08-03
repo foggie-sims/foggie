@@ -369,11 +369,76 @@ their own ``gas-LX.enzo`` template. That template is not a collapsed copy of
 the DM one: the gas physics genuinely differs by level, so it derives from the
 L3 gas file rather than being merged across levels.
 
-.. note::
+.. warning::
 
-   Gas snapshots are much larger than DM ones at the same level, so the
-   redshift output list matters far more for a gas run. Keep ``gas-LX.enzo``
-   and ``DM-LX.enzo`` in step unless you have a reason not to.
+   **A gas run is about 12 TB.** It writes 266 outputs at roughly 47 GB each,
+   against a DM run's 15. Check your quota before enabling one, and enable them
+   one at a time -- three concurrent gas runs will fill a 459 TB allocation that
+   also holds the DM ladders.
+
+Do **not** bring the two output lists into step. They differ deliberately:
+``DM-LX.enzo`` keeps a 15-entry list, and ``gas-LX.enzo`` carries the 266-entry
+list every completed gas run used. ``dtDataDump`` does not make up the
+difference -- it is set for the gas runs and they still wrote essentially no
+``DD`` dumps, taking their cadence entirely from the redshift list. Trimming it
+would leave a gas run with about fifteen usable snapshots, and would also
+remove the output at *z* = 15 that the next section depends on.
+
+The z = 15 cooling transition
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Grackle's cooling changes character around *z* = 15, where self-shielding
+starts to matter. A gas run is therefore **two legs**, not one:
+
+* **First leg**, *z* = 99 to 15, with unshielded cooling. The template ships
+  ``H2FormationOnDust``, ``self_shielding_method`` and ``H2_self_shielding`` all
+  at 0, and ``CosmologyFinalRedshift`` at 15.
+* **Second leg**, *z* = 15 to 0, with those set to 1, 3 and 1 and
+  ``CosmologyFinalRedshift`` at 0.
+
+Enzo cannot change these mid-run, so the handoff is: stop, rewrite the restart
+parameter file, restart. This used to be a hand edit between two submissions --
+and nothing recorded that it was needed. The pipeline now does it
+automatically, inside the same PBS job, and you should not have to touch it.
+
+What happens in the run directory, in order:
+
+#. Enzo reaches *z* = 15, writes its dump, and writes ``RunFinished``.
+#. ``simrun.pl`` sees ``RunFinished`` and exits normally.
+#. ``RunScript.sh`` notices the run stopped at the transition rather than at the
+   end, writes a ``new_pars`` file with the four parameters, deletes
+   ``RunFinished``, and records ``gas_transition.done``.
+#. It calls ``simrun.pl`` again. ``simrun.pl`` applies ``new_pars`` to the
+   restart parameter file, renames it ``new_pars.old`` so it cannot be applied
+   twice, and restarts Enzo from the *z* = 15 dump.
+
+So a healthy gas run leaves both ``gas_transition.done`` and ``new_pars.old``
+behind, and ``run.log`` records the switch::
+
+    Switching H2FormationOnDust to 1.
+    Switching self_shielding_method to 3.
+    Switching H2_self_shielding to 1.
+    Switching CosmologyFinalRedshift to 0.
+
+Two details worth knowing if you are debugging one:
+
+* ``RunFinished`` at *z* = 15 is a **false positive** for completion --
+  ``simrun.pl`` reads it as "done" and so does this pipeline's state machine.
+  That is why the handoff deletes it. The block keys off
+  ``gas_transition.done``, not off ``RunFinished``, because the second leg ends
+  by writing ``RunFinished`` too; keying off the latter would loop forever.
+* ``simrun.pl`` restarts its own walltime clock on each invocation, so the
+  second leg is given only what the job has left. If that is under
+  ``gas_transition_min_seconds`` (default 1800), the handoff still happens but
+  the leg is left to a fresh submission rather than started with too little time
+  to reach an output.
+
+The stop redshift and the four parameters live in ``config.Box`` as
+``gas_stop_redshift`` and ``gas_transition_pars``, so the ``.enzo`` template and
+the shell block cannot disagree about where the run stops. The names are
+applied verbatim to the parameter file: a misspelling is silently ignored by
+Enzo rather than raising an error, so check any change against
+``ReadParameterFile.C``.
 
 Running the poller
 ~~~~~~~~~~~~~~~~~~
@@ -582,6 +647,35 @@ If you change a template, re-approve it::
 The check compares against an approved baseline under
 ``templates_512/baseline/``, so an intentional edit is approved once while an
 accidental change to a refinement or cosmology parameter still fails.
+
+Gas physics parameters
+~~~~~~~~~~~~~~~~~~~~~~
+
+``gas-LX.enzo`` carries the star formation and feedback physics; the DM template
+has none of it. A few things about it are easy to get wrong, and Enzo will not
+tell you:
+
+* ``StarParticleCreation = 2048`` selects the H2-regulated star maker
+  (``star_maker_h2reg``). Its efficiency parameter is
+  ``H2StarMakerEfficiency``. **StarMakerMassEfficiency is not passed to that
+  routine at all** and has no effect here, despite looking like it should --
+  check the call site in ``Grid_StarParticleHandler.C`` before tuning either.
+* ``StarMakerMinimumMass`` is the one to set. ``H2StarMakerMinimumMass`` is
+  deprecated and setting it explicitly is a hard failure; Enzo copies
+  ``StarMakerMinimumMass`` into it.
+* Several ``H2StarMaker*`` parameters in the template restate Enzo's defaults
+  explicitly. That is deliberate -- it keeps the physics visible in the
+  parameter file rather than implied by the build.
+* ``gas_max_refine_level`` in the box config feeds ``MaximumRefinementLevel``,
+  ``MaximumGravityRefinementLevel`` and ``MaximumParticleRefinementLevel``
+  together. It is **7** while the gas path is under test, matching the
+  hand-built runs; 9 is the eventual target and should be adopted deliberately.
+
+When comparing a generated parameter file against one of the older hand-built
+gas runs, expect these to differ legitimately: ``dtRestartDump`` is set here and
+was not there, and ``MinimumOverDensityForRefinement`` follows the same
+divide-by-8-per-level rule as the DM ladder, which the hand-built gas runs did
+not apply.
 
 
 Command reference
