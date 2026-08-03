@@ -144,9 +144,15 @@ class Box:
     # and must never run on a login node.
     build_select: str = "1:ncpus=64:mpiprocs=1:model=mil_ait"
     build_walltime: str = "2:00:00"
-    build_queue: str = "devel"
-    # Poller resources.  Deliberately NOT devel: the IC build jobs use devel,
-    # and a poller waking every 30 minutes should not compete with them for it.
+    # normal, not devel.  devel allows one job per user at a time
+    # (max_queued = max_run = [u:PBS_GENERIC=1]), so a batch of IC builds
+    # serialises behind itself and, worse, occupies the one devel slot that
+    # interactive and test work needs.  normal caps at 8 h, comfortably above
+    # the 2 h a build needs, and imposes no per-user run limit here.
+    build_queue: str = "normal"
+    # Poller resources.  Deliberately NOT devel: a poller waking every 30
+    # minutes must not consume the single devel slot, which is reserved for
+    # interactive and test work rather than anything this pipeline submits.
     poll_select: str = "1:ncpus=1:model=mil_ait"
     poll_walltime: str = "00:10:00"
     poll_queue: str = "normal"
