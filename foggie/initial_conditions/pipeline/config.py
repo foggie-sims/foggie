@@ -110,11 +110,23 @@ class Box:
     # submission rather than burning the remainder on a run that cannot reach
     # an output.
     gas_transition_min_seconds: int = 1800
+    #
+    # grackle_data_file is part of the transition and not an afterthought:
+    # self_shielding_method = 3 needs the shielding datasets under
+    # /UVBRates/CrossSections/, which CloudyData_UVB=HM2012.h5 does not carry.
+    # Grackle does not fall back -- it aborts in initialize_chemistry_data with
+    # "In order to use self-shielding, you must use the shielding datasets", so
+    # the second leg dies seconds after restarting.  The hand-built radius3 run
+    # switched the table at the same restart it switched the other four; its
+    # RD0000 names the plain table and its RD0006, at z = 15, the shielded one.
     gas_transition_pars: tuple = (
         ("H2FormationOnDust", "1"),
         ("self_shielding_method", "3"),
         ("H2_self_shielding", "1"),
         ("CosmologyFinalRedshift", "0"),
+        ("grackle_data_file",
+         "/u/jtumlins/grackle/grackle-3.3.1-dev/grackle_data_files/input/"
+         "CloudyData_UVB=HM2012_shielded.h5"),
     )
     # Fraction of the PBS walltime after which Enzo writes a restart dump and
     # stops.  Must leave room to write the dump before the scheduler kills the
@@ -231,6 +243,13 @@ def box_problems(box):
                 problems.append("template missing: %s" % os.path.join(template_dir, f))
     if not os.path.exists(box.catalog_path()):
         problems.append("halo catalog missing: %s" % box.catalog_path())
+    # Any file named in the gas transition has to exist before the run reaches
+    # z = 15, not after.  Getting this wrong costs the whole first leg: the
+    # handoff fires, Grackle refuses the table, and the second leg dies seconds
+    # into a restart that already consumed hours of compute.
+    for key, value in box.gas_transition_pars:
+        if key.endswith("_file") and not os.path.exists(value):
+            problems.append("gas transition %s missing: %s" % (key, value))
     return problems
 
 

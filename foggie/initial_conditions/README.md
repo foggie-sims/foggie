@@ -76,9 +76,11 @@ raises on a MUSIC failure instead of continuing silently.
   parallel with it. L2 must be done before L3-gas is possible, because that is
   what allows the L3 config to be written.
 * A gas run is two legs, not one. It stops at z = 15, where Grackle's cooling
-  switches from unshielded to self-shielded, and `RunScript.sh` rewrites four
+  switches from unshielded to self-shielded, and `RunScript.sh` rewrites five
   parameters into the restart file and continues to z = 0 inside the same PBS
-  job. The `RunFinished` written at z = 15 is a false positive for completion —
+  job. The fifth is `grackle_data_file`: `self_shielding_method = 3` requires
+  the `_shielded` table, and Grackle aborts rather than falling back if it is
+  given the plain one. The `RunFinished` written at z = 15 is a false positive for completion —
   the handoff deletes it and keys off `gas_transition.done` instead, because
   the second leg ends by writing `RunFinished` too.
 * A gas run writes about 40 TB if nothing is deleted: 266 `RD` dumps from the

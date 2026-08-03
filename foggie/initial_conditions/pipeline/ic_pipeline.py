@@ -785,7 +785,11 @@ def main(argv=None):
     p = sub.add_parser("poll", help="one sweep of every halo; --install to run it periodically")
     p.add_argument("--registry", default=None)
     p.add_argument("--box", default=config.DEFAULT_BOX)
-    p.add_argument("--include-gas", action="store_true")
+    # Matches `status` and `advance`, which include gas unless told not to.
+    # The opt-in form here meant `resume --halo X` silently did nothing for a
+    # stalled gas stage -- the one command you reach for when a gas run dies.
+    p.add_argument("--no-gas", dest="include_gas", action="store_false", default=True,
+                   help="skip the gas stage")
     p.add_argument("--interval", type=int, default=30, help="minutes between sweeps")
     p.add_argument("--install-at", action="store_true",
                    help="self-rescheduling `at` chain on the front end (preferred: "
@@ -820,7 +824,11 @@ def main(argv=None):
                        help="resubmit STALLED stages, after fixing whatever stopped them")
     p.add_argument("--halo", default=None, help="one halo; omit for every enabled halo")
     p.add_argument("--registry", default=None)
-    p.add_argument("--include-gas", action="store_true")
+    # Matches `status` and `advance`, which include gas unless told not to.
+    # The opt-in form here meant `resume --halo X` silently did nothing for a
+    # stalled gas stage -- the one command you reach for when a gas run dies.
+    p.add_argument("--no-gas", dest="include_gas", action="store_false", default=True,
+                   help="skip the gas stage")
     p.add_argument("--dry-run", action="store_true")
     p.set_defaults(func=cmd_resume)
 

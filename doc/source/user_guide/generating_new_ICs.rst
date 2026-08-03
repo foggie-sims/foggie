@@ -401,9 +401,22 @@ starts to matter. A gas run is therefore **two legs**, not one:
 
 * **First leg**, *z* = 99 to 15, with unshielded cooling. The template ships
   ``H2FormationOnDust``, ``self_shielding_method`` and ``H2_self_shielding`` all
-  at 0, and ``CosmologyFinalRedshift`` at 15.
-* **Second leg**, *z* = 15 to 0, with those set to 1, 3 and 1 and
-  ``CosmologyFinalRedshift`` at 0.
+  at 0, ``CosmologyFinalRedshift`` at 15, and ``grackle_data_file`` pointing at
+  ``CloudyData_UVB=HM2012.h5``.
+* **Second leg**, *z* = 15 to 0, with those set to 1, 3 and 1,
+  ``CosmologyFinalRedshift`` at 0, and ``grackle_data_file`` switched to
+  ``CloudyData_UVB=HM2012_shielded.h5``.
+
+.. important::
+
+   The Grackle table switch is **part of the transition, not an accessory to
+   it.** ``self_shielding_method = 3`` needs the shielding datasets under
+   ``/UVBRates/CrossSections/``, which the plain ``HM2012`` table does not
+   carry. Grackle does not fall back to anything -- it aborts in
+   ``initialize_chemistry_data`` with *"In order to use self-shielding, you must
+   use the shielding datasets"*, and the second leg dies within seconds of a
+   restart that has already cost hours of compute. ``validate-registry`` now
+   checks that every file named in ``gas_transition_pars`` exists.
 
 Enzo cannot change these mid-run, so the handoff is: stop, rewrite the restart
 parameter file, restart. This used to be a hand edit between two submissions --
