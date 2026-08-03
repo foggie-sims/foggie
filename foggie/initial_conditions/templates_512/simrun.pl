@@ -17,7 +17,10 @@ $job_name = join "/", (split "/", $cdir)[-2 .. -1];
 $email_address = 'tumlinson@stsci.edu'; # put email in singe quotes
 $job_file = "run_enzo.qsub";
 $parameter_file = (glob("*.enzo"))[0];
-$enzo_executable = "/nobackupnfs1/jtumlins/enzo-foggie-opthigh/src/enzo/enzo.exe"; 
+# Fallback only: RunScript.sh always passes -exe, rendered from the box's
+# enzo_exe in pipeline/config.py.  Kept in sync with it so a hand-run
+# simrun.pl in a stage directory does not silently pick a different binary.
+$enzo_executable = "/nobackupnfs1/jtumlins/enzo-cic_deposit_fix/src/enzo/enzo.exe";
 $walltime = 360000;
 
 while ($arg = shift @ARGV) {

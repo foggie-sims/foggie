@@ -20,7 +20,7 @@
 # schema: astropy-2.0
 halo_id box enabled final_level gas rvir_min queue nodes model notes
 42189 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "regression reference: reproduces halo42189-manual exactly (cycle 1208, bit-identical ICs); L1 predates the 15-entry output list, mixed cadence accepted"
-51541 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "started fresh"
+51541 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "L3 segfaulted in RebuildHierarchy (cic_deposit OOB, fixed by 0713af80); resumed on enzo-cic_deposit_fix"
 79628 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "started fresh"
 80181 25Mpc_DM_512 True 4 False 0.0 normal 1 mil_ait "started fresh"
 52675 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "isolated field dwarf: Theta 10.25, no more massive halo within 33 Rvir_host"

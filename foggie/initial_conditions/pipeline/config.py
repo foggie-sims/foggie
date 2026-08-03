@@ -65,7 +65,13 @@ class Box:
     # Rvir floor in kpc, or None for no floor.  script256.py floored at 200 kpc
     # and script512.py did not; that difference was silent.
     rvir_floor_kpc: float = None
-    enzo_exe: str = "/nobackupnfs1/jtumlins/enzo-foggie-aitken-mpich/src/enzo/enzo.exe"
+    # enzo-cic_deposit_fix is enzo-foggie-aitken-mpich plus 0713af80, which
+    # fixes an out-of-bounds write in cic_deposit.F when cloudsize < cellsize
+    # -- a subgrid deposited onto a coarser parent ran one k-plane past the end
+    # of the field array.  That is a deep-hierarchy condition, which is why it
+    # showed up as a segfault inside RebuildHierarchy at level 5 and only on
+    # the L3 stages.  Do not point this back at the unfixed tree.
+    enzo_exe: str = "/nobackupnfs1/jtumlins/enzo-cic_deposit_fix/src/enzo/enzo.exe"
     music_exe_dir: str = None       # defaults to FOGGIE_REPO/initial_conditions/music
     email: str = "tumlinson@stsci.edu"
     group_list: str = "s3128"
