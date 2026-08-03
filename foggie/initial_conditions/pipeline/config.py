@@ -86,8 +86,12 @@ class Box:
     gas_select: str = "1:ncpus=128:mpiprocs=128:model=mil_ait"
     gas_nranks: int = 128
     gas_walltime: str = "120:00:00"
-    # Maximum refinement level for gas runs (__MAX_REFINE_LEVEL__).
-    gas_max_refine_level: int = 9
+    # Maximum refinement level for gas runs.  Feeds MaximumRefinementLevel,
+    # MaximumGravityRefinementLevel and MaximumParticleRefinementLevel alike
+    # (__MAX_REFINE_LEVEL__).  7 while the gas path is being tested, matching
+    # every hand-built gas run on disk; 9 is the eventual target and should be
+    # adopted deliberately, not drifted into.
+    gas_max_refine_level: int = 7
     # Gas runs are done in two legs.  Grackle's cooling changes character at
     # z = 15, where self-shielding starts to matter, so the first leg runs with
     # unshielded cooling and stops there; the parameters below are then written

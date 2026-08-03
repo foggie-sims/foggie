@@ -94,9 +94,9 @@ ParticleCourantSafetyNumber     = 0.5
 #  set grid refinement parameters
 #
 StaticHierarchy                = 0    // dynamic hierarchy
-MaximumRefinementLevel         = 9
-MaximumGravityRefinementLevel  = 9
-MaximumParticleRefinementLevel = 9
+MaximumRefinementLevel         = 7
+MaximumGravityRefinementLevel  = 7
+MaximumParticleRefinementLevel = 7
 RefineBy                       = 2    // refinement factor
 CellFlaggingMethod             = 2 4 8 
 MinimumEfficiency              = 0.4  // fraction efficiency
