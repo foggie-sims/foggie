@@ -465,6 +465,49 @@ def build_stage(box, halo_id, level, phase="DM", dry_run=False, adopt=False,
     return submit_enzo_run(box, halo_id, level, phase, dry_run=dry_run)
 
 
+_EXE_RE = re.compile(r'(-exe\s+")([^"]*)(")')
+
+
+def sync_runscript_exe(box, runscript, dry_run=False):
+    """Repoint a rendered RunScript.sh at the box's current enzo_exe.
+
+    Rendering happens once, at build time; submission can happen much later, and
+    a stage can be resubmitted many times over its life by simrun.pl.  So the
+    binary named in a RunScript.sh is a snapshot of whatever config.py said when
+    that one file was written, and changing config.enzo_exe does not reach the
+    stages already on disk.
+
+    That is not hypothetical.  When enzo_exe moved to enzo-cic_deposit_fix, a
+    build job for halo75392 L2 was already running with the old value imported
+    into memory; it wrote its RunScript.sh four minutes after the config change
+    and named the unfixed binary.  A stage built during any such window would
+    have quietly kept running the tree the fix was meant to retire.
+
+    Checking here, immediately before qsub, makes config.enzo_exe the single
+    point of control for every submission regardless of when the stage was
+    built.  Returns True if the file was changed.
+    """
+    with open(runscript) as f:
+        text = f.read()
+    match = _EXE_RE.search(text)
+    if not match:
+        print("  WARNING: no -exe line in %s; cannot verify the Enzo binary" % runscript)
+        return False
+    current = match.group(2)
+    if current == box.enzo_exe:
+        return False
+    if dry_run:
+        print("    [dry-run] would repoint %s\n      %s -> %s"
+              % (runscript, current, box.enzo_exe))
+        return False
+    with open(runscript, "w") as f:
+        f.write(text[:match.start()] + match.group(1) + box.enzo_exe + match.group(3)
+                + text[match.end():])
+    print("  repointed Enzo binary in %s\n    was %s\n    now %s"
+          % (runscript, current, box.enzo_exe))
+    return True
+
+
 def submit_enzo_run(box, halo_id, level, phase="DM", dry_run=False):
     """Submit the Enzo run for a stage whose ICs already exist.
 
@@ -472,6 +515,8 @@ def submit_enzo_run(box, halo_id, level, phase="DM", dry_run=False):
     ICs were generated but whose run was never started -- without regenerating
     the initial conditions.
     """
+    # NOTE: sync_runscript_exe below is what keeps the binary a single point of
+    # control.  See its docstring for why rendering alone is not enough.
     halo_dir = box.halo_dir(halo_id)
     stage_dir = box.stage_dir(halo_id, level, phase)
     runscript = os.path.join(stage_dir, "RunScript.sh")
@@ -479,6 +524,7 @@ def submit_enzo_run(box, halo_id, level, phase="DM", dry_run=False):
         raise RuntimeError("No RunScript.sh in %s; the ICs are not built" % stage_dir)
     check_queue_fits(box.queue, box.gas_walltime if phase == "gas" else box.dm_walltime,
                      "halo %s %s" % (halo_id, ledger.stage_key(level, phase)))
+    sync_runscript_exe(box, runscript, dry_run=dry_run)
 
     if dry_run:
         print("    [dry-run] qsub -koed RunScript.sh   (in %s)" % stage_dir)
