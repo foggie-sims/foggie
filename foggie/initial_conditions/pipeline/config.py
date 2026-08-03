@@ -83,15 +83,16 @@ class Box:
     dm_select: str = "1:ncpus=64:mpiprocs=64:model=mil_ait"
     dm_nranks: int = 64
     dm_walltime: str = "24:00:00"
-    # 16 ranks on a 128-core node, not 128.  The node is reserved whole and only
-    # an eighth of it runs MPI, which buys each rank eight cores' worth of
-    # memory.  That is what the gas runs that actually completed used --
-    # halo42177's L2-gas is 1:ncpus=128:mpiprocs=16 and halo46205's is
-    # 4:ncpus=16:mpiprocs=16.  Packing 128 ranks onto one node instead got
-    # halo42189's L3-gas killed with signal 9 eighty-five minutes into its
-    # second leg, having reached z = 14.8 with no output written.
-    gas_select: str = "1:ncpus=128:mpiprocs=16:model=mil_ait"
-    gas_nranks: int = 16
+    # Full node, 128 ranks.  This is what every completed gas run used:
+    # halo15134's L3-gas and halo42189-manual's L3-gas-radius3 both ran -np 128
+    # on 1:ncpus=128:mpiprocs=128 to 266 and 258 outputs respectively.
+    #
+    # Do not read halo42177's L2-gas PBS line as a counterexample.  It says
+    # mpiprocs=16 but its mpiexec line says -np 128, and the mpiexec line is
+    # what sets the rank count; the select line there is vestigial.  No gas run
+    # on disk has ever completed on fewer than 64 ranks.
+    gas_select: str = "1:ncpus=128:mpiprocs=128:model=mil_ait"
+    gas_nranks: int = 128
     gas_walltime: str = "120:00:00"
     # Maximum refinement level for gas runs.  Feeds MaximumRefinementLevel,
     # MaximumGravityRefinementLevel and MaximumParticleRefinementLevel alike

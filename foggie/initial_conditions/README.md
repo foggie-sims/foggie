@@ -75,11 +75,10 @@ raises on a MUSIC failure instead of continuing silently.
   MUSIC config at the same level, not on that level's Enzo run, so it runs in
   parallel with it. L2 must be done before L3-gas is possible, because that is
   what allows the L3 config to be written.
-* Gas runs reserve a whole node and run few ranks on it: `gas_select` is
-  `1:ncpus=128:mpiprocs=16`, giving each rank eight cores' worth of memory.
-  Packing 128 ranks onto one node got halo42189's L3 gas run killed with
-  signal 9. If a gas run dies with signal 9 and no output, lower `gas_nranks`
-  first.
+* Gas runs use a full node at 128 ranks, like every completed gas run on disk.
+  Note that `halo42177`'s L2-gas PBS line says `mpiprocs=16` while its mpiexec
+  line says `-np 128` — the mpiexec line is what sets the rank count, and the
+  select line there is vestigial. Do not read it as evidence for few ranks.
 * IC build jobs go to `normal`, not `devel`. devel allows one job per user at a
   time, so a batch of builds serialises behind itself and occupies the slot
   other people need.

@@ -371,19 +371,6 @@ template is not a collapsed copy of the DM one: the gas physics genuinely
 differs by level, so it derives from the L3 gas file rather than being merged
 across levels.
 
-.. important::
-
-   **Gas runs reserve a whole node but run few ranks on it.** ``gas_select`` is
-   ``1:ncpus=128:mpiprocs=16``: the node is held entirely, and only sixteen MPI
-   ranks run on it, so each rank has eight cores' worth of memory. That is not
-   waste, it is the point. Gas runs carry chemistry, cooling and star particles
-   that a DM run does not, and packing 128 ranks onto one node got halo42189's
-   L3 gas run killed with signal 9 eighty-five minutes into its second leg. The
-   hand-built gas runs that completed used the same trick --
-   ``1:ncpus=128:mpiprocs=16`` for halo42177, ``4:ncpus=16:mpiprocs=16`` for
-   halo46205. If a gas run dies with signal 9 and no output, lower
-   ``gas_nranks`` before suspecting anything subtler.
-
 .. warning::
 
    **A gas run is 8--12 TB** -- 266 ``RD`` dumps, growing as structure forms:
