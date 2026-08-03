@@ -75,6 +75,14 @@ raises on a MUSIC failure instead of continuing silently.
   MUSIC config at the same level, not on that level's Enzo run, so it runs in
   parallel with it. L2 must be done before L3-gas is possible, because that is
   what allows the L3 config to be written.
+* Gas runs reserve a whole node and run few ranks on it: `gas_select` is
+  `1:ncpus=128:mpiprocs=16`, giving each rank eight cores' worth of memory.
+  Packing 128 ranks onto one node got halo42189's L3 gas run killed with
+  signal 9. If a gas run dies with signal 9 and no output, lower `gas_nranks`
+  first.
+* IC build jobs go to `normal`, not `devel`. devel allows one job per user at a
+  time, so a batch of builds serialises behind itself and occupies the slot
+  other people need.
 * A gas run is two legs, not one. It stops at z = 15, where Grackle's cooling
   switches from unshielded to self-shielded, and `RunScript.sh` rewrites five
   parameters into the restart file and continues to z = 0 inside the same PBS
@@ -83,7 +91,8 @@ raises on a MUSIC failure instead of continuing silently.
   given the plain one. The `RunFinished` written at z = 15 is a false positive for completion —
   the handoff deletes it and keys off `gas_transition.done` instead, because
   the second leg ends by writing `RunFinished` too.
-* A gas run is about 12 TB: 266 `RD` dumps at 47–56 GB each. `dtDataDump` is 0
+* A gas run is 8–12 TB: 266 `RD` dumps, ~36 GB each at L2 and 47–56 GB at L3.
+  `dtDataDump` is 0
   for gas as well as DM — the redshift list supplies the cadence, so periodic
   `DD` dumps only duplicate it. The reference run wrote 609 of them (~28 TB)
   and they were deleted afterwards, which is why its `OutputLog` lists far more

@@ -181,8 +181,10 @@ loads the previous level's Enzo outputs to work out which particles end up in
 the halo. That dependency is why the old workflow needed a human at every
 level, and it is the thing the pipeline automates.
 
-The default ladder is ``L1-DM -> L2-DM -> L3-DM``, with a gas run at the final
-level for halos whose registry row asks for one.
+The ladder runs ``L1-DM`` up to the row's ``final_level``, with a gas run at
+that final level for halos whose registry row asks for one. ``final_level = 3``
+gives ``L1-DM -> L2-DM -> L3-DM``; the gas testing currently in flight uses
+``final_level = 2``, which is cheaper in both memory and disk.
 
 The gas stage is **not** the next rung of that ladder. It hangs off the DM
 build at the same level and runs alongside the DM run -- see `The gas stage`_.
@@ -364,16 +366,30 @@ the config exists the stage reports what it is waiting for::
     halo 42189 L3-gas is BLOCKED -- waiting on 25Mpc_DM_512-L3.conf
 
 Gas runs get their own PBS resources (``gas_select``, ``gas_nranks``,
-``gas_walltime`` in the box config), which are larger than the DM ones, and
-their own ``gas-LX.enzo`` template. That template is not a collapsed copy of
-the DM one: the gas physics genuinely differs by level, so it derives from the
-L3 gas file rather than being merged across levels.
+``gas_walltime`` in the box config) and their own ``gas-LX.enzo`` template. That
+template is not a collapsed copy of the DM one: the gas physics genuinely
+differs by level, so it derives from the L3 gas file rather than being merged
+across levels.
+
+.. important::
+
+   **Gas runs reserve a whole node but run few ranks on it.** ``gas_select`` is
+   ``1:ncpus=128:mpiprocs=16``: the node is held entirely, and only sixteen MPI
+   ranks run on it, so each rank has eight cores' worth of memory. That is not
+   waste, it is the point. Gas runs carry chemistry, cooling and star particles
+   that a DM run does not, and packing 128 ranks onto one node got halo42189's
+   L3 gas run killed with signal 9 eighty-five minutes into its second leg. The
+   hand-built gas runs that completed used the same trick --
+   ``1:ncpus=128:mpiprocs=16`` for halo42177, ``4:ncpus=16:mpiprocs=16`` for
+   halo46205. If a gas run dies with signal 9 and no output, lower
+   ``gas_nranks`` before suspecting anything subtler.
 
 .. warning::
 
-   **A gas run is about 12 TB** -- 266 ``RD`` dumps at 47--56 GB each, growing
-   as structure forms. Check your quota before enabling one, and enable them one
-   at a time.
+   **A gas run is 8--12 TB** -- 266 ``RD`` dumps, growing as structure forms:
+   roughly 36 GB each at L2 and 47--56 GB at L3. Check your quota before
+   enabling one, and enable a few at a time rather than the whole registry. Ten
+   halos at once is how the filesystem filled and stalled every running job.
 
 ``dtDataDump`` is **0** for gas, as it is for DM. The 266-entry redshift list
 already provides the analysis cadence, so periodic ``DD`` dumps only duplicate
@@ -712,7 +728,10 @@ most take ``--dry-run``.
 
 ``resume``
     Resubmit ``STALLED`` stages after fixing whatever stopped them. ``--halo``,
-    ``--dry-run``. Never called automatically; see `Recovering a stalled run`_.
+    ``--dry-run``, ``--no-gas``. Gas stages are included by default -- they were
+    not always, and a ``resume`` that silently skipped a stalled gas run was
+    confusing enough to be worth stating. Never called automatically; see
+    `Recovering a stalled run`_.
 
 ``build``
     Generate ICs for one stage and submit it. ``--halo``, ``--level``,
@@ -722,7 +741,7 @@ most take ``--dry-run``.
 
 ``poll``
     One sweep. ``--install-at`` to start the recurring chain, ``--interval``,
-    ``--notify``.
+    ``--notify``, ``--no-gas``.
 
 ``qc``
     Diagnostic plots per level, centred on the halo, with a contamination
@@ -730,7 +749,8 @@ most take ``--dry-run``.
 
 ``validate-registry``
     Check the registry parses, every halo resolves in the catalog, and report
-    the effective zoom radius for each.
+    the effective zoom radius for each. Also checks that files named in the box
+    config exist, including the Grackle table the gas transition switches to.
 
 ``validate-templates``
     Check the templates render as approved. ``--rebaseline`` to approve the
