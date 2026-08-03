@@ -88,6 +88,30 @@ class Box:
     gas_walltime: str = "120:00:00"
     # Maximum refinement level for gas runs (__MAX_REFINE_LEVEL__).
     gas_max_refine_level: int = 9
+    # Gas runs are done in two legs.  Grackle's cooling changes character at
+    # z = 15, where self-shielding starts to matter, so the first leg runs with
+    # unshielded cooling and stops there; the parameters below are then written
+    # into the restart file and the second leg continues to z = 0.  This was
+    # previously a hand edit between two submissions -- halo42189-manual's
+    # radius3 run shows RD0000 at z=99 with all three shielding parameters 0 and
+    # RD0257 at z=0.06 with 1/3/1, but nothing recorded that it had to be done.
+    #
+    # gas_stop_redshift is CosmologyFinalRedshift for the first leg.  The pairs
+    # are applied verbatim to the restart parameter file via simrun.pl's
+    # `new_pars` mechanism, so the names must match ReadParameterFile.C exactly:
+    # a misspelling is not an error, it is silently ignored.
+    gas_stop_redshift: float = 15.0
+    # Least walltime worth starting the second leg with inside the same job.
+    # Below this the transition still happens, but the leg is left to a fresh
+    # submission rather than burning the remainder on a run that cannot reach
+    # an output.
+    gas_transition_min_seconds: int = 1800
+    gas_transition_pars: tuple = (
+        ("H2FormationOnDust", "1"),
+        ("self_shielding_method", "3"),
+        ("H2_self_shielding", "1"),
+        ("CosmologyFinalRedshift", "0"),
+    )
     # Fraction of the PBS walltime after which Enzo writes a restart dump and
     # stops.  Must leave room to write the dump before the scheduler kills the
     # job; 0.9 of 24 h is 21.6 h.

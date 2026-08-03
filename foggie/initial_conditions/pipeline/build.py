@@ -76,6 +76,12 @@ def restart_dump_seconds(box, phase="DM"):
     return int(total * box.restart_dump_fraction)
 
 
+def _fmt_redshift(z):
+    """15.0 -> "15".  Enzo parses either, but the parameter files are read by
+    people and a stray .0 invites the question of whether it matters."""
+    return str(int(z)) if float(z) == int(z) else repr(float(z))
+
+
 def enzo_keywords(box, level, phase="DM", grid_parameters=""):
     """Keyword table for the .enzo templates."""
     kw = {
@@ -87,6 +93,10 @@ def enzo_keywords(box, level, phase="DM", grid_parameters=""):
     if phase == "gas":
         kw["__MIN_OVERDENSITY_GAS__"] = min_overdensity(level, "gas")
         kw["__MAX_REFINE_LEVEL__"] = str(box.gas_max_refine_level)
+        # First leg only.  RunScript.sh rewrites this to 0 at the handoff, so
+        # the two must come from the same place or the run either stops twice
+        # or never stops at all.
+        kw["__GAS_STOP_REDSHIFT__"] = _fmt_redshift(box.gas_stop_redshift)
     else:
         kw["__MIN_OVERDENSITY__"] = min_overdensity(level, "DM")
     return kw
@@ -125,6 +135,68 @@ def read_grid_parameters(parameter_file_txt):
         return "".join(l for l in fp if l.startswith("CosmologySimulationGrid"))
 
 
+TRANSITION_MARKER = "gas_transition.done"
+
+
+def render_phase_transition(box, phase):
+    """The shell block that carries a gas run across the cooling transition.
+
+    Gas runs are two legs.  The first uses unshielded Grackle cooling and stops
+    at box.gas_stop_redshift; the second switches self-shielding on and runs to
+    z = 0.  Enzo cannot change those parameters mid-run, so the handoff is:
+    stop, rewrite the restart parameter file, restart.
+
+    Reaching CosmologyFinalRedshift makes Enzo write RunFinished, which
+    simrun.pl reads as "done" and the pipeline's state machine reads as DONE.
+    Both are wrong here -- the run is half over -- so RunFinished is removed as
+    part of the handoff and a marker file records that the transition already
+    happened.  Keying off the marker rather than off RunFinished is what makes
+    this safe to re-enter: the second leg ends by writing RunFinished too, and
+    without the marker the block would loop.
+
+    The rewrite itself goes through simrun.pl's `new_pars` mechanism, which
+    applies the substitutions to the restart parameter file before its run loop
+    starts and then renames the file so it cannot be applied twice.
+
+    Returns "" for DM, which is what leaves the DM path byte-identical.
+    """
+    if phase != "gas":
+        return ""
+    pars = "\n".join("%s = %s" % (k, v) for k, v in box.gas_transition_pars)
+    zstr = _fmt_redshift(box.gas_stop_redshift)
+    return """
+# --- cooling transition at z = %(z)s -------------------------------------------
+#
+# Not a completed run: the first leg stops here by design, so rewrite the
+# cooling parameters into the restart file and run the second leg to z = 0
+# without leaving this job.  See render_phase_transition() in pipeline/build.py.
+if [ ! -e %(marker)s ] && [ -e RunFinished ]; then
+    echo "reached z = %(z)s: switching on self-shielded cooling for the second leg"
+    cat > new_pars <<'ENZO_NEW_PARS'
+%(pars)s
+ENZO_NEW_PARS
+    # RunFinished must go before simrun.pl runs again, or it exits immediately.
+    # Write the marker before starting the leg, not after, so that a job killed
+    # mid-leg does not repeat the handoff on its next attempt -- new_pars has
+    # already been consumed by then.
+    rm -f RunFinished
+    date > %(marker)s
+
+    # The second leg gets only the walltime this job has left.  simrun.pl
+    # restarts its own clock on every invocation, so passing SIMRUN_WALL again
+    # would let the two legs together overrun the PBS wall and be killed.
+    REMAINING=$(( SIMRUN_WALL - SECONDS ))
+    if [ "$REMAINING" -gt %(floor)d ]; then
+        run_simrun "$REMAINING"
+    else
+        echo "only ${REMAINING}s of walltime left; resubmitting for the second leg"
+        qsub -koed RunScript.sh
+    fi
+fi
+""" % {"z": zstr, "marker": TRANSITION_MARKER,
+       "pars": pars, "floor": box.gas_transition_min_seconds}
+
+
 def render_runscript(box, halo_id, level, phase="DM", pipeline_hook=""):
     """Render the PBS run script for one stage."""
     template = os.path.join(box.template_dir_path(), "RunScript.sh")
@@ -151,6 +223,7 @@ def render_runscript(box, halo_id, level, phase="DM", pipeline_hook=""):
         "__EMAIL__": box.email,
         "__ENZO_EXE__": box.enzo_exe,
         "__PARAM_FILE__": box.param_filename(level, phase),
+        "__PHASE_TRANSITION__": render_phase_transition(box, phase),
         "__PIPELINE_HOOK__": pipeline_hook,
     }
     return replace_keywords(text, mapping)
@@ -520,11 +593,20 @@ def submit_enzo_run(box, halo_id, level, phase="DM", dry_run=False):
     halo_dir = box.halo_dir(halo_id)
     stage_dir = box.stage_dir(halo_id, level, phase)
     runscript = os.path.join(stage_dir, "RunScript.sh")
+    # Under --dry-run a fresh stage has no RunScript.sh, because build_stage only
+    # said it would write one.  Treating that as "the ICs are not built" made
+    # `build --phase gas --dry-run` traceback on any stage that did not already
+    # exist, which is precisely the case a dry run is for.  Missing is still a
+    # hard error on a real submit, where `advance` relies on it to catch a stage
+    # whose ICs never got generated.
     if not os.path.exists(runscript):
-        raise RuntimeError("No RunScript.sh in %s; the ICs are not built" % stage_dir)
+        if not dry_run:
+            raise RuntimeError("No RunScript.sh in %s; the ICs are not built" % stage_dir)
+        print("    [dry-run] RunScript.sh would have been written above")
     check_queue_fits(box.queue, box.gas_walltime if phase == "gas" else box.dm_walltime,
                      "halo %s %s" % (halo_id, ledger.stage_key(level, phase)))
-    sync_runscript_exe(box, runscript, dry_run=dry_run)
+    if os.path.exists(runscript):
+        sync_runscript_exe(box, runscript, dry_run=dry_run)
 
     if dry_run:
         print("    [dry-run] qsub -koed RunScript.sh   (in %s)" % stage_dir)

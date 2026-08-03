@@ -29,16 +29,28 @@ cd $PBS_O_WORKDIR
 
 /u/jtumlins/installs/memory_gauge.sh $PBS_JOBID > memory.$PBS_JOBID 2>&1 &
 
+# Walltime this job was given, in seconds.  simrun.pl needs it to decide when to
+# stop and resubmit; the gas transition below needs it to work out how much is
+# left after the first leg.
+SIMRUN_WALL=__SIMRUN_WALL__
+
 # simrun.pl restarts Enzo from the last output, and re-qsubs this script when it
 # runs out of walltime.  It returns here in three cases: the run finished, it
-# resubmitted itself, or it died.
-./simrun.pl -mpi "mpiexec -np __NRANKS__ /u/scicon/tools/bin/mbind.x -cs " \
-            -wall __SIMRUN_WALL__ \
-            -email "__EMAIL__" \
-            -exe "__ENZO_EXE__" \
-            -pf "__PARAM_FILE__" \
-            -jf "RunScript.sh"
+# resubmitted itself, or it died.  Wrapped in a function because a gas run calls
+# it a second time, for the leg below the transition redshift, and the argument
+# list must not drift between the two.
+run_simrun () {
+    ./simrun.pl -mpi "mpiexec -np __NRANKS__ /u/scicon/tools/bin/mbind.x -cs " \
+                -wall "$1" \
+                -email "__EMAIL__" \
+                -exe "__ENZO_EXE__" \
+                -pf "__PARAM_FILE__" \
+                -jf "RunScript.sh"
+}
 
+run_simrun "$SIMRUN_WALL"
+
+__PHASE_TRANSITION__
 # Pipeline hook: advance this halo to the next refinement level.
 #
 # There is deliberately no "did it finish?" test here.  `advance` re-derives

@@ -39,8 +39,17 @@ CosmologyHubbleConstantNow = 0.7
 CosmologyComovingBoxSize   = 25.0    // in Mpc/h 
 CosmologyMaxExpansionRate  = 0.015   // maximum allowed delta(a)/a
 CosmologyInitialRedshift   = 99.0
-CosmologyFinalRedshift 	   = 15
+CosmologyFinalRedshift 	   = 15   // first leg only; RunScript.sh
+                                     // rewrites this to 0 and restarts once
+                                     // shielded cooling is switched on
 GravitationalConstant      = 1       // this must be true for cosmology
+
+
+CosmologySimulationUseMetallicityField = 1 
+StarFeedbackTrackMetalSources          = 1 
+StarMakerStoreInitialMass              = 1 
+ComputePotential =1 
+WritePotential =1 
 
 #
 #  set I/O and stop/start parameters
@@ -50,13 +59,13 @@ DataDumpName     = DD
 RedshiftDumpName = RD
 RedshiftDumpDir  = RD
 
-dtDataDump 	 = 0        // no periodic data dumps; see dtRestartDump below
+dtDataDump 	 = 1        // gas runs dump on a cadence for analysis, unlike DM
 dtRestartDump    = 388800  // wallclock checkpoint before the PBS wall
 
 OutputCoolingTime                        = 1
 OutputTemperature                        = 1
 
-NumberOfOutputsBeforeExit = 0
+NumberOfOutputsBeforeExit = 1
 
 StopCycle        = 100000
 StopCPUTime      = 3600000
@@ -67,7 +76,10 @@ StopCPUTime      = 3600000
 HydroMethod                     = 0       // PPM
 RiemannSolver                   = 4       // HLLC
 Gamma                           = 1.6667
-PPMDiffusionParameter           = 0       // diffusion off
+PPMDiffusionParameter           = 3       // diffusion off
+ApplyBoundsToBaryonFields       = 1       // clamp baryon fields to the
+                                          // density/energy floors rather than
+                                          // letting a bad zone crash the run
 DualEnergyFormalism             = 1       // use total & internal energy
 InterpolationMethod             = 1       // SecondOrderA
 ReconstructionMethod            = 1 // PPM
@@ -126,8 +138,15 @@ CosmologyOutputRedshift[14] = 0.0
 RadiativeCooling                         = 1
 use_grackle                              = 1
 MultiSpecies                             = 2
-MultiMetals                              = 1 
+MultiMetals                              = 0
 MetalCooling                             = 1
+# Unshielded cooling for the first leg (z > 15).  RunScript.sh
+# flips all three of these, together with CosmologyFinalRedshift, at the stop
+# redshift.  Kept explicit rather than left to Enzo's defaults so that a restart
+# file shows plainly which leg it belongs to.
+H2FormationOnDust                        = 0
+self_shielding_method                    = 0
+H2_self_shielding                        = 0
 UVbackground                             = 1
 grackle_data_file                        = /u/jtumlins/grackle/grackle-3.3.1-dev/grackle_data_files/input/CloudyData_UVB=HM2012.h5
 CMBTemperatureFloor                      = 1
@@ -136,16 +155,31 @@ CMBTemperatureFloor                      = 1
 # star formation and feedback parameters
 #
 StarParticleCreation                     = 2048
+StarFormationOncePerRootGridTimeStep     = 1
 StarParticleFeedback                     = 64
 StarMakerOverDensityThreshold            = 1.0e+4
-StarMakerMinimumMass                     = 10000. 
+StarMakerMinimumMass                     = 10
 StarMakerMinimumDynamicalTime            = 1e6
-StarMakerMassEfficiency                  = 0.2
+StarMakerMassEfficiency                  = 0.02
 StarMassEjectionFraction                 = 0.25
 StarMetalYield                           = 0.025
 StarEnergyToThermalFeedback              = 1e-5
 StarFeedbackDistRadius                   = 1
 StarFeedbackDistCellStep                 = 3
+
+H2StarMakerH2FractionMethod        = 1
+H2StarMakerEfficiency              = 0.02
+H2StarMakerNumberDensityThreshold  = 0
+H2StarMakerMinimumH2FractionForStarFormation = 0
+H2StarMakerStochastic              = 0
+H2StarMakerUseSobolevColumn        = 1
+H2StarMakerSigmaOverR              = 0.0333333
+H2StarMakerAssumeColdWarmPressureBalance = 1
+H2StarMakerH2DissociationFlux_MW   = 1
+H2StarMakerH2FloorInColdGas        = 0
+H2StarMakerColdGasTemperature      = 10000
+H2StarMakerUseLocalDensityMax      = 1
+H2StarMakerWriteStarLogFiles       = 1
 
 #
 # parallelism stuff
