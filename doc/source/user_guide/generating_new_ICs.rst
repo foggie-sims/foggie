@@ -371,18 +371,27 @@ L3 gas file rather than being merged across levels.
 
 .. warning::
 
-   **A gas run is about 12 TB.** It writes 266 outputs at roughly 47 GB each,
-   against a DM run's 15. Check your quota before enabling one, and enable them
-   one at a time -- three concurrent gas runs will fill a 459 TB allocation that
-   also holds the DM ladders.
+   **A gas run writes about 40 TB if nothing is deleted**, and that is the
+   number to budget against, not the 12 TB a finished run appears to occupy.
+
+   Two things are writing snapshots, and they are roughly the same size --
+   47--56 GB each, growing as structure forms:
+
+   * the 266-entry ``CosmologyOutputRedshift`` list, giving 266 ``RD`` dumps
+     (~12 TB);
+   * ``dtDataDump = 1``, giving a ``DD`` dump every code time unit -- 609 of
+     them in the reference run (~28 TB).
+
+   The completed runs *look* like 12 TB because their ``DD`` dumps were deleted
+   afterwards; their ``OutputLog`` still records all 609. Plan either to delete
+   ``DD`` dumps periodically, as was done for those runs, or to raise
+   ``dtDataDump`` before starting. Enable one gas halo at a time regardless.
 
 Do **not** bring the two output lists into step. They differ deliberately:
 ``DM-LX.enzo`` keeps a 15-entry list, and ``gas-LX.enzo`` carries the 266-entry
-list every completed gas run used. ``dtDataDump`` does not make up the
-difference -- it is set for the gas runs and they still wrote essentially no
-``DD`` dumps, taking their cadence entirely from the redshift list. Trimming it
-would leave a gas run with about fifteen usable snapshots, and would also
-remove the output at *z* = 15 that the next section depends on.
+list every completed gas run used. Trimming it would leave a gas run with about
+fifteen redshift snapshots, and would also remove the output at *z* = 15 that
+the next section depends on.
 
 The z = 15 cooling transition
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
