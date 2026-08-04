@@ -79,10 +79,25 @@ StopCPUTime      = 3600000
 HydroMethod                     = 0       // PPM
 RiemannSolver                   = 4       // HLLC
 Gamma                           = 1.6667
-PPMDiffusionParameter           = 3       // diffusion off
+PPMDiffusionParameter           = 3       // NOTE: Enzo forces this to 0 for
+                                          // every ProblemType except 60
+                                          // (ReadParameterFile.C:1981-1991) and
+                                          // prints a warning, so it has no
+                                          // effect here.  Kept at the requested
+                                          // value rather than silently zeroed.
 ApplyBoundsToBaryonFields       = 1       // clamp baryon fields to the
                                           // density/energy floors rather than
                                           // letting a bad zone crash the run
+# Stability guards.  Both completed gas runs on disk set these -- the reference
+# halo42189 L3-gas-radius3 and halo15134's L3-gas -- and both ran past 250
+# outputs.  Without them the two most massive halos of the first L2 gas batch
+# produced hundreds of flux_hllc.F Riemann failures within hours of the z = 15
+# transition; halo51541 segfaulted and halo42189 fell to 12% efficiency, while
+# the two lightest halos ran clean at 95%+ with zero warnings.
+RestrictTemperature             = 1
+RestrictVelocity                = 1
+# RestrictDensity exists as a third guard but both reference runs leave it off.
+RestrictDensity                 = 0
 DualEnergyFormalism             = 1       // use total & internal energy
 InterpolationMethod             = 1       // SecondOrderA
 ReconstructionMethod            = 1 // PPM
