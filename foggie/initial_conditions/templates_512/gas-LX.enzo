@@ -79,12 +79,17 @@ StopCPUTime      = 3600000
 HydroMethod                     = 0       // PPM
 RiemannSolver                   = 4       // HLLC
 Gamma                           = 1.6667
-PPMDiffusionParameter           = 3       // NOTE: Enzo forces this to 0 for
-                                          // every ProblemType except 60
-                                          // (ReadParameterFile.C:1981-1991) and
-                                          // prints a warning, so it has no
-                                          // effect here.  Kept at the requested
-                                          // value rather than silently zeroed.
+PPMFlatteningParameter          = 3       // flatten the reconstruction near
+                                          // shocks; read straight through by
+                                          // ReadParameterFile.C:311 with no
+                                          // override, unlike Diffusion below
+PPMSteepeningParameter          = 0
+PPMDiffusionParameter           = 0       // Enzo forces this to 0 for every
+                                          // ProblemType except 60
+                                          // (ReadParameterFile.C:1981-1991), so
+                                          // any other value is silently
+                                          // discarded.  Set to 0 to match what
+                                          // the code actually runs.
 ApplyBoundsToBaryonFields       = 1       // clamp baryon fields to the
                                           // density/energy floors rather than
                                           // letting a bad zone crash the run
