@@ -38,6 +38,7 @@ from scipy.ndimage import uniform_filter1d
 from scipy.ndimage import uniform_filter
 from scipy import interpolate
 from skimage.measure import regionprops
+from scipy.spatial import cKDTree
 from datetime import timedelta
 import time
 from scipy.interpolate import InterpolatedUnivariateSpline as IUS
@@ -52,6 +53,7 @@ import healpy
 import cmasher as cmr
 from matplotlib.patches import Ellipse
 import copy
+import random
 
 # These imports are FOGGIE-specific files
 from foggie.utils.consistency import *
@@ -187,6 +189,7 @@ def parse_args():
                         'phase_plot             - 2D phase plots of various properties of accreting gas and non-accreting gas in same shell\n' + \
                         'sky_map                - column density maps of all gas and only accreting gas\n' + \
                         'streamlines            - projection plots with streamlines overplotted\n' + \
+                        'shock_props            - 2D histogram or datashader plots of various shock properties from the Enzo shock finder\n' + \
                         'Default is not to do any plotting. Specify multiple plots by listing separated with commas, no spaces.')
     parser.set_defaults(plot='none')
 
@@ -221,14 +224,23 @@ def parse_args():
                         '                       comparing accreting cells to non-accreting cells in edge around shape\n' + \
                         'filament_stats      -  will calculate the number of large filaments and their widths\n' + \
                         'filaments_3D        -  will identify separate filament structures in 3D\n' + \
-                        'outflows            -  will calculate outflowing mass and energy fluxes in temperature bins' + \
-                        'inner_cgm_energies  -  will calculate thermal and kinetic energies and cooling within different radii')
+                        'outflows            -  will calculate outflowing mass and energy fluxes in temperature bins\n' + \
+                        'inner_cgm_energies  -  will calculate thermal and kinetic energies and cooling within different radii\n' + \
+                        'shell_fluxes        -  will calculate thin-shell flux very simply, for comparison with other methods')
     parser.set_defaults(calculate='none')
 
     parser.add_argument('--weight', metavar='weight', type=str, action='store', \
                         help='If calculating statistics of gas properties comparing accretion and non-accretion,\n' + \
                         'what weight do you want to use? Options are volume and mass, and default is mass.')
     parser.set_defaults(weight='mass')
+
+    parser.add_argument('--width', metavar='width', type=float, action='store', \
+                        help='If plotting shock properties, what width do you want for slices? Default is 6000 kpc.')
+    parser.set_defaults(width=6000.)
+
+    parser.add_argument('--Mach_cut', metavar='width', type=float, action='store', \
+                        help='If plotting shock properties, what cutoff Mach number do you want? Default is 2.')
+    parser.set_defaults(Mach_cut=2.)
 
     parser.add_argument('--properties', metavar='properties', type=str, action='store', \
                         help='If calculating statistics of gas properties comparing accretion and non-accretion,\n' + \
@@ -368,6 +380,31 @@ def make_flux_table(flux_types, args):
                     name += dir_name[j]
                     names_list += [name]
                     types_list += ['f8']
+
+    table = Table(names=names_list, dtype=types_list)
+
+    return table
+
+def make_shell_flux_table(flux_types, args):
+    '''Makes the giant table that will be saved to file.'''
+
+    names_list = ['inner_radius', 'outer_radius']
+    types_list = ['f8', 'f8']
+
+    dir_name = ['_in', '_out']
+
+    for i in range(len(flux_types)):
+        if (args.region_filter != 'none') and ('dm' not in flux_types[i]):
+            region_name = ['', 'lowest_', 'low-mid_', 'high-mid_', 'highest_']
+        else: region_name = ['']
+        for j in range(len(region_name)):
+            for k in range(len(dir_name)):
+                name = ''
+                name += region_name[j]
+                name += flux_types[i]
+                name += dir_name[k]
+                names_list += [name]
+                types_list += ['f8']
 
     table = Table(names=names_list, dtype=types_list)
 
@@ -2239,7 +2276,10 @@ def load_and_calculate(snap, surface, global_vars):
             os.makedirs(snap_dir)
             snap_name = foggie_dir + run_dir + snap + '/' + snap
     else:
-        snap_name = foggie_dir + run_dir + snap + '/' + snap
+        if (args.plot=='shock_props'):
+            snap_name = foggie_dir + run_dir + 'shock_finding/' + snap + '/' + snap
+        else:
+            snap_name = foggie_dir + run_dir + snap + '/' + snap
     if ((surface[0]=='cylinder') and (surface[3]=='minor')) or (args.direction) or ('disk' in surface[0]):
         ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=catalog_dir, disk_relative=True, correct_bulk_velocity=True, smooth_AM_name=smooth_AM_name)
     else:
@@ -2264,12 +2304,17 @@ def load_and_calculate(snap, surface, global_vars):
     if (args.plot=='sky_map'):
         sp = ds.sphere(ds.halo_center_kpc, (Rvir, 'kpc'))
         sky_map(ds, sp, snap, snap_props, global_vars)
+    elif (args.plot=='shock_props'):
+        calculate_shock_properties(ds, snap, snap_props, global_vars)
     else:
         # Find the covering grid and the shape specified by 'surface'
-        grid, shape = find_shape(ds, surface, snap_props, global_vars)
+        if (not 'shell_fluxes' in args.calculate): grid, shape = find_shape(ds, surface, snap_props, global_vars)
         # Calculate fluxes and save to file
         if ('fluxes' in args.calculate):
-            calculate_flux(ds, grid, shape, snap, snap_props, global_vars)
+            if ('shell' in args.calculate):
+                thin_shell_flux(ds, snap, snap_props, global_vars)
+            else:
+                calculate_flux(ds, grid, shape, snap, snap_props, global_vars)
         if ('accretion_compare' in args.calculate):
             compare_accreting_cells(ds, grid, shape, snap, snap_props, global_vars)
         if ('filament_stats' in args.calculate):
@@ -4865,6 +4910,660 @@ def accretion_projections(ds, grid, snap, snap_props, global_vars):
             fig_Ha.subplots_adjust(left=0.06, bottom=0.07, top=0.96, right=0.91, wspace=0.25, hspace=0.2)
             fig_Ha.savefig(prefix + 'Plots/' + snap + '_Halpha_projection_' + dirs[d] + save_suffix + '.png')'''
 
+def thin_shell_flux(ds, snap, snap_props, global_vars):
+    '''Calculates fluxes in the simplest possible way, as v_r * Mshell (or Eshell) / dr in thin radial shells.
+    Both plots and saves to file.'''
+
+    args = global_vars['args']
+    prefix = global_vars['prefix']
+    save_suffix = global_vars['save_suffix']
+
+    tablename = prefix + 'Tables/' + snap + '_fluxes'
+    Menc_profile, Mvir, Rvir = snap_props
+    tsnap = ds.current_time.in_units('Gyr').v
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+
+    # Set up table of everything we want
+    fluxes = []
+    flux_filename = '_shell-fluxes'
+    flux_labels = []
+    if ('mass' in flux_types):
+        fluxes.append('mass_flux')
+        fluxes.append('metal_flux')
+        flux_filename += '_mass'
+        flux_labels.append(r'Mass flux [$M_\odot$/yr]')
+        flux_labels.append(r'Metal flux [$M_\odot$/yr]')
+    if ('energy' in flux_types):
+        fluxes.append('thermal_energy_flux')
+        fluxes.append('kinetic_energy_flux')
+        flux_filename += '_energy'
+        flux_labels.append('Thermal energy flux [erg/yr]')
+        flux_labels.append('Kinetic energy flux [erg/yr]')
+    table = make_shell_flux_table(fluxes, args)
+    print(table.columns)
+
+    # Generate sphere
+    sph = ds.sphere(ds.halo_center_kpc, (1.5*Rvir, 'kpc'))
+
+    if (args.cgm_only):
+        # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+        # with it being 1 at higher redshifts and 0.1 at lower redshifts
+        current_time = ds.current_time.in_units('Myr').v
+        if (current_time<=7091.48): # z = 0.75
+            density_cut_factor = 20. - 19.*current_time/7091.48
+        elif (current_time<=8656.88): # z = 0.5
+            density_cut_factor = 1.
+        elif (current_time<=10787.12): # z = 0.25
+            density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+        else:
+            density_cut_factor = 0.1
+        cgm_bool = (sph['gas','density'].in_units('g/cm**3').v < density_cut_factor * cgm_density_max)
+    else:
+        cgm_bool = (sph['gas','density'].in_units('g/cm**3').v > 0.)
+
+    # Load properties
+    radius = sph['gas','radius_corrected'].in_units('kpc').v
+    rv = sph['gas','radial_velocity_corrected'].in_units('cm/yr').v
+
+    if (args.region_filter=='temperature'):
+        region = sph['gas','temperature'].in_units('K').v
+        region_bins = [0., 1e4, 1e5, 1e6, np.inf]
+        region_colors = ['salmon', "#984ea3", "#4daf4a", 'darkorange']
+        region_labels = ['$<10^4$ K', '$10^4-10^5$ K', '$10^5-10^6$ K', '$>10^6$ K']
+    
+    properties = []
+    if ('mass' in flux_types):
+        mass = sph['gas', 'cell_mass'].in_units('Msun').v
+        metals = sph['gas', 'metal_mass'].in_units('Msun').v
+        properties.append(mass)
+        properties.append(metals)
+    if ('energy' in flux_types):
+        kinetic_energy = sph['gas','kinetic_energy_corrected'].in_units('erg').v
+        thermal_energy = (sph['gas','cell_mass']*(sph['gas','specific_thermal_energy'] + sph['gas','pressure']/sph['gas','density'])).in_units('erg').v # Second term is P*dV work done by thermal pressure as it moves through surface
+        properties.append(thermal_energy)
+        properties.append(kinetic_energy)
+
+    radius_bins = np.arange(10., round(1.5*Rvir, -1)+10., 10.)
+    dr = 10.*1000.*cmtopc
+    for r in range(len(radius_bins)-1):
+        shell = (radius >= radius_bins[r]) & (radius < radius_bins[r+1])
+        results = [radius_bins[r], radius_bins[r+1]]
+        for p in range(len(properties)):
+            prop = properties[p]
+            flux_in = np.sum(prop[(shell) & (cgm_bool) & (rv < -25.*1e5*stoyr)]*rv[(shell) & (cgm_bool) & (rv < -25.*1e5*stoyr)]/dr)
+            flux_out = np.sum(prop[(shell) & (cgm_bool) & (rv > 25.*1e5*stoyr)]*rv[(shell) & (cgm_bool) & (rv > 25.*1e5*stoyr)]/dr)
+            results.append(flux_in)
+            results.append(flux_out)
+            if (args.region_filter!='none'):
+                for f in range(len(region_bins)-1):
+                    filter = (region >= region_bins[f]) & (region < region_bins[f+1])
+                    flux_in = np.sum(prop[(shell) & (cgm_bool) & (rv < -25.*1e5*stoyr) & (filter)]*rv[(shell) & (cgm_bool) & (rv < -25.*1e5*stoyr) & (filter)]/dr)
+                    flux_out = np.sum(prop[(shell) & (cgm_bool) & (rv > 25.*1e5*stoyr) & (filter)]*rv[(shell) & (cgm_bool) & (rv > 25.*1e5*stoyr) & (filter)]/dr)
+                    results.append(flux_in)
+                    results.append(flux_out)
+        table.add_row(results)
+
+    # Save to file
+    table = set_flux_table_units(table)
+    table.write(tablename + flux_filename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+
+    region_name = ['lowest_', 'low-mid_', 'high-mid_', 'highest_']
+
+    # Plot vs radius
+    if (len(properties)<3): # If only masses
+        fig = plt.figure(figsize=(11,4), dpi=200)
+        nrows = 1
+    else: # If both mass and energy
+        fig = plt.figure(figsize=(11,9), dpi=200)
+        nrows = 2
+    for i in range(len(properties)):
+        ax = fig.add_subplot(nrows, 2, i+1)
+        ax.plot(radius_bins[:-1]+np.diff(radius_bins), np.log10(-table[fluxes[i] + '_in']), 'k-', lw=2, label='Inflow')
+        ax.plot(radius_bins[:-1]+np.diff(radius_bins), np.log10(table[fluxes[i] + '_out']), 'k--', lw=2, label='Outflow')
+        if (args.region_filter!='none'):
+            for f in range(len(region_bins)-1):
+                ax.plot(radius_bins[:-1]+np.diff(radius_bins), np.log10(-table[region_name[f] + fluxes[i] + '_in']), color=region_colors[f], ls='-', lw=2, label=region_labels[f])
+                ax.plot(radius_bins[:-1]+np.diff(radius_bins), np.log10(table[region_name[f] + fluxes[i] + '_out']), color=region_colors[f], ls='--', lw=2)
+        ax.set_xlabel('Radius [kpc]', fontsize=14)
+        ax.set_ylabel('log ' + flux_labels[i], fontsize=14)
+        ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+            top=False, right=True)
+        if (i==0): ax.legend(loc='best', frameon=False, fontsize=14)
+        ax.set_ylim(-6,1)
+        
+    plt.tight_layout()
+    plt.savefig(prefix + '/Plots/' + snap + '_fluxes_vs_radius' + save_suffix + '.png')
+    plt.close()
+
+def calculate_shock_properties(ds, snap, snap_props, global_vars):
+    '''Calculates and plots various properties of shocks found with Enzo's shock finder.
+    Rather than doing things in a galactocentric frame, since many shock fronts are highly
+    non-spherical, it computes a shock-normal direction and calculates properties on either
+    side of the shock along the normal direction.'''
+
+    args = global_vars['args']
+    prefix = global_vars['prefix']
+    save_suffix = global_vars['save_suffix']
+
+    prefix = global_vars['prefix']
+    Menc_profile, Mvir, Rvir = snap_props
+    tsnap = ds.current_time.in_units('Gyr').v
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+
+    width = args.width
+    Mach_cut = args.Mach_cut
+
+    # Generate box
+    sph = ds.sphere(ds.halo_center_kpc, radius=(1.5*width/2., 'kpc'))
+
+    # Load fields
+    xpos = (sph[('gas','x')].in_units('kpc') - ds.halo_center_kpc[0]).v
+    ypos = (sph[('gas','y')].in_units('kpc') - ds.halo_center_kpc[1]).v
+    zpos = (sph[('gas','z')].in_units('kpc') - ds.halo_center_kpc[2]).v
+    vx = sph[('gas','vx_corrected')].in_units('km/s').v
+    vy = sph[('gas','vy_corrected')].in_units('km/s').v
+    vz = sph[('gas','vz_corrected')].in_units('km/s').v
+    temperature = sph[('gas','temperature')].in_units('K').v
+    dx = sph[('gas','dx')].in_units('kpc').v
+    Mach = sph[('enzo','Mach')].v
+    radius = sph[('gas','radius_corrected')].in_units('kpc').v
+    cell_volume = sph[('gas','cell_volume')].in_units('kpc**3').v
+
+    # Combine cell position arrays into one
+    pos = np.transpose(np.vstack([xpos, ypos, zpos]))
+
+    # Restrict to strong shocks
+    shock_mask = (Mach > Mach_cut)
+
+    # Build position lookup functions for temperature and velocities
+    def build_scalar_interp(all_positions, all_scalars, max_dist=None):
+        """
+        Build a nearest-cell 'interpolator' (really a digitizer) for
+        any scalar, using the true (possibly AMR, non-uniform) cell
+        positions as returned by yt.
+
+        Parameters
+        ----------
+        all_positions : (M, 3) array
+            Cell-center coordinates for ALL cells in the dataset (or at
+            least a region generously encompassing your shocked cells
+            plus sampling offsets), as flattened 1D arrays per yt's output
+            stacked into columns.
+        all_scalars : (M,) array
+            Value of whatever scalar desired of each cell, same ordering as all_positions.
+        max_dist : float, optional
+            If given, query points farther than this from any real cell
+            center are flagged (returned as NaN) rather than silently
+            assigned to a distant nearest neighbor -- useful near domain
+            edges or sparse/coarse regions.
+
+        Returns
+        -------
+        scalar_interp : callable
+            Function taking (n, 3) query positions and returning (n,)
+            scalars, suitable for passing into assign_normal_sign().
+        """
+        tree = cKDTree(all_positions)
+
+        def scalar_interp(query_positions):
+            if max_dist is not None:
+                dist, idx = tree.query(query_positions, k=1,
+                                        distance_upper_bound=max_dist)
+                T = all_scalars[np.where(idx < len(all_scalars),
+                                            idx, 0)]
+                T = np.where(np.isfinite(dist), T, np.nan)
+            else:
+                dist, idx = tree.query(query_positions, k=1)
+                T = all_scalars[idx]
+            return T
+
+        return scalar_interp
+    temp_interp = build_scalar_interp(pos, temperature)
+    vx_interp = build_scalar_interp(pos, vx)
+    vy_interp = build_scalar_interp(pos, vy)
+    vz_interp = build_scalar_interp(pos, vz)
+
+    # Calculate normal directions for every shock cell by estimating a plane direction
+    # for nearby shocked cells. Assign a sign to the normal direction such that it
+    # points toward the high-temperature side of the shock.
+    def compute_shock_normals(positions, dx, temperature_interp, k=15, n_samples=10, start_offset=1, step=1):
+        """
+        Estimate local shock-surface normals for every shocked cell via
+        batched local PCA (structure tensor) on the shocked-cell point cloud.
+        Choose the sign of the normal vector to point towards high-temperature side
+        of shock.
+
+        Parameters
+        ----------
+        positions : (N, 3) array
+            Cell-center coordinates of ALL shocked cells (mask==True).
+        k : int
+            Number of nearest neighbors (including self) for the local
+            plane fit. ~10-20 is typical for a 1-2 cell thick surface.
+        dx : float or (N,) array
+            Cell size (physical units, same units as positions). Pass a
+            per-cell array if sampling across different AMR levels.
+        temperature_interp : callable
+            Function taking an (M, 3) array of points and returning an
+            (M,) array of temperatures.
+        n_samples : int
+            Number of sample points per side to average over.
+        start_offset : float
+            Offset (in units of dx) at which to start sampling, to skip
+            past the numerically smeared shock transition (typically
+            ~2 cells for Enzo's PPM solver).
+        step : float
+            Spacing (in units of dx) between successive sample points.
+
+        Returns
+        -------
+        signed_normals : (N, 3) array
+            Normals oriented to point toward the higher-temperature side.
+        planarity : (N,) array, quality metric in [0, 1]; low values flag
+            junctions/corners/filaments where the normal is unreliable.
+        T_plus, T_minus : (N,) arrays
+            Mean sampled temperature on the +normal and -normal sides,
+            for diagnostic/quality checks.
+        """
+        N = positions.shape[0]
+        tree = cKDTree(positions)
+
+        # Single batched query for all points at once
+        _, idx = tree.query(positions, k=k)  # idx shape (N, k)
+
+        # Gather neighbor coordinates for every point: (N, k, 3)
+        pts = positions[idx]
+
+        # Batched centroid and mean-subtraction
+        centroid = pts.mean(axis=1, keepdims=True)          # (N, 1, 3)
+        dev = pts - centroid                                 # (N, k, 3)
+
+        # Batched covariance matrices via einsum: (N, 3, 3)
+        C = np.einsum('nki,nkj->nij', dev, dev) / (k - 1)
+
+        # Batched eigendecomposition (ascending eigenvalues)
+        eigvals, eigvecs = np.linalg.eigh(C)                 # (N,3), (N,3,3)
+
+        normals = eigvecs[:, :, 0]                           # smallest-eigval vector
+        l1, l2, l3 = eigvals[:, 0], eigvals[:, 1], eigvals[:, 2]
+        planarity = 1.0 - l2 / np.maximum(l3, 1e-30)         # ~1 for sheet-like, low for junctions
+
+        dx = np.atleast_1d(dx)
+        if dx.shape[0] == 1:
+            dx = np.full(N, dx[0])
+
+        # Offsets in units of dx: shape (n_samples,)
+        offsets = start_offset + step * np.arange(n_samples)
+
+        # Physical offset distances per cell per sample: (N, n_samples)
+        dist = dx[:, None] * offsets[None, :]
+
+        # Sample positions on each side: (N, n_samples, 3)
+        pts_plus = positions[:, None, :] + normals[:, None, :] * dist[:, :, None]
+        pts_minus = positions[:, None, :] - normals[:, None, :] * dist[:, :, None]
+
+        # Flatten for a single interpolator call, then reshape back
+        flat_plus = pts_plus.reshape(-1, 3)
+        flat_minus = pts_minus.reshape(-1, 3)
+
+        T_plus_samples = temperature_interp(flat_plus).reshape(N, n_samples)
+        T_minus_samples = temperature_interp(flat_minus).reshape(N, n_samples)
+
+        T_plus = np.nanmean(T_plus_samples, axis=1)
+        T_minus = np.nanmean(T_minus_samples, axis=1)
+
+        # Flip normal where the -normal side is actually hotter
+        flip = T_minus > T_plus
+        signed_normals = normals.copy()
+        signed_normals[flip] *= -1
+
+        # keep T_plus/T_minus consistent with the (possibly flipped) normal
+        T_plus_out = np.where(flip, T_minus, T_plus)
+        T_minus_out = np.where(flip, T_plus, T_minus)
+
+        return signed_normals, planarity, T_plus_out, T_minus_out
+    shock_normals, planarity, T_plus, T_minus = compute_shock_normals(pos[shock_mask], dx[shock_mask], temp_interp)
+
+    # Restrict to only those shock cells that are highly planar
+    plane_shocks = (planarity > 0.5)
+    
+    # Get and plot shock-normal velocity profiles as function of distance
+    # across the shock
+    '''def shock_normal_velocity_profile(positions, signed_normals, dx, vx_interp, vy_interp, vz_interp, depths=np.arange(-20, 20, 1)):
+        """
+        Sample gas velocity projected onto the shock normal at a range of
+        depths spanning both sides of each shocked cell, for line-profile
+        diagnostics of the pre-shock -> transition -> post-shock structure.
+
+        Parameters
+        ----------
+        positions : (N, 3) array
+            Cell-center coordinates of shocked cells.
+        signed_normals : (N, 3) array
+            Unit normals oriented toward the high-temperature (post-shock)
+            side, i.e. +depth = post-shock, -depth = pre-shock.
+        dx : (N,) array
+            Cell size per shocked cell.
+        vx_interp, vy_interp, vz_interp : callable
+            Nearest-cell interpolators.
+        depths : array
+            Offsets in units of dx (can be fractional -- nearest-cell
+            lookup will just repeat neighboring values, which is fine and
+            actually useful for seeing plateaus).
+
+        Returns
+        -------
+        v_n_profile : (N, len(depths)) array
+            Normal-projected velocity at each sampled depth, per cell.
+        """
+        N = positions.shape[0]
+        dx = np.atleast_1d(dx)
+        if dx.shape[0] == 1:
+            dx = np.full(N, dx[0])
+
+        dist = dx[:, None] * depths[None, :]                      # (N, n_depths)
+        pts = positions[:, None, :] + signed_normals[:, None, :] * dist[:, :, None]
+        flat_pts = pts.reshape(-1, 3)
+
+        vx = vx_interp(flat_pts).reshape(N, len(depths))
+        vy = vy_interp(flat_pts).reshape(N, len(depths))
+        vz = vz_interp(flat_pts).reshape(N, len(depths))
+
+        v_n_profile = (vx * signed_normals[:, 0:1]
+                    + vy * signed_normals[:, 1:2]
+                    + vz * signed_normals[:, 2:3])
+
+        return v_n_profile, dist
+    depths=np.arange(-20, 20, 1)
+    vnorms, dist_kpc = shock_normal_velocity_profile(pos[shock_mask][plane_shocks], shock_normals[plane_shocks], dx[shock_mask][plane_shocks], vx_interp, vy_interp, vz_interp, depths=depths)
+
+    # Overplot all velocity profiles across shocks as function of distance from shock
+    fig = plt.figure(figsize=(8,5), dpi=250)
+    ax = fig.add_subplot(1,1,1)
+    fig.subplots_adjust(left=0.1,right=0.85,bottom=0.1,top=0.98)
+
+    for i in range(100):
+        rand = random.randint(0, len(vnorms)-1)
+        ax.plot(dist_kpc[rand], vnorms[rand], ls='-', alpha=0.5, lw=1)
+
+    ax.set_xlabel('Distance from shock [kpc]', fontsize=14)
+    ax.set_ylabel('Velocity normal to shock [km/s]', fontsize=14)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+            top=True, right=True)
+    ax.text(0.05, 0.95, halo_dict[global_vars['halo']], fontsize=14, ha='left', va='top', transform=ax.transAxes)
+    fig.savefig(prefix + snap + '_shock_velocity_profiles.png')'''
+
+    # Get the velocity in the normal direction as an average of 10 cells
+    # along the normal on both sides of the shock. Avoid
+    # the 2 closest cells since they might still be part of the shock.
+    def sample_pre_and_post_velocity(positions, signed_normals, dx, vx_interp, vy_interp, vz_interp, n_samples=10, start_offset=2, step=1):
+        """
+        Sample shock-normal velocity on BOTH sides of each shocked cell:
+        v_minus (low temperature side, along -normal) and v_plus (high temperature side, along
+        +normal), each averaged over n_samples cells starting start_offset
+        cells out, to classify accretion/outflow/colliding-flow shocks.
+
+        Returns
+        -------
+        v_minus, v_plus : (N,) arrays
+            Mean normal-projected velocity on the pre-shock and post-shock
+            sides, respectively. Sign convention: positive = along +normal
+            (toward high-T side) on WHICHEVER side it's measured -- i.e.
+            v_minus > 0 means pre-shock gas is moving toward the
+            shock, and v_plus > 0 means post-shock gas continues
+            moving further into the post-shock side.
+        """
+        N = positions.shape[0]
+        dx = np.atleast_1d(dx)
+        if dx.shape[0] == 1:
+            dx = np.full(N, dx[0])
+
+        offsets = start_offset + step * np.arange(n_samples)
+        dist = dx[:, None] * offsets[None, :]
+
+        pts_plus = positions[:, None, :] + signed_normals[:, None, :] * dist[:, :, None]
+        pts_minus = positions[:, None, :] - signed_normals[:, None, :] * dist[:, :, None]
+
+        flat_plus = pts_plus.reshape(-1, 3)
+        flat_minus = pts_minus.reshape(-1, 3)
+
+        vx_p = vx_interp(flat_plus).reshape(N, n_samples)
+        vy_p = vy_interp(flat_plus).reshape(N, n_samples)
+        vz_p = vz_interp(flat_plus).reshape(N, n_samples)
+
+        vx_m = vx_interp(flat_minus).reshape(N, n_samples)
+        vy_m = vy_interp(flat_minus).reshape(N, n_samples)
+        vz_m = vz_interp(flat_minus).reshape(N, n_samples)
+
+        v_dot_n_plus = (vx_p * signed_normals[:, 0:1]
+                        + vy_p * signed_normals[:, 1:2]
+                        + vz_p * signed_normals[:, 2:3])
+        v_dot_n_minus = (vx_m * signed_normals[:, 0:1]
+                        + vy_m * signed_normals[:, 1:2]
+                        + vz_m * signed_normals[:, 2:3])
+
+        v_plus = np.nanmean(v_dot_n_plus, axis=1)
+        v_minus = np.nanmean(v_dot_n_minus, axis=1)
+
+        return v_minus, v_plus
+    v_minus, v_plus = sample_pre_and_post_velocity(pos[shock_mask], shock_normals, dx[shock_mask], vx_interp, vy_interp, vz_interp)
+
+    accretion = (v_minus > 0.) & (v_plus > 0.)
+    outflow = (v_minus < 0.) & (v_plus < 0.)
+    colliding = (v_minus > 0.) & (v_plus < 0.)
+    other = (v_minus < 0.) & (v_plus > 0.)      # Weird diverging flows, hopefully not many
+
+    # Build shock category into a yt field
+    shock_cat = np.zeros(np.shape(v_minus))
+    shock_cat[accretion] = 1.
+    shock_cat[outflow] = 2.
+    shock_cat[colliding] = 3.
+    shock_cat[other] = 4.
+    shock_pos = pos[shock_mask]
+    category_tree = cKDTree(shock_pos)
+    def _shock_category(field, data):
+        x = (data[('gas','x')].in_units('kpc') - ds.halo_center_kpc[0]).v
+        y = (data[('gas','y')].in_units('kpc') - ds.halo_center_kpc[1]).v
+        z = (data[('gas','z')].in_units('kpc') - ds.halo_center_kpc[2]).v
+        dx_local = data[('gas', 'dx')].in_units('kpc').v
+        mach = data[('enzo', 'Mach')].v
+        print(np.shape(x), np.shape(y), np.shape(z), np.shape(dx_local), np.shape(mach))
+
+        pts = np.column_stack([x.ravel(), y.ravel(), z.ravel()])
+        dx_flat = dx_local.ravel()
+        mach_flat = mach.ravel()
+
+        codes = np.zeros(pts.shape[0], dtype='float64')
+
+        # Only bother looking up category for cells that are actually
+        # shocks by the SAME criterion you used to build your sample
+        is_shock = (mach_flat > Mach_cut)
+        print(np.shape(pts), np.shape(dx_flat), np.shape(mach_flat), np.shape(codes), np.shape(is_shock))
+        if np.any(is_shock):
+            dist, idx = category_tree.query(pts[is_shock], k=1)
+
+            # generous tolerance based on the QUERY cell's own dx, not the
+            # matched shocked cell's dx -- more robust for coarse cells
+            tol = 1.0 * dx_flat[is_shock]
+            is_match = dist < tol
+
+            sub_codes = np.zeros(is_shock.sum(), dtype='float64')
+            sub_codes[is_match] = shock_cat[idx[is_match]].astype('float64')
+
+            codes[is_shock] = sub_codes
+            print(is_shock.sum(), is_match.sum())
+
+        return data.ds.arr(codes.reshape(x.shape), '')
+    ds.add_field(('gas', 'shock_category'), function=_shock_category, sampling_type='local', units='', take_log=False)
+
+    # Plot slices of temperature, radial velocity, shock Mach number, and shock categories
+    temp_cmap = sns.blend_palette(('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), as_cmap=True)
+    rv_cmap = 'RdBu'
+    Mach_cmap = plt.cm.viridis
+    Mach_cmap.set_under('black')
+    cat_cmap = colors.ListedColormap(['black', '#02e7f7', '#f702eb', '#02f71b'])
+
+    fig = plt.figure(figsize=(12,9), dpi=250)
+    ax1 = fig.add_subplot(2,2,1)
+    ax2 = fig.add_subplot(2,2,2)
+    ax3 = fig.add_subplot(2,2,3)
+    ax4 = fig.add_subplot(2,2,4)
+    fig.subplots_adjust(left=0.06,right=0.88,wspace=0.4,hspace=0.15,top=0.98,bottom=0.08)
+
+    slc = yt.SlicePlot(ds, 'x', ('gas','temperature'), center=ds.halo_center_kpc, width=(width, 'kpc'))
+    temp_frb = slc.frb[('gas','temperature')]
+    slc = yt.SlicePlot(ds, 'x', ('gas','radial_velocity_corrected'), center=ds.halo_center_kpc, width=(width, 'kpc'))
+    rv_frb = slc.frb[('gas','radial_velocity_corrected')]
+    slc = yt.SlicePlot(ds, 'x', ('enzo', 'Mach'), center=ds.halo_center_kpc, width=(width, 'kpc'))
+    Mach_frb = slc.frb[('enzo', 'Mach')]
+    slc = yt.SlicePlot(ds, 'x', ('gas','shock_category'), center=ds.halo_center_kpc, width=(width,'kpc'))
+    cat_frb = slc.frb[('gas','shock_category')]
+
+    im = ax1.imshow(temp_frb, extent=[-width/2.,width/2.,-width/2.,width/2.], origin='lower', cmap=temp_cmap, norm=colors.LogNorm(vmin=1e3, vmax=1e7))
+    ax1.tick_params(axis='both', which='both', direction='in', length=8, width=3, pad=5, labelsize=12, top=True, right=True)
+    ax1.set_ylabel('z [kpc]', fontsize=14)
+    ax1.set_xlabel('y [kpc]', fontsize=14)
+    pos = ax1.get_position()
+    cax = fig.add_axes([pos.x1, pos.y0, 0.03, pos.y1-pos.y0])  # [left, bottom, width, height]
+    fig.colorbar(im, cax=cax, orientation='vertical')
+    cax.tick_params(axis='both', which='both', direction='in', length=10, width=3, pad=5, labelsize=12, \
+                    top=False, labelbottom=False, left=False, right=True, labelright=True, labelleft=False)
+    cax.text(2.5, 0.5, 'Temperature [K]', fontsize=14, ha='center', va='center', rotation=90, transform=cax.transAxes)
+
+    im = ax2.imshow(rv_frb, extent=[-width/2.,width/2.,-width/2.,width/2.], origin='lower', cmap=rv_cmap, norm=colors.Normalize(vmin=-300, vmax=300))
+    ax2.tick_params(axis='both', which='both', direction='in', length=8, width=3, pad=5, labelsize=12, top=True, right=True)
+    ax2.set_ylabel('z [kpc]', fontsize=14)
+    ax2.set_xlabel('y [kpc]', fontsize=14)
+    pos = ax2.get_position()
+    cax = fig.add_axes([pos.x1, pos.y0, 0.03, pos.y1-pos.y0])  # [left, bottom, width, height]
+    fig.colorbar(im, cax=cax, orientation='vertical')
+    cax.tick_params(axis='both', which='both', direction='in', length=10, width=3, pad=5, labelsize=12, \
+                    top=False, labelbottom=False, left=False, right=True, labelright=True, labelleft=False)
+    cax.text(3, 0.5, 'Radial velocity [km/s]', fontsize=14, ha='center', va='center', rotation=90, transform=cax.transAxes)
+
+    im = ax3.imshow(Mach_frb, extent=[-width/2.,width/2.,-width/2.,width/2.], origin='lower', cmap=Mach_cmap, norm=colors.Normalize(vmin=Mach_cut, vmax=10))
+    ax3.tick_params(axis='both', which='both', direction='in', length=8, width=3, pad=5, labelsize=12, top=True, right=True)
+    ax3.set_xlabel('y [kpc]', fontsize=14)
+    ax3.set_ylabel('z [kpc]', fontsize=14)
+    pos = ax3.get_position()
+    cax = fig.add_axes([pos.x1, pos.y0, 0.03, pos.y1-pos.y0])  # [left, bottom, width, height]
+    fig.colorbar(im, cax=cax, orientation='vertical')
+    cax.tick_params(axis='both', which='both', direction='in', length=10, width=3, pad=5, labelsize=12, \
+                    top=False, labelbottom=False, left=False, right=True, labelright=True, labelleft=False)
+    cax.text(2., 0.5, 'Mach number', fontsize=14, ha='center', va='center', rotation=90, transform=cax.transAxes)
+
+    im = ax4.imshow(cat_frb, extent=[-width/2.,width/2.,-width/2.,width/2.], origin='lower', cmap=cat_cmap, norm=colors.Normalize(vmin=-0.5, vmax=3.5))
+    ax4.tick_params(axis='both', which='both', direction='in', length=8, width=3, pad=5, labelsize=12, top=True, right=True)
+    ax4.set_xlabel('y [kpc]', fontsize=14)
+    ax4.set_ylabel('z [kpc]', fontsize=14)
+    pos = ax4.get_position()
+    cax = fig.add_axes([pos.x1, pos.y0, 0.03, pos.y1-pos.y0])  # [left, bottom, width, height]
+    fig.colorbar(im, cax=cax, orientation='vertical')
+    cax.tick_params(axis='both', which='both', direction='in', length=10, width=3, pad=5, labelsize=14, \
+                        top=False, labelbottom=False, left=False, right=False, labelright=True, labelleft=False)
+    cax.set_yticks([1,2,3])
+    cax.set_yticklabels(['accretion','outflow','colliding'], rotation=45, ha='left', va='bottom')
+
+    fig.savefig(prefix + snap + '_temp-rv-Mach-shockcat_slices_x' + save_suffix + '.png')
+    plt.close()
+
+    # Make 2D histogram of average velocity on high-temp side of shock vs. galactocentric radius
+    # of shock cells, split by category into accretion shocks, outflow shocks, and colliding flows
+    '''fig = plt.figure(figsize=(8,5), dpi=250)
+    ax = fig.add_subplot(1,1,1)
+    fig.subplots_adjust(left=0.1,right=0.85,bottom=0.1,top=0.98)
+    x_range = [0, 3000]
+    y_range = [-500, 1000]
+    cmap = cmr.get_sub_cmap('cmr.freeze_r', 0., 0.9)
+
+    data_frame = pd.DataFrame({})
+    data_frame['radius'] = radius[(shock_mask)][accretion]
+    data_frame['volume'] = cell_volume[(shock_mask)][accretion]
+    data_frame['velocity'] = -v_plus[accretion]
+    cvs = dshader.Canvas(plot_width=400, plot_height=300, x_range=x_range, y_range=y_range)
+    agg = cvs.points(data_frame, 'radius', 'velocity', dshader.count())
+    arr = agg.values
+    im = ax.imshow(arr, origin='lower', extent=[x_range[0], x_range[1], y_range[0], y_range[1]], cmap=cmap, norm=colors.LogNorm())
+    ax.set_aspect(3*abs(x_range[1]-x_range[0])/(4*abs(y_range[1]-y_range[0])))
+    ax.set_xlabel(r'Galactocentric Radius [kpc]', fontsize=14)
+    ax.set_ylabel(r'Velocity normal to shock front [km/s]', fontsize=14)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+        top=True, right=True)
+    ax_pos = ax.get_position()
+    cax = fig.add_axes([ax_pos.x1, ax_pos.y0, 0.03, ax_pos.y1-ax_pos.y0])  # [left, bottom, width, height]
+    fig.colorbar(im, cax=cax, orientation='vertical')
+    cax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=12, labelleft=False, labelright=True, left=False, right=True)
+    cax.text(3.5, 0.5, r'Volume [kpc$^3$]', fontsize=14, ha='center', va='center', rotation=90, transform=cax.transAxes)
+
+    ax.text(0.05, 0.95, halo_dict[global_vars['halo']], fontsize=14, ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.05, 0.9, 'Accretion shocks', fontsize=14, ha='left', va='top', transform=ax.transAxes)
+
+    fig.savefig(prefix + snap + '_postshock_velocity_vs_radius_accretion-shocks.png')
+    plt.close()
+
+    fig = plt.figure(figsize=(8,5), dpi=250)
+    ax = fig.add_subplot(1,1,1)
+    fig.subplots_adjust(left=0.1,right=0.85,bottom=0.1,top=0.98)
+    x_range = [0, 3000]
+    y_range = [-500, 1000]
+    cmap = cmr.get_sub_cmap('cmr.freeze_r', 0., 0.9)
+
+    data_frame = pd.DataFrame({})
+    data_frame['radius'] = radius[(shock_mask)][outflow]
+    data_frame['volume'] = cell_volume[(shock_mask)][outflow]
+    data_frame['velocity'] = -v_plus[outflow]
+    cvs = dshader.Canvas(plot_width=400, plot_height=300, x_range=x_range, y_range=y_range)
+    agg = cvs.points(data_frame, 'radius', 'velocity', dshader.count())
+    arr = agg.values
+    im = ax.imshow(arr, origin='lower', extent=[x_range[0], x_range[1], y_range[0], y_range[1]], cmap=cmap, norm=colors.LogNorm())
+    ax.set_aspect(3*abs(x_range[1]-x_range[0])/(4*abs(y_range[1]-y_range[0])))
+    ax.set_xlabel(r'Galactocentric Radius [kpc]', fontsize=14)
+    ax.set_ylabel(r'Velocity normal to shock front [km/s]', fontsize=14)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+        top=True, right=True)
+    ax_pos = ax.get_position()
+    cax = fig.add_axes([ax_pos.x1, ax_pos.y0, 0.03, ax_pos.y1-ax_pos.y0])  # [left, bottom, width, height]
+    fig.colorbar(im, cax=cax, orientation='vertical')
+    cax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=12, labelleft=False, labelright=True, left=False, right=True)
+    cax.text(3.5, 0.5, r'Volume [kpc$^3$]', fontsize=14, ha='center', va='center', rotation=90, transform=cax.transAxes)
+
+    ax.text(0.05, 0.95, halo_dict[global_vars['halo']], fontsize=14, ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.05, 0.9, 'Outflow shocks', fontsize=14, ha='left', va='top', transform=ax.transAxes)
+
+    fig.savefig(prefix + snap + '_postshock_velocity_vs_radius_outflow-shocks.png')
+    plt.close()
+
+    fig = plt.figure(figsize=(8,5), dpi=250)
+    ax = fig.add_subplot(1,1,1)
+    fig.subplots_adjust(left=0.1,right=0.85,bottom=0.1,top=0.98)
+    x_range = [0, 3000]
+    y_range = [-500, 1000]
+    cmap = cmr.get_sub_cmap('cmr.freeze_r', 0., 0.9)
+
+    data_frame = pd.DataFrame({})
+    data_frame['radius'] = radius[(shock_mask)][colliding]
+    data_frame['volume'] = cell_volume[(shock_mask)][colliding]
+    data_frame['velocity'] = -v_plus[colliding]
+    cvs = dshader.Canvas(plot_width=400, plot_height=300, x_range=x_range, y_range=y_range)
+    agg = cvs.points(data_frame, 'radius', 'velocity', dshader.count())
+    arr = agg.values
+    im = ax.imshow(arr, origin='lower', extent=[x_range[0], x_range[1], y_range[0], y_range[1]], cmap=cmap, norm=colors.LogNorm())
+    ax.set_aspect(3*abs(x_range[1]-x_range[0])/(4*abs(y_range[1]-y_range[0])))
+    ax.set_xlabel(r'Galactocentric Radius [kpc]', fontsize=14)
+    ax.set_ylabel(r'Velocity normal to shock front [km/s]', fontsize=14)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+        top=True, right=True)
+    ax_pos = ax.get_position()
+    cax = fig.add_axes([ax_pos.x1, ax_pos.y0, 0.03, ax_pos.y1-ax_pos.y0])  # [left, bottom, width, height]
+    fig.colorbar(im, cax=cax, orientation='vertical')
+    cax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=12, labelleft=False, labelright=True, left=False, right=True)
+    cax.text(3.5, 0.5, r'Volume [kpc$^3$]', fontsize=14, ha='center', va='center', rotation=90, transform=cax.transAxes)
+
+    ax.text(0.05, 0.95, halo_dict[global_vars['halo']], fontsize=14, ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.05, 0.9, 'Colliding shocks', fontsize=14, ha='left', va='top', transform=ax.transAxes)
+
+    fig.savefig(prefix + snap + '_postshock_velocity_vs_radius_colliding-shocks.png')
+    plt.close()'''
 
 if __name__ == "__main__":
 
@@ -4888,7 +5587,10 @@ if __name__ == "__main__":
     #foggie_dir = '/Volumes/Data/Simulation_Data/'
 
     if ('feedback' in args.run) and ('track' in args.run):
-        foggie_dir = '/nobackupnfs1/jtumlins/halo_008508/feedback-track/'
+        if (args.system=='pleiades_cassi'):
+            foggie_dir = '/nobackupnfs1/jtumlins/halo_008508/feedback-track/'
+        else:
+            foggie_dir = '/Users/clochhaas/Documents/Research/FOGGIE/Simulation_Data/halo_008508/'
         run_dir = args.run + '/'
 
     # Set directory for output location, making it if necessary
@@ -4931,7 +5633,7 @@ if __name__ == "__main__":
     outs = make_output_list(args.output, output_step=args.output_step)
 
     global_vars = {'args':args, 'foggie_dir':foggie_dir, 'output_dir':output_dir, 'run_dir':run_dir, 'code_path':code_path,
-                   'trackname':trackname, 'haloname':haloname, 'spectra_dir':spectra_dir, 'infofile':infofile,
+                   'trackname':trackname, 'halo':args.halo, 'spectra_dir':spectra_dir, 'infofile':infofile,
                    'prefix':prefix, 'catalog_dir':catalog_dir, 'halo_c_v_name':halo_c_v_name, 'smooth_AM_name':smooth_AM_name,
                    'cloudy_path':cloudy_path, 'emission_units_ALT':emission_units_ALT, 'ytEmUALT':ytEmUALT, 'hden_pts':hden_pts,
                    'T_pts':T_pts, 'pts':pts, 'sr_HA':sr_HA, 'bl_HA':bl_HA, 'save_suffix':save_suffix, 'flux_types':flux_types,
