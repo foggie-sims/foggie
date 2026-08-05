@@ -2277,7 +2277,10 @@ def load_and_calculate(snap, surface, global_vars):
             snap_name = foggie_dir + run_dir + snap + '/' + snap
     else:
         if (args.plot=='shock_props'):
-            snap_name = foggie_dir + run_dir + 'shock_finding/' + snap + '/' + snap
+            if (args.system=='pleiades_cassi'):
+                snap_name = '/nobackup/clochhaa/shock_finding/halo_00' + args.halo + '/' + args.run + '/' + snap + '/' + snap
+            else:
+                snap_name = foggie_dir + run_dir + 'shock_finding/' + snap + '/' + snap
         else:
             snap_name = foggie_dir + run_dir + snap + '/' + snap
     if ((surface[0]=='cylinder') and (surface[3]=='minor')) or (args.direction) or ('disk' in surface[0]):
