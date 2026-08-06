@@ -279,7 +279,20 @@ REGISTRY_COLUMNS = ("halo_id", "box", "enabled", "final_level", "gas",
 
 
 def default_registry_path():
-    return os.path.join(foggie_repo(), "initial_conditions", "halo_registry.ecsv")
+    """The live registry, in the run tree rather than in the repo.
+
+    It lives under FOGGIE_ICS_DIR so that several people can drive the pipeline
+    from one checkout without editing the same versioned file: each run tree
+    carries its own set of halos.  The repo ships a seed copy, see
+    registry_example_path().
+    """
+    return os.path.join(foggie_ics_dir(), "halo_registry.ecsv")
+
+
+def registry_example_path():
+    """The seed registry in the repo.  Never read by the pipeline; copied once."""
+    return os.path.join(foggie_repo(), "initial_conditions",
+                        "halo_registry.ecsv.example")
 
 
 def read_registry(path=None):
@@ -288,8 +301,16 @@ def read_registry(path=None):
 
     path = path or default_registry_path()
     if not os.path.exists(path):
-        raise RuntimeError("Halo registry not found: %s" % path)
-    table = Table.read(path)
+        raise RuntimeError(
+            "Halo registry not found: %s\n"
+            "The registry lives in the run tree, not the repo, so that each run "
+            "tree has its own set of halos.  Seed it once with:\n"
+            "    cp %s \\\n        %s\n"
+            "then edit that copy -- every row in it starts disabled."
+            % (path, registry_example_path(), path))
+    # Explicit format: astropy infers it from the extension, which fails for a
+    # registry kept under any other name -- the shipped seed is .ecsv.example.
+    table = Table.read(path, format="ascii.ecsv")
 
     missing = [c for c in REGISTRY_COLUMNS if c not in table.colnames]
     if missing:

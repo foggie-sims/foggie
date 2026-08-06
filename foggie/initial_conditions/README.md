@@ -17,12 +17,14 @@ cannot be built until level N-1 finishes, because enzo-mrp-music reads the
 previous level's outputs. The pipeline chains those steps so no one has to sit
 and watch for each level to complete.
 
-To add a halo to the fleet, add a row to `halo_registry.ecsv` by hand. That is
-the only file you normally edit.
+To add a halo to the fleet, add a row to `$FOGGIE_ICS_DIR/halo_registry.ecsv`
+by hand. That is the only file you normally edit, and it lives in your run tree
+rather than here, so two people sharing a checkout do not share one halo list.
+Seed it once from `halo_registry.ecsv.example`.
 
 | Folder/Module | Description |
 |---------------|-------------|
-| `halo_registry.ecsv` | **The one file you edit.** Hand-curated list of halos to run, one row each: refinement depth, whether to run gas, zoom radius floor, PBS hints. Nothing writes to it. |
+| `halo_registry.ecsv.example` | Seed for **the one file you edit**, which lives at `$FOGGIE_ICS_DIR/halo_registry.ecsv`: a hand-curated list of halos to run, one row each -- refinement depth, whether to run gas, zoom radius floor, PBS hints. Copy it once; the pipeline never reads the seed, and nothing ever writes to your copy. |
 | `pipeline/` | The pipeline itself, see below. |
 | `templates_512/` | Templates rendered per stage for the 512 parent box: the Enzo parameter files, the PBS run script, the enzo-mrp-music config, `simrun.pl`, and the poller scripts. |
 | `templates_512/baseline/` | Approved renderings of the templates. `validate-templates` diffs against these so an intentional edit is approved once while an accidental one still fails. |

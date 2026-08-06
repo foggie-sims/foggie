@@ -1,0 +1,40 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: halo_id, datatype: int64}
+# - {name: box, datatype: string}
+# - {name: enabled, datatype: bool}
+# - {name: final_level, datatype: int64}
+# - {name: gas, datatype: bool}
+# - {name: rvir_min, datatype: float64}
+# - {name: queue, datatype: string}
+# - {name: nodes, datatype: int64}
+# - {name: model, datatype: string}
+# - {name: notes, datatype: string}
+# meta: !!omap
+# - comments: [FOGGIE IC pipeline halo registry -- SEED COPY. This file is not read by the pipeline., '', 'Copy it to your own
+#       run tree once, then edit that copy:', '', '    cp $FOGGIE_REPO/initial_conditions/halo_registry.ecsv.example \', '        $FOGGIE_ICS_DIR/halo_registry.ecsv',
+#     '', The live registry lives in FOGGIE_ICS_DIR so that each person runs their own, set of halos without colliding
+#       in the repo. Nothing here is versioned;, 'if you want your set recorded, commit it somewhere of your own choosing.',
+#     '', 'Add a halo by appending one whitespace-separated row below, in the column', order given by the header line.
+#       Quote any field containing spaces., 'Then run:  ic_pipeline.py validate-registry', '', enabled              only
+#       True rows are ever acted on, 'final_level          top DM level, normally 3', gas                  run a gas stage
+#       at the final level, rvir_min             floor on the zoom radius in kpc; 0 uses the box default (80), '', Every
+#       row below is enabled = False on purpose. Enabling one commits real, 'resources -- a DM ladder is days of queue time and a gas run is 8-12 TB --',
+#     so turn them on deliberately and a few at a time., '', Status is NOT written here -- see status.ecsv in FOGGIE_ICS_DIR.]
+# schema: astropy-2.0
+halo_id box enabled final_level gas rvir_min queue nodes model notes
+42189 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait "8.2e+10 Msun"
+51541 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait "3.2e+10 Msun"
+79628 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait ""
+80181 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait "1.0e+09 Msun"
+52675 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait ""
+15659 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait "6.8e+09 Msun"
+48014 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait ""
+56672 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait ""
+47314 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait ""
+51741 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait ""
+15516 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait ""
+75392 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait ""
+59186 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait ""
+46615 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait ""

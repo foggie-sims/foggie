@@ -25,7 +25,7 @@ Once the ICs exist, `Starting a Fresh FOGGIE Run from Initial Conditions
 Getting started
 ---------------
 
-Start here if you have a working Enzo build and nothing else. Nine steps, in
+Start here if you have a working Enzo build and nothing else. Ten steps, in
 order. Later sections explain what any of it means.
 
 **What you need first**
@@ -61,7 +61,24 @@ Everything reads these, so put them in your shell profile::
 ``FOGGIE_REPO`` points at the *package* directory inside the clone, the one
 containing ``initial_conditions/``.
 
-**3. Build MUSIC**
+**3. Seed your halo registry**
+
+The registry -- the list of halos you want built -- lives in **your run tree**,
+not in the repo, so that several people can drive the pipeline from one
+checkout without editing the same versioned file. Copy the seed once::
+
+    cp $FOGGIE_REPO/initial_conditions/halo_registry.ecsv.example \
+       $FOGGIE_ICS_DIR/halo_registry.ecsv
+
+Every row in the seed is ``enabled = False``, so copying it commits you to
+nothing. You turn halos on in your own copy, in step 7.
+
+Nothing in the repo reads the seed after this point, and nothing ever writes to
+your copy. If you want a set of halos recorded, commit that copy somewhere of
+your own choosing, or point ``--registry`` at a file kept under version
+control -- every subcommand takes it.
+
+**4. Build MUSIC**
 
 The source is in the repo; the compiled binary is not, so build it once on the
 machine you will run on::
@@ -82,7 +99,7 @@ The result must be an executable at::
 
 That exact path is where the pipeline looks. Check with ``./MUSIC --help``.
 
-**4. Point the pipeline at your Enzo**
+**5. Point the pipeline at your Enzo**
 
 Edit ``enzo_exe`` in ``$FOGGIE_REPO/initial_conditions/pipeline/config.py``,
 in the ``25Mpc_DM_512`` entry, to your Enzo executable. While you are there,
@@ -90,7 +107,7 @@ check ``group_list`` is an account you can charge to, and that the PBS
 resource lines (``dm_select``, ``build_select``) name a node model your site
 has.
 
-**5. Check it is wired up correctly**
+**6. Check it is wired up correctly**
 
 ::
 
@@ -110,10 +127,10 @@ confirms the registry parses and every halo in it resolves in the catalog. Both
 should say ``OK``. Fix anything they report before going further -- they are
 much cheaper than finding the same problem inside a job.
 
-**6. Pick a halo and add it to the registry**
+**7. Pick a halo and add it to the registry**
 
-Open ``$FOGGIE_REPO/initial_conditions/halo_registry.ecsv`` in a text editor
-and append one row, using the column order in the header line::
+Open ``$FOGGIE_ICS_DIR/halo_registry.ecsv`` -- your copy, from step 3 -- in a
+text editor and append one row, using the column order in the header line::
 
     82812 25Mpc_DM_512 True 3 False 0.0 normal 1 mil_ait "my first zoom"
 
@@ -122,7 +139,7 @@ queue, nodes, node model, a note. Re-run
 ``validate-registry`` -- it will print the halo's virial radius, which is a
 good check you chose the ID you meant.
 
-**7. Launch it**
+**8. Launch it**
 
 ::
 
@@ -134,7 +151,7 @@ submits the Enzo run itself.
 Use ``--dry-run`` first if you want to see exactly what it would do without
 submitting anything.
 
-**8. Watch**
+**9. Watch**
 
 ::
 
@@ -144,7 +161,7 @@ Your halo moves ``READY -> BUILDING -> QUEUED -> RUNNING -> DONE``, then the
 next level starts on its own. A full three-level ladder takes days, mostly
 Enzo time.
 
-**9. Turn on the poller**
+**10. Turn on the poller**
 
 ::
 
@@ -193,11 +210,23 @@ build at the same level and runs alongside the DM run -- see `The gas stage`_.
 The halo registry
 -----------------
 
-``foggie/initial_conditions/halo_registry.ecsv`` is the single hand-curated
-input, and the only file you normally edit. **You edit it by hand, in a text
-editor, and commit it like any other source file.** Nothing writes to it: the
-pipeline only ever reads it, so your edits are never overwritten and two people
-changing it resolve as an ordinary git conflict.
+``$FOGGIE_ICS_DIR/halo_registry.ecsv`` is the single hand-curated input, and
+the only file you normally edit. **You edit it by hand, in a text editor.**
+Nothing writes to it: the pipeline only ever reads it, so your edits are never
+overwritten.
+
+It lives in your run tree rather than in the repo, and that is deliberate. The
+registry says which halos to spend machine time on, which is a personal and
+short-lived decision; keeping it in the repo meant everyone sharing a checkout
+also shared one list, and enabling a halo for yourself enabled it for everyone.
+One registry per run tree removes the collision entirely.
+
+The repo ships ``initial_conditions/halo_registry.ecsv.example`` as the seed to
+copy from. It carries the vetted halo IDs with every row disabled, and the
+pipeline never reads it. If your set of halos is worth recording, commit your
+copy somewhere of your own, or keep it under version control and point
+``--registry`` at it: every subcommand takes that flag, and it overrides the
+default location.
 
 It is ECSV -- plain text, with a commented header declaring the column types,
 followed by one whitespace-separated row per halo::
@@ -261,8 +290,9 @@ One row per halo:
     Free text. Please say why a halo is unusual; it is the only place that
     context survives.
 
-Status is **not** written back here. The registry is versioned input; status is
-regenerated constantly and lives separately, under ``$FOGGIE_ICS_DIR``.
+Status is **not** written back here. The registry is hand-curated input; status
+is regenerated constantly and lives in its own files, ``status.ecsv`` and
+friends, alongside the registry in ``$FOGGIE_ICS_DIR``.
 
 
 Monitoring

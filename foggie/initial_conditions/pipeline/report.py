@@ -129,8 +129,8 @@ _ECSV_HEADER = [
     "Written by `ic_pipeline status --write`; regenerated on every sweep.",
     "State is derived from OutputLog and RunFinished on each sweep, so this file",
     "is a snapshot and never an authority.  The hand-curated input it reflects is",
-    "foggie/initial_conditions/halo_registry.ecsv, which is deliberately a",
-    "separate file: that one is versioned and edited by hand, this one churns.",
+    "$FOGGIE_ICS_DIR/halo_registry.ecsv, which is deliberately a separate",
+    "file: that one is edited by hand, this one churns.",
 ]
 
 
