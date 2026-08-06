@@ -88,9 +88,15 @@ def wrap_axes(dataset, img, filename, field1, field2, colorcode, ranges, region,
 
     ax2 = fig.add_axes([0.7, 0.93, 0.25, 0.06])
 
-    phase_cmap, metal_cmap, cell_mass_cmap = cmaps.create_foggie_cmap()
+    phase_cmap, metal_cmap, cell_mass_cmap, sound_speed_cmap = cmaps.create_foggie_cmap()
 
-    if 'phase' in colorcode:
+    if 'sound_speed' in colorcode:
+        ax2.imshow(sound_speed_cmap.to_pil())
+        # the cmap image is 750 px wide and spans sound_speed_min to sound_speed_max
+        ax2.set_xticks([0, 250, 500, 750])
+        ax2.set_xticklabels(['0','1','2','3'],fontsize=11)
+        ax2.text(180, 120, r'log c$_s$ [km s$^{-1}$]',fontsize=13)
+    elif 'phase' in colorcode:
         ax2.imshow(phase_cmap.to_pil()) 
         ax2.set_xticks([50,300,550,800])
         ax2.set_xticklabels(['4','5','6',' '],fontsize=11)

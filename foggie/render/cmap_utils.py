@@ -16,15 +16,18 @@ import datashader.transfer_functions as tf
 import matplotlib as mpl
 from foggie.utils.consistency import metal_min,  metal_max
 
-from foggie.utils.consistency import new_phase_color_key, new_metals_color_key, categorize_by_temp, categorize_by_metals
+from foggie.utils.consistency import new_phase_color_key, new_metals_color_key, \
+    new_sound_speed_color_key, categorize_by_temp, categorize_by_metals, \
+    categorize_by_sound_speed, sound_speed_min, sound_speed_max
 
 def create_foggie_cmap():
-    """This function creates colormaps for FOGGIE shade maps for 'phase', 'metal', and 'cell_mass' colorcodes."""
+    """This function creates colormaps for FOGGIE shade maps for the 'phase', 'metal',
+        'cell_mass', and 'sound_speed' colorcodes."""
     x = np.random.rand(100000)
     y = np.random.rand(100000)
-    temp = np.random.rand(100000) * 3.2 + 3.8 # log values of temperature range from 3.8 to 7 
-    metallicity = np.random.rand(100000) * 0.5 - 2. 
-    
+    temp = np.random.rand(100000) * 3.2 + 3.8 # log values of temperature range from 3.8 to 7
+    metallicity = np.random.rand(100000) * 0.5 - 2.
+
     df = pd.DataFrame({})
     df['x'] = x
     df['y'] = y
@@ -41,13 +44,19 @@ def create_foggie_cmap():
     df['cell_mass'] = cell_mass
     df['cell_mass'] = df['cell_mass'].astype('float')
 
-    print(df) 
+    # log values of the sound speed in km/s, spanning the full categorized range
+    df['sound_speed'] = np.random.rand(100000) * (sound_speed_max - sound_speed_min) + sound_speed_min
+    df['sound_speed_category'] = categorize_by_sound_speed(df['sound_speed'])
+    df.sound_speed_category = df.sound_speed_category.astype('category')
+
+    print(df)
 
     phase_img = grab_cmap(df, 'temperature', 'y', 'phase', new_phase_color_key)
     metal_img = grab_cmap(df, 'metallicity', 'y', 'metal', new_metals_color_key)
     cell_mass_img = grab_cmap(df, 'cell_mass', 'y', 'cell_mass', new_metals_color_key)
+    sound_speed_img = grab_cmap(df, 'sound_speed', 'y', 'sound_speed_category', new_sound_speed_color_key)
 
-    return phase_img, metal_img, cell_mass_img
+    return phase_img, metal_img, cell_mass_img, sound_speed_img
 
 
 def grab_cmap(df, axis_to_use, second_axis, labels_to_use, color_key):

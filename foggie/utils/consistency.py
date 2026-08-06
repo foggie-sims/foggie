@@ -35,6 +35,7 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                     'position_z': '$z$ coordinate [physical kpc]',
                     'radius': 'Radius [physical kpc]',
                     'mach_number': 'Mach Number',
+                    'sound_speed': 'log Sound Speed [km s$^{-1}$]',
                     'x_velocity': 'X velocity [km s$^{-1}$]',
                     'y_velocity': 'Y velocity [km s$^{-1}$]',
                     'z_velocity': 'Z velocity [km s$^{-1}$]',
@@ -118,7 +119,7 @@ logfields = ('Dark_Matter_Density', 'density', 'temperature',
              'Si_p2_number_density', 'Si_p2_column_density',
              'Si_p3_number_density', 'Si_p3_column_density',
              'Mg_p1_number_density', 'Mg_p1_column_density',
-             'metallicity', 'cell_mass', 'cell_size')
+             'metallicity', 'cell_mass', 'cell_size', 'sound_speed')
 
 species_dict = {'CIII': 'C_p2_number_density',
                 'CaII': 'Ca_p1_number_density',
@@ -494,6 +495,42 @@ logT_colors_mw_fine = sns.blend_palette(('salmon', "#984ea3", "#4daf4a",
                                          n_colors=len(logT_color_labels_mw_fine))
 logT_discrete_cmap_mw_fine = mpl.colors.ListedColormap(logT_colors_mw_fine)
 
+
+############# sound speed
+# The gas sound speed is a yt / enzo field with default units of cm/s, but we
+# categorize it in log10 of km/s so that the numbers are the same ones we quote
+# for velocities elsewhere. c_s runs from ~1 km/s in cold ISM gas up to a few
+# hundred km/s in the hot halo, so the bins are 0.2 dex wide from 0 to 3.
+sound_speed_min = 0.  # log km/s
+sound_speed_max = 3.  # log km/s
+
+sound_speed_color_labels = [b'cs01', b'cs02', b'cs03', b'cs04', b'cs05', b'cs06',
+                            b'cs07', b'cs08', b'cs09', b'cs10', b'cs11', b'cs12',
+                            b'cs13', b'cs14', b'cs15', b'cs16']
+# deliberately a different palette from the phase (temperature) key, since c_s
+# and T are nearly degenerate and the two maps should not be confusable
+sound_speed_colors = sns.blend_palette(("#440154", "#3b528b", "#21918c",
+                                        "#5ec962", "#fde725"),
+                                       n_colors=np.size(sound_speed_color_labels))
+sound_speed_smooth_cmap = sns.blend_palette(("#440154", "#3b528b", "#21918c",
+                                             "#5ec962", "#fde725"), as_cmap=True)
+sound_speed_discrete_cmap = mpl.colors.ListedColormap(sound_speed_colors)
+new_sound_speed_color_key = collections.OrderedDict()
+for i in np.arange(np.size(sound_speed_color_labels)):
+    new_sound_speed_color_key[sound_speed_color_labels[i]] = to_hex(sound_speed_colors[i])
+
+def categorize_by_sound_speed(sound_speed):
+    """ define the sound speed category strings. The input is log10 of the
+        sound speed in km/s, in keeping with categorize_by_temp, which takes
+        log temperature. """
+    # 15 bin edges for 16 labels: 0.2, 0.4, ... 3.0
+    cs_vals = np.linspace(sound_speed_min, sound_speed_max,
+                          num=np.size(sound_speed_color_labels))[1:]
+    label = np.chararray(np.size(sound_speed), 4)
+    label[:] = sound_speed_color_labels[-1]  # everything above the top edge
+    for i in np.arange(np.size(cs_vals))[::-1]:
+        label[sound_speed < cs_vals[i]] = sound_speed_color_labels[i]
+    return label
 
 ############# metals
 metal_color_labels = [b'free', b'free1', b'free2', b'free3', b'poor',
@@ -1075,6 +1112,7 @@ def categorize_by_o7(no7):
 ##################################### more dictionaries that depend on other stuff
 colormap_dict = {'phase': new_phase_color_key,
                  'metal': new_metals_color_key,
+                 'sound_speed': new_sound_speed_color_key,
                  'h1': hi_color_key,
                  'density': density_color_map,
                  'O_p5_number_density': o6_color_map,
