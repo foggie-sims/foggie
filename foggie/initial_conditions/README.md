@@ -1,6 +1,6 @@
 DIRECTORY: `initial_conditions`
 AUTHOR: JT and Claude, [Please add your names when you update the list below]
-LAST UPDATED: 07/31/2026
+LAST UPDATED: 08/05/2026
 
 This directory generates the initial conditions for cosmological zoom-in
 simulations and runs them through their refinement levels. It contains the
@@ -100,6 +100,17 @@ raises on a MUSIC failure instead of continuing silently.
   outputs than survive on disk. Enable one gas halo at a time.
 * The `z = 15` entry in the 266-entry redshift list is load-bearing — it is
   what the second leg restarts from. Do not trim the list.
+* `RestrictTemperature` and `RestrictVelocity` are stability guards, not
+  physics choices. Both completed gas runs set them; the first L2 gas batch
+  launched without them and the two most massive halos filled their logs with
+  `flux_hllc.F` Riemann failures shortly after the z = 15 transition.
+* `PPMDiffusionParameter` cannot be set from the parameter file at all. Enzo
+  forces it to 0 for every `ProblemType` except 60, after parsing, without
+  saying so. A non-zero value in an older parameter file did not take effect.
+* To change physics on a run that has already started, write `new_pars` in its
+  stage directory rather than editing the parameter file: `simrun.pl` applies
+  it once and logs each change to `run.log` as `Switching ... to ...`. A queued
+  job has not read it yet, so there is no need to resubmit.
 * A `STALLED` stage is never restarted automatically, by anything. Use
   `resume` once you have fixed whatever stopped it. This matters after a
   shared outage such as a full filesystem, which stalls every running stage at

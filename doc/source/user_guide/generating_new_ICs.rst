@@ -455,7 +455,7 @@ What happens in the run directory, in order:
 #. Enzo reaches *z* = 15, writes its dump, and writes ``RunFinished``.
 #. ``simrun.pl`` sees ``RunFinished`` and exits normally.
 #. ``RunScript.sh`` notices the run stopped at the transition rather than at the
-   end, writes a ``new_pars`` file with the four parameters, deletes
+   end, writes a ``new_pars`` file with the five parameters, deletes
    ``RunFinished``, and records ``gas_transition.done``.
 #. It calls ``simrun.pl`` again. ``simrun.pl`` applies ``new_pars`` to the
    restart parameter file, renames it ``new_pars.old`` so it cannot be applied
@@ -465,9 +465,12 @@ So a healthy gas run leaves both ``gas_transition.done`` and ``new_pars.old``
 behind, and ``run.log`` records the switch::
 
     Switching H2FormationOnDust to 1.
+    Switching CosmologyFinalRedshift to 0.
     Switching self_shielding_method to 3.
     Switching H2_self_shielding to 1.
-    Switching CosmologyFinalRedshift to 0.
+    Switching grackle_data_file to .../CloudyData_UVB=HM2012_shielded.h5.
+
+Five lines. Four is a run that will abort on the shielding table.
 
 Two details worth knowing if you are debugging one:
 
@@ -482,7 +485,7 @@ Two details worth knowing if you are debugging one:
   the leg is left to a fresh submission rather than started with too little time
   to reach an output.
 
-The stop redshift and the four parameters live in ``config.Box`` as
+The stop redshift and the five parameters live in ``config.Box`` as
 ``gas_stop_redshift`` and ``gas_transition_pars``, so the ``.enzo`` template and
 the shell block cannot disagree about where the run stops. The names are
 applied verbatim to the parameter file: a misspelling is silently ignored by
@@ -511,6 +514,17 @@ chain. Inspect with ``atq``; stop with ``atrm <job>`` and delete
 
 The chain lives on the front end it was started from, so a reboot stops it. If
 ``atq`` is unexpectedly empty, restart it with the command above.
+
+If ``at`` refuses the job outright, the cause is usually not the pipeline.
+``atd`` authenticates through PAM's ``password-auth`` stack, which enforces
+password aging, so an account whose password the host believes to be expired
+gets ``PAM_NEW_AUTHTOK_REQD`` and no scheduled job -- even though ssh and
+``qsub`` work normally, and even after the password has been changed elsewhere,
+if the front end's local ``/etc/passwd`` entry is the one being consulted. That
+is a ticket for support, not something to work around. Meanwhile
+``poll --install`` gets you a working poller immediately: it submits a
+self-rescheduling PBS job, which never touches PAM. It wakes a node for a
+one-second sweep, which is wasteful but reliable.
 
 Notifications
 ~~~~~~~~~~~~~
@@ -725,6 +739,77 @@ gas runs, expect these to differ legitimately: ``dtRestartDump`` is set here and
 was not there, and ``MinimumOverDensityForRefinement`` follows the same
 divide-by-8-per-level rule as the DM ladder, which the hand-built gas runs did
 not apply.
+
+Hydro stability
+~~~~~~~~~~~~~~~
+
+The hydro settings in ``gas-LX.enzo`` are PPM with the HLLC Riemann solver, and
+four of them exist specifically to keep a run alive rather than to choose
+physics:
+
+``RestrictTemperature = 1``, ``RestrictVelocity = 1``
+    Ceilings on what a single zone may reach. Both completed gas runs on disk
+    set them; the first L2 gas batch was launched without them and the two most
+    massive halos produced hundreds of ``flux_hllc.F`` Riemann failures within
+    hours of the *z* = 15 transition, while the two lightest ran clean.
+    ``RestrictDensity`` is a third guard of the same family and is left at 0,
+    matching both reference runs.
+
+``ApplyBoundsToBaryonFields = 1``
+    Clamps baryon fields to the density and energy floors instead of letting a
+    single bad zone abort the run.
+
+``PPMFlatteningParameter = 3``
+    Flattens the reconstruction near shocks. Read straight through by
+    ``ReadParameterFile.C:311``.
+
+``PPMSteepeningParameter = 0``, ``PPMDiffusionParameter = 0``
+    Both off, matching the reference runs.
+
+.. note::
+
+   ``PPMDiffusionParameter`` **cannot be set from the parameter file.** Enzo
+   forces it to 0 for every ``ProblemType`` except 60, at
+   ``ReadParameterFile.C:1981-1991``, after the file is parsed. A parameter file
+   asking for 3 runs with 0 and says nothing about it. The template carries 0
+   so that it states what the code actually does; do not read a non-zero value
+   in an older parameter file as evidence that diffusion was on.
+
+These are the settings most likely to need revisiting if a gas run destabilises
+at high refinement, and they are also the ones where an older hand-built run is
+a better guide than an Enzo default. Where a reference run and the template
+disagree, find out why before assuming the template is right.
+
+Changing parameters on a restart
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``new_pars`` mechanism the *z* = 15 transition uses is available by hand,
+and is the cleanest way to change physics on a run that has already started.
+Write ``new_pars`` in the stage directory, one ``name = value`` per line::
+
+    cd $FOGGIE_ICS_DIR/halo51541/25Mpc_DM_512-L2-gas
+    cat > new_pars <<'END'
+    RestrictTemperature = 1
+    RestrictVelocity = 1
+    PPMFlatteningParameter = 3
+    END
+
+``simrun.pl`` reads it before its run loop, rewrites the restart parameter file,
+renames it ``new_pars.old`` so it applies exactly once, and logs each change to
+``run.log`` as ``Switching <name> to <value>.``. That log line is the
+confirmation: no line means the change did not happen.
+
+Two things to know. A job already queued has not read ``new_pars`` yet, so
+writing it is enough -- there is no need to ``qdel`` and resubmit. And a
+misspelled parameter name is written into the parameter file and ignored by
+Enzo without complaint, so check the ``Switching`` count matches what you asked
+for.
+
+Changing the template does **not** affect a run in flight, only stages built
+afterwards. If you change physics mid-batch, the halos already running are no
+longer a controlled comparison against the ones that follow -- note it
+somewhere, because nothing in the output records which parameters a run
+actually used except its own parameter files.
 
 
 Command reference
