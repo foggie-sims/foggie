@@ -441,6 +441,12 @@ def render_mrp_config(box, halo_id, level, halo_dir, rvir_min=None):
         out.append(line)
     text = "".join(out)
 
+    # The parent box this zoom is cut from.  Hard-coded to 25Mpc_DM_512 until the
+    # template directories were shared between boxes, at which point the 256 box
+    # silently generated ICs against the 512 parent -- MUSIC ran at levelmin 9
+    # and wrote a 25Mpc_DM_512-L1 directory the build then could not find.
+    text = text.replace("__SIM_NAME__", box.sim_name)
+    text = text.replace("__TEMPLATE_CONFIG__", box.template_config)
     text = text.replace("FOGGIE_ICS_DIR/HALO_DIR", halo_dir)
     text = text.replace("FOGGIE_ICS_DIR", _config.foggie_ics_dir())
     text = text.replace("FOGGIE_REPO", _config.foggie_repo())
