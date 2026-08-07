@@ -521,6 +521,60 @@ def pipeline_hook_line(halo_id, halo_dir):
             % (script, halo_id, halo_dir))
 
 
+# Fewest Lagrangian region points a healthy zoom has produced across this fleet
+# is 45 (halo52675); typical is hundreds to thousands.  halo5348's broken build
+# traced 5.
+MIN_REGION_POINTS = 25
+WARN_REGION_POINTS = 60
+
+
+def check_region_points(halo_dir, level, dry_run=False):
+    """Refuse a zoom whose Lagrangian region was traced from too few particles.
+
+    enzo-mrp-music defines the region from the parent-box particles inside a
+    sphere at the halo's ANALYTIC centre -- catalog position plus the MUSIC
+    shift.  By z = 0 the halo has drifted from that position, typically 100-200
+    kpc, and if the zoom radius is smaller than the drift the sphere misses the
+    halo and traces whatever few particles happen to be there.
+
+    That is not a subtle failure but it is a silent one: halo5348's sphere
+    caught 5 particles instead of ~1000, and the convex hull of 5 scattered
+    Lagrangian positions came out ~100x the size of a normal region, 15 Rvir off
+    the halo, contaminated at 3.3%.  Nothing downstream complained -- the ICs
+    generated, Enzo ran, and the density ladder looked entirely plausible.
+
+    The Rvir floor (rvir_floor_kpc, 80 kpc for the 512 box and 200 for the 256)
+    is what normally keeps the sphere large enough to overlap the halo despite
+    the drift.  Overriding it with a small per-halo rvir_min is what removed
+    that protection.
+    """
+    import glob
+    pattern = os.path.join(halo_dir, "initial_particle_positions-*.dat")
+    files = sorted(glob.glob(pattern), key=os.path.getmtime)
+    if not files:
+        if dry_run:
+            return None
+        raise RuntimeError(
+            "enzo-mrp-music wrote no region point file matching %s" % pattern)
+    n = sum(1 for line in open(files[-1]) if line.strip())
+    if n < MIN_REGION_POINTS:
+        raise RuntimeError(
+            "L%d region traced from only %d particles (%s).\n"
+            "That is far below the %d seen for any healthy zoom in this fleet, "
+            "and means the traced sphere missed the halo: it is centred on the "
+            "analytic position, and the halo drifts 100-200 kpc from there by "
+            "z = 0.  Raise the zoom radius -- check the registry row's rvir_min, "
+            "which overrides the box's Rvir floor -- and rebuild."
+            % (level, n, os.path.basename(files[-1]), MIN_REGION_POINTS))
+    if n < WARN_REGION_POINTS:
+        print("    WARNING: L%d region traced from only %d particles; healthy "
+              "zooms here start around %d.  Check the zoom radius against the "
+              "halo's drift before trusting this stage." % (level, n, WARN_REGION_POINTS))
+    else:
+        print("    region traced from %d particles" % n)
+    return n
+
+
 def build_stage(box, halo_id, level, phase="DM", dry_run=False, adopt=False,
                 submit=True, hook=True, rvir_min=None):
     """Generate ICs and the run script for one stage, then submit it.
@@ -556,6 +610,9 @@ def build_stage(box, halo_id, level, phase="DM", dry_run=False, adopt=False,
         # enzo-mrp-music resolves the previous level's conf_log relative to the
         # working directory, so it must run from the halo directory.
         run("python3 %s %s %d" % (mrp, conf_name, level), cwd=halo_dir, dry_run=dry_run)
+        # Before anything downstream trusts this region, check it was traced
+        # from a plausible number of particles.
+        check_region_points(halo_dir, level, dry_run=dry_run)
 
     # --- Enzo parameter file ------------------------------------------------
     parameter_file_txt = os.path.join(stage_dir, "parameter_file.txt")
