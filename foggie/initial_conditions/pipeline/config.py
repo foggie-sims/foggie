@@ -270,6 +270,12 @@ BOXES = {
         # cadence, not the 15 the 512 box uses for DM.  Kept, so its levels stay
         # comparable with the runs already on disk.
         dm_output_list="outputs_266.txt",
+        # One level deeper than the 512 box, for the same reason its zooms run
+        # one level deeper: MaximumRefinementLevel counts levels above the ROOT
+        # grid, so the same value on a 256 root gives half the peak resolution.
+        # 512 at 7 and 256 at 8 both reach 0.545 proper kpc; leaving this at 7
+        # would quietly halve the resolution of every 256 gas run.
+        gas_max_refine_level=8,
         max_level=4,
         omega_b=0.04576,
         omega_m=0.291,
