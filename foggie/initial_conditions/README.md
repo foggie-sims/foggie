@@ -1,6 +1,6 @@
 DIRECTORY: `initial_conditions`
 AUTHOR: JT and Claude, [Please add your names when you update the list below]
-LAST UPDATED: 08/05/2026
+LAST UPDATED: 08/07/2026
 
 This directory generates the initial conditions for cosmological zoom-in
 simulations and runs them through their refinement levels. It contains the
@@ -26,14 +26,15 @@ Seed it once from `halo_registry.ecsv.example`.
 |---------------|-------------|
 | `halo_registry.ecsv.example` | Seed for **the one file you edit**, which lives at `$FOGGIE_ICS_DIR/halo_registry.ecsv`: a hand-curated list of halos to run, one row each -- refinement depth, whether to run gas, zoom radius floor, PBS hints. Copy it once; the pipeline never reads the seed, and nothing ever writes to your copy. |
 | `pipeline/` | The pipeline itself, see below. |
-| `templates_512/` | Templates rendered per stage for the 512 parent box: the Enzo parameter files, the PBS run script, the enzo-mrp-music config, `simrun.pl`, and the poller scripts. |
-| `templates_512/baseline/` | Approved renderings of the templates. `validate-templates` diffs against these so an intentional edit is approved once while an accidental one still fails. |
+| `templates/` | Templates rendered per stage, shared by **every** parent box: the Enzo parameter files, the PBS run script, the enzo-mrp-music config, `simrun.pl`, the poller scripts, and the output-redshift lists. The box-dependent parts -- root grid and output cadence -- are substituted at render time. |
+| `templates/baseline/` | Approved renderings of the templates. `validate-templates` diffs against these so an intentional edit is approved once while an accidental one still fails. |
 | `enzo-mrp-music/` | Britton Smith and John Wise's tool for finding a halo's Lagrangian region and driving MUSIC. Locally modified: see below. |
 | `music/` | MUSIC source. The compiled `MUSIC` binary is gitignored; build it in place on the machine you run on. |
 | `planck18_cosmology/` | CAMB transfer functions for the adopted cosmology, fed to MUSIC. |
-| `halo_catalogs_512/` | Rockstar z=0 catalog for the 512 parent box. Registry `halo_id` values must resolve here. |
-| `halo_template_512/`, `halo_template_256/` | The previous hand-driven workflow, kept until the pipeline has been exercised through L3. Superseded by `pipeline/` and `templates_512/`. |
+| `halo_catalogs_512/`, `halo_catalogs_256/` | Rockstar z=0 catalogs for the parent boxes. Registry `halo_id` values must resolve in the catalog of the box the row names. Only `out_0.list` is tracked; the raw per-processor Rockstar output is not. |
+| `halo_template_512/`, `halo_template_256/` | The previous hand-driven workflow, kept until the pipeline has been exercised through L3. Superseded by `pipeline/` and `templates/`. |
 | `REFACTOR_PLAN.md`, `refactor_roadmap.html` | Design notes and diagrams for the pipeline. |
+| `REGION_TRANSPLANT.md` | How to zoom a coarse parent box on a halo it cannot resolve, by transplanting the Lagrangian region from a finer box. Demonstrated on halo80181 and measured; **not adopted** -- read the risks. |
 
 ### `pipeline/`
 
