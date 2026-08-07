@@ -529,6 +529,24 @@ Bounding boxes differ only by `padding = 4` cells scaling with cell size, and
 rejected -- the open question going in. ICs were written with a 10x14x10 nested
 grid at level 1.
 
+**The halo forms, and its mass is right.** The test was run to z = 0 (RD0265)
+and the resulting object measured against the 512 catalog entry it was seeded
+from:
+
+    mass within Rvir   9.779e+08 Msun/h
+    512 catalog Mvir   1.006e+09 Msun/h
+    ratio              0.97
+
+    located 138.7 kpc from the analytic position -- the same 100-200 kpc
+    inter-level drift seen throughout, not a placement error
+
+    finest species 1.343e+07 Msun, which is exactly the 512 box's ROOT particle
+    mass: the 256-at-L+1 == 512-at-L identity, visible in the data
+
+So a halo with *zero* parent-box particles inside its virial radius was
+recovered at 97% of its mass with ~104 particles, from nothing but a
+transplanted region and the seeds already present in the coarse box.
+
 ### Risks, which are the reason this is not adopted
 
 1. **The tidal field differs.** Inside the refined volume the modes match, but
