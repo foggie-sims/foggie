@@ -266,10 +266,11 @@ BOXES = {
         catalog="initial_conditions/halo_catalogs_256/256/z0/out_0.list",
         template_config="25Mpc_DM_256_planck18.conf",
         template_dir="initial_conditions/templates",
-        # The 256 box's hand-written DM templates carried the full 266-entry
-        # cadence, not the 15 the 512 box uses for DM.  Kept, so its levels stay
-        # comparable with the runs already on disk.
-        dm_output_list="outputs_266.txt",
+        # DM output cadence is the 15-entry list, as for the 512 box.  Its
+        # hand-written templates carried all 266, which cost ~300 GB per DM
+        # level against ~17 GB at 15 outputs, for dumps nothing reads: the DM
+        # ladder exists to place the zoom region, and only its z = 0 state is
+        # used.  Gas keeps 266, where the cadence is the analysis.
         # One level deeper than the 512 box, for the same reason its zooms run
         # one level deeper: MaximumRefinementLevel counts levels above the ROOT
         # grid, so the same value on a 256 root gives half the peak resolution.
