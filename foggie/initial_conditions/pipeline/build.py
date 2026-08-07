@@ -28,7 +28,7 @@ except ImportError:  # running by path rather than as a package
 
 # The tail of the MinimumOverDensityForRefinement vector, after the two
 # level-dependent leading entries.  The DM and gas templates were written with
-# different lengths; preserved verbatim rather than normalised, so the rendered
+# different lengths; preserved verbatim rather than normalized, so the rendered
 # files stay byte-comparable with the originals.
 _OVERDENSITY_TAIL_DM = "1. 1. 1. 1. 1. 1. 1. 1."
 _OVERDENSITY_TAIL_GAS = "1. 1. 1. 1. 1"
@@ -41,13 +41,15 @@ def _fmt_overdensity(value):
     return repr(value)
 
 
-def min_overdensity(level, phase="DM"):
+def min_overdensity(level, phase="DM", root=8.0):
     """MinimumOverDensityForRefinement for a given zoom level.
 
-    Divide by 8 for each additional level, per Britton Smith's notes: level 1
-    gives 1., level 2 gives 0.125, level 3 gives 0.015625.
+    Divide by 8 for each additional level, per Britton Smith's notes: with the
+    default root value of 8, level 1 gives 1., level 2 gives 0.125, level 3
+    gives 0.015625.  `root` is box.overdensity_at_root -- see the comment there
+    for what the number means and why it is 8.
     """
-    value = 8.0 ** -(level - 1)
+    value = float(root) * 8.0 ** -level
     lead = _fmt_overdensity(value)
     tail = _OVERDENSITY_TAIL_GAS if phase == "gas" else _OVERDENSITY_TAIL_DM
     return "%s %s %s" % (lead, lead, tail)
@@ -82,6 +84,22 @@ def _fmt_redshift(z):
     return str(int(z)) if float(z) == int(z) else repr(float(z))
 
 
+def output_redshifts(box, phase="DM"):
+    """The CosmologyOutputRedshift block for this box and phase.
+
+    Read from a file in the template directory rather than held inline, because
+    it is the one place two boxes legitimately disagree while sharing every
+    other line, and because it is long enough (266 entries) to bury the rest of
+    the template.
+    """
+    name = box.gas_output_list if phase == "gas" else box.dm_output_list
+    path = os.path.join(box.template_dir_path(), name)
+    if not os.path.exists(path):
+        raise RuntimeError("Output redshift list missing: %s" % path)
+    with open(path) as fp:
+        return fp.read().rstrip("\n")
+
+
 def enzo_keywords(box, level, phase="DM", grid_parameters=""):
     """Keyword table for the .enzo templates."""
     kw = {
@@ -89,16 +107,22 @@ def enzo_keywords(box, level, phase="DM", grid_parameters=""):
         "__NUM_INITIAL_GRIDS__": str(level + 1),
         "__MRP_REFINE_TO_LEVEL__": str(level),
         "__GRID_PARAMETERS__": grid_parameters,
+        # Box geometry and cadence: everything that used to force a separate
+        # template directory per parent box.
+        "__TOP_GRID__": "%d %d %d" % ((box.parent_ngrid,) * 3),
+        "__OUTPUT_REDSHIFTS__": output_redshifts(box, phase),
     }
     if phase == "gas":
-        kw["__MIN_OVERDENSITY_GAS__"] = min_overdensity(level, "gas")
+        kw["__MIN_OVERDENSITY_GAS__"] = min_overdensity(
+            level, "gas", box.overdensity_at_root)
         kw["__MAX_REFINE_LEVEL__"] = str(box.gas_max_refine_level)
         # First leg only.  RunScript.sh rewrites this to 0 at the handoff, so
         # the two must come from the same place or the run either stops twice
         # or never stops at all.
         kw["__GAS_STOP_REDSHIFT__"] = _fmt_redshift(box.gas_stop_redshift)
     else:
-        kw["__MIN_OVERDENSITY__"] = min_overdensity(level, "DM")
+        kw["__MIN_OVERDENSITY__"] = min_overdensity(
+            level, "DM", box.overdensity_at_root)
     return kw
 
 
@@ -283,6 +307,19 @@ def catalog_rvir(box, halo_id):
     if len(match) != 1:
         raise RuntimeError("halo %s not found in %s" % (halo_id, box.catalog_path()))
     return float(match["Rvir"][0])
+
+
+def catalog_mvir(box, halo_id):
+    """The halo's virial mass from the catalog, in Msun/h as Rockstar writes it.
+
+    Carries the same h as the positions and Rvir, so it is quoted alongside them
+    unconverted; the caller divides by h if it wants physical solar masses.
+    """
+    halos = _read_catalog(box.catalog_path())
+    match = halos[halos["ID"] == int(halo_id)]
+    if len(match) != 1:
+        raise RuntimeError("halo %s not found in %s" % (halo_id, box.catalog_path()))
+    return float(match["Mvir"][0])
 
 
 _SHIFT_RE = re.compile(r"setup/shift_([xyz])\s*=\s*(-?\d+)")
@@ -783,20 +820,33 @@ def render_atpoll(box, script_path, log_dir, interval_minutes, python=None,
     })
 
 
-def submit_qc_job(box, halo_id, dry_run=False):
-    """Run the diagnostics on a compute node.  They need yt and several GB."""
+def submit_qc_job(box, halo_id, density=False, through_level=None, dry_run=False):
+    """Run the diagnostics on a compute node.  They need yt and several GB.
+
+    `density` selects the projected-density ladder rather than the particle
+    contamination panels.  `through_level` is recorded in the ledger so the
+    automatic trigger can tell whether the figure on disk already covers every
+    level that has finished -- see ic_pipeline.qc_due.
+    """
     halo_dir = box.halo_dir(halo_id)
     script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ic_pipeline.py")
+    kind = "density" if density else "contamination"
+    cmd = "python3 %s qc --halo %s" % (script, halo_id)
+    if density:
+        # Gas stages that have not reached z = 0 are skipped by the figure
+        # itself, so asking for them costs nothing and means a finished gas run
+        # appears without anyone having to remember to add the flag.
+        cmd += " --density --include-gas"
     text = replace_keywords(
         open(os.path.join(box.template_dir_path(), "BuildScript.sh")).read(),
-        {"__JOBNAME__": "qc-halo%s" % halo_id,
+        {"__JOBNAME__": "qc%s-halo%s" % ("dens" if density else "", halo_id),
          "__GROUP__": box.group_list,
          "__BUILD_SELECT__": box.build_select,
-         "__BUILD_WALLTIME__": box.build_walltime,
+         "__BUILD_WALLTIME__": getattr(box, "qc_walltime", box.build_walltime),
          "__BUILD_QUEUE__": box.build_queue,
          "__HALO_DIR__": halo_dir,
-         "__BUILD_CMD__": "python3 %s qc --halo %s" % (script, halo_id)})
-    path = os.path.join(halo_dir, "QCScript.sh")
+         "__BUILD_CMD__": cmd})
+    path = os.path.join(halo_dir, "QCScript%s.sh" % ("-density" if density else ""))
     if dry_run:
         print("    [dry-run] write %s and qsub it" % path)
         return None
@@ -804,6 +854,7 @@ def submit_qc_job(box, halo_id, dry_run=False):
     os.chmod(path, 0o755)
     jobid = subprocess.check_output(["qsub", os.path.basename(path)],
                                     cwd=halo_dir).decode().strip()
-    ledger.append_record(halo_dir, {"stage": "qc", "action": "qc", "jobid": jobid})
+    ledger.append_record(halo_dir, {"stage": "qc", "action": "qc-%s" % kind,
+                                    "jobid": jobid, "through_level": through_level})
     print("  submitted %s" % jobid)
     return jobid

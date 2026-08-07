@@ -128,6 +128,26 @@ def stage_key(level, phase):
     return "L%d-%s" % (level, phase)
 
 
+def last_qc(halo_dir, kind):
+    """The most recent qc submission of this kind ("density"/"contamination")."""
+    for record in reversed(read_ledger(halo_dir)):
+        if record.get("stage") == "qc" and record.get("action") == "qc-%s" % kind:
+            return record
+    return None
+
+
+def qc_in_flight(halo_dir, kind, qstat_states):
+    """True if a qc job of this kind is still queued or running.
+
+    Without this the trigger would resubmit on every poll sweep between a level
+    finishing and its qc job starting, which on a busy queue is hours.
+    """
+    record = last_qc(halo_dir, kind)
+    if not record or not record.get("jobid"):
+        return False
+    return str(record["jobid"]).split(".")[0] in qstat_states
+
+
 def live_job(halo_dir, level, phase, qstat_states):
     """The (jobid, state, action) of a live job for this stage.
 

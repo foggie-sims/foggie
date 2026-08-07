@@ -54,7 +54,9 @@ class Box:
     catalog: str
     # MUSIC config for the parent box, relative to FOGGIE_ICS_DIR.
     template_config: str
-    # Template directory, relative to FOGGIE_REPO.
+    # Template directory, relative to FOGGIE_REPO.  Shared: one DM-LX.enzo and
+    # one gas-LX.enzo serve every box, with the box-dependent parts -- the root
+    # grid and the output cadence -- substituted at render time.
     template_dir: str
     max_level: int
     # Baryon fraction handed to MUSIC for gas ICs.  Must agree with
@@ -65,6 +67,30 @@ class Box:
     # Rvir floor in kpc, or None for no floor.  script256.py floored at 200 kpc
     # and script512.py did not; that difference was silent.
     rvir_floor_kpc: float = None
+    # MinimumOverDensityForRefinement at the root grid, from which every level's
+    # value follows by dividing by 8.  This number IS the refinement threshold
+    # expressed in finest-zoom-particle masses: the (L_box/TopGridDims)^3 factor
+    # Enzo applies (CosmologySimulationInitialize.C:718-731) cancels against the
+    # root particle mass, so it means the same thing in any parent box.
+    #
+    # 8 = 2^3 is the Lagrangian choice: a cell that refines yields eight
+    # children holding ~1 particle each, the same sampling the root grid had, so
+    # each level reproduces the one above it.  4 would refine earlier and leave
+    # each child with ~0.5 particles.
+    #
+    # 8 is what both 25 Mpc parent boxes use and what FOGGIE production runs --
+    # halo_008508's L4 is 0.001953125 = 8**-(4-1) on a 256 root grid.  The 4s on
+    # disk are resolution-test variants (25Mpc_DM_256-L0-max*), plus halo15097's
+    # hand-built ladder, which mixes both conventions across its own levels.
+    overdensity_at_root: float = 8.0
+    # Output-redshift cadence, as filenames in the template directory.  The 512
+    # box takes 15 outputs for DM and 266 for gas; the 256 box was run with 266
+    # for both.  Held here rather than inline in the templates because it is the
+    # one parameter where two boxes legitimately disagree while sharing
+    # everything else, and because changing it mid-ladder makes the levels
+    # incomparable -- the same RD number then means a different redshift.
+    dm_output_list: str = "outputs_15.txt"
+    gas_output_list: str = "outputs_266.txt"
     # enzo-cic_deposit_fix is enzo-foggie-aitken-mpich plus 0713af80, which
     # fixes an out-of-bounds write in cic_deposit.F when cloudsize < cellsize
     # -- a subgrid deposited onto a coarser parent ran one k-plane past the end
@@ -157,6 +183,15 @@ class Box:
     poll_select: str = "1:ncpus=1:model=mil_ait"
     poll_walltime: str = "00:10:00"
     poll_queue: str = "normal"
+    # A qc job wants a node's worth of memory -- it loads a 134-million-particle
+    # snapshot -- but only minutes of it.  Asking for the build job's two hours
+    # would queue it behind work that needs them.
+    qc_walltime: str = "00:30:00"
+    # Regenerate the projected-density ladder whenever a DM level finishes.
+    # It is one short job per completed level, submitted after the ladder has
+    # been advanced so it never delays one, and it costs about a minute per
+    # panel.  Set False to make the figures purely manual.
+    qc_on_advance: bool = True
 
     @property
     def shift_divisor(self):
@@ -197,7 +232,7 @@ BOXES = {
         boxsize_mpc=25.0,
         catalog="initial_conditions/halo_catalogs_512/512/z0/out_0.list",
         template_config="25Mpc_DM_512_planck18.conf",
-        template_dir="initial_conditions/templates_512",
+        template_dir="initial_conditions/templates",
         # 4 levels, not 3: halo80181 ran a full L1-L4 ladder successfully.
         max_level=4,
         omega_b=0.04576,
@@ -210,19 +245,31 @@ BOXES = {
         # floor are untouched, so halo42189 keeps its 88.963.
         rvir_floor_kpc=80.0,
     ),
-    # NOT YET PORTED.  The 256 box needs templates_256/ (the collapsed .enzo
-    # templates, RunScript and simrun.pl, as done for 512) and its Rockstar
-    # catalog put in place.  Kept here so the shape of a second box is visible,
-    # but `validate-registry` will refuse a halo that names it until the files
-    # exist.  The parent_ngrid difference is the important one: shifts divide by
-    # 255 here and 511 for the 512 box.
+    # Shares templates/ with the 512 box.  The only differences a second parent
+    # box actually needs are the root grid and the output cadence, both
+    # substituted at render time, so there is no templates_256/ to keep in sync.
+    #
+    # parent_ngrid is the one to be careful with: MUSIC's shifts divide by 255
+    # here and by 511 for the 512 box, and getting it wrong displaces the zoom
+    # silently.
+    #
+    # This box's own hand-written L3 and L4 templates disagree with each other
+    # about MinimumOverDensityForRefinement -- L3 carries L4's value and L4
+    # carries L3's, transposed, on a line whose comment states the divide-by-8
+    # rule they break.  The rendered files follow the rule, so
+    # `validate-templates --box 25Mpc_DM_256 --original` reports those two as
+    # differences.  That is the check working, not a porting error.
     "25Mpc_DM_256": Box(
         sim_name="25Mpc_DM_256",
         parent_ngrid=256,
         boxsize_mpc=25.0,
         catalog="initial_conditions/halo_catalogs_256/256/z0/out_0.list",
         template_config="25Mpc_DM_256_planck18.conf",
-        template_dir="initial_conditions/templates_256",
+        template_dir="initial_conditions/templates",
+        # The 256 box's hand-written DM templates carried the full 266-entry
+        # cadence, not the 15 the 512 box uses for DM.  Kept, so its levels stay
+        # comparable with the runs already on disk.
+        dm_output_list="outputs_266.txt",
         max_level=4,
         omega_b=0.04576,
         omega_m=0.291,

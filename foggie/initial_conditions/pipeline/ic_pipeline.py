@@ -49,16 +49,58 @@ except ImportError:
 # Reference lookup
 # ---------------------------------------------------------------------------
 
-# The per-level files the collapsed templates replace.  They are read from git
-# so the check keeps working after the old template directory is deleted.
-_REFERENCE_DIR = "foggie/initial_conditions/halo_template_512"
+# The per-level files the collapsed templates replace, per box.  They are read
+# from git so the check keeps working after the old template directories are
+# deleted.
+#
+# One shared templates/ directory now serves every box: DM-LX.enzo and
+# gas-LX.enzo carry __TOP_GRID__ and __OUTPUT_REDSHIFTS__, so what used to
+# require a directory per parent box is two keywords.  These tables are what
+# proves that collapse faithful.
+_REFERENCE_DIRS = {
+    "25Mpc_DM_512": "foggie/initial_conditions/halo_template_512",
+    "25Mpc_DM_256": "foggie/initial_conditions/halo_template_256",
+}
 
-_REFERENCE_STAGES = [
-    (1, "DM", "25Mpc_DM_512-L1.enzo"),
-    (2, "DM", "25Mpc_DM_512-L2.enzo"),
-    (3, "DM", "25Mpc_DM_512-L3.enzo"),
-    (3, "gas", "25Mpc_DM_512-L3-gas.enzo"),
-]
+# Stages checked against the ORIGINAL hand-written files (--original).
+#
+# The 256 box lists DM only.  Its hand-written gas templates encode superseded
+# physics -- MultiMetals = 1, StarMakerMinimumMass = 10000, the deprecated
+# H2StarMakerMinimumMass, no self-shielding parameters and none of the PPM or
+# Restrict* guards -- so the shared gas template deliberately does not
+# reproduce them.  Comparing against them would report a wall of differences
+# that are all intended.  The baseline check below still covers 256 gas.
+_REFERENCE_STAGES = {
+    "25Mpc_DM_512": [
+        (1, "DM", "25Mpc_DM_512-L1.enzo"),
+        (2, "DM", "25Mpc_DM_512-L2.enzo"),
+        (3, "DM", "25Mpc_DM_512-L3.enzo"),
+        (3, "gas", "25Mpc_DM_512-L3-gas.enzo"),
+    ],
+    "25Mpc_DM_256": [
+        (1, "DM", "25Mpc_DM_256-L1.enzo"),
+        (2, "DM", "25Mpc_DM_256-L2.enzo"),
+        (3, "DM", "25Mpc_DM_256-L3.enzo"),
+        (4, "DM", "25Mpc_DM_256-L4.enzo"),
+    ],
+}
+
+# Stages baselined and checked by default.  Independent of the table above,
+# because the baseline covers what the pipeline actually renders today rather
+# than what it once replaced.
+_BASELINE_STAGES = {
+    "25Mpc_DM_512": [(1, "DM"), (2, "DM"), (3, "DM"), (3, "gas")],
+    "25Mpc_DM_256": [(1, "DM"), (2, "DM"), (3, "DM"), (4, "DM"), (4, "gas")],
+}
+
+
+def reference_stages(box):
+    return _REFERENCE_STAGES.get(box.sim_name, [])
+
+
+def baseline_stages(box):
+    return _BASELINE_STAGES.get(box.sim_name,
+                                [(l, "DM") for l in range(1, box.max_level + 1)])
 
 
 def _repo_root():
@@ -80,10 +122,10 @@ def baseline_path(box, level, phase):
     return os.path.join(baseline_dir(box), "%s.enzo" % box.stage_dirname(level, phase))
 
 
-def read_reference(filename, git_ref):
+def read_reference(filename, git_ref, reference_dir):
     """Read an original per-level .enzo file, preferring git over the worktree."""
     root = _repo_root()
-    relpath = "%s/%s" % (_REFERENCE_DIR, filename)
+    relpath = "%s/%s" % (reference_dir, filename)
     if root and git_ref:
         try:
             out = subprocess.check_output(["git", "show", "%s:%s" % (git_ref, relpath)],
@@ -145,7 +187,8 @@ def normalize(text):
 def compare_stage(box, level, phase, filename, git_ref):
     """Render one stage and diff it against the original.  Returns a diff list."""
     rendered = build.render_enzo_param(box, level, phase, grid_parameters="")
-    original, source = read_reference(filename, git_ref)
+    original, source = read_reference(filename, git_ref,
+                                      _REFERENCE_DIRS[box.sim_name])
     diff = list(difflib.unified_diff(normalize(original), normalize(rendered),
                                      fromfile="original  %s" % source,
                                      tofile="rendered  L%d-%s" % (level, phase),
@@ -158,7 +201,7 @@ def cmd_validate_templates(args):
 
     if args.rebaseline:
         os.makedirs(baseline_dir(box), exist_ok=True)
-        for level, phase, _ in _REFERENCE_STAGES:
+        for level, phase in baseline_stages(box):
             path = baseline_path(box, level, phase)
             with open(path, "w") as fp:
                 fp.write(build.render_enzo_param(box, level, phase, grid_parameters=""))
@@ -174,8 +217,14 @@ def cmd_validate_templates(args):
           % ("the original per-level files in git %s" % args.git_ref if args.original
              else "the approved baseline"))
 
+    stages = (reference_stages(box) if args.original
+              else [(l, p, None) for l, p in baseline_stages(box)])
+    if not stages:
+        print("No stages registered for box %s." % box.sim_name)
+        return 1
+
     failures = 0
-    for level, phase, filename in _REFERENCE_STAGES:
+    for level, phase, filename in stages:
         label = "L%d-%s" % (level, phase)
         try:
             if args.original:
@@ -207,11 +256,12 @@ def cmd_validate_templates(args):
 
     print("")
     if failures:
-        print("FAILED: %d of %d stage(s) differ." % (failures, len(_REFERENCE_STAGES)))
+        print("FAILED: %d of %d stage(s) differ." % (failures, len(stages)))
         print("The template collapse is not faithful; do not switch over.")
         return 1
-    print("OK: all %d stages re-render to their originals "
-          "(ignoring comments and whitespace)." % len(_REFERENCE_STAGES))
+    print("OK: all %d stages re-render to their %s "
+          "(ignoring comments and whitespace)."
+          % (len(stages), "originals" if args.original else "baseline"))
     return 0
 
 
@@ -373,6 +423,7 @@ def advance_halo(row, qstat, include_gas=True, dry_run=False, verbose=True):
         return st, None
 
     actions = []
+    done_levels = []
 
     # --- DM ladder: strictly sequential -------------------------------------
     prereq_done = True
@@ -382,6 +433,7 @@ def advance_halo(row, qstat, include_gas=True, dry_run=False, verbose=True):
             actions.append(did)
         if st.state != stagestate.DONE:
             break
+        done_levels.append(level)
     else:
         if verbose:
             print("halo %s: DM ladder complete" % halo_id)
@@ -403,7 +455,62 @@ def advance_halo(row, qstat, include_gas=True, dry_run=False, verbose=True):
                   % (halo_id, level,
                      os.path.basename(config.gas_prerequisite(box, halo_id, level))))
 
+    # --- diagnostics: one density figure per newly finished level -----------
+    did = maybe_submit_qc(box, row, done_levels, qstat, dry_run=dry_run,
+                          verbose=verbose)
+    if did:
+        actions.append(did)
+
     return actions
+
+
+def qc_due(halo_dir, done_levels, qstat):
+    """Should the density figure be regenerated?  Returns the deepest level, or None.
+
+    The figure is a ladder: one panel per level that has reached z = 0.  So it
+    is stale exactly when a level has finished that the figure on disk does not
+    cover, which the ledger records as `through_level`.  Comparing against that
+    rather than against the file's mtime means a figure that failed to render
+    is retried, while one that succeeded is not rebuilt every sweep.
+    """
+    if not done_levels:
+        return None
+    deepest = max(done_levels)
+    if ledger.qc_in_flight(halo_dir, "density", qstat):
+        return None
+    record = ledger.last_qc(halo_dir, "density")
+    if record and record.get("through_level") is not None:
+        if int(record["through_level"]) >= deepest:
+            return None
+    return deepest
+
+
+def maybe_submit_qc(box, row, done_levels, qstat, dry_run=False, verbose=True):
+    """Submit the density figure if a level has finished that it does not cover.
+
+    Deliberately fire-and-forget: it goes to the queue as its own short job, so
+    a halo never waits on a diagnostic to advance, and a failure to render can
+    never block a ladder.  It is also why this runs after the ladder and the gas
+    branch rather than before them.
+    """
+    if not getattr(box, "qc_on_advance", True):
+        return None
+    halo_id = row["halo_id"]
+    halo_dir = box.halo_dir(halo_id)
+    deepest = qc_due(halo_dir, done_levels, qstat)
+    if deepest is None:
+        return None
+    if verbose:
+        print("halo %s: L%d finished -- submitting density figure" % (halo_id, deepest))
+    try:
+        build.submit_qc_job(box, halo_id, density=True, through_level=deepest,
+                            dry_run=dry_run)
+    except Exception as exc:
+        # A diagnostic that cannot be submitted is not a reason to fail an
+        # advance; the ladder matters and this does not.
+        print("halo %s: density figure NOT submitted: %s" % (halo_id, exc))
+        return None
+    return "%s density figure through L%d" % (halo_id, deepest)
 
 
 
@@ -558,13 +665,68 @@ def cmd_qc(args):
     push it onto a compute node.
     """
     table = config.read_registry(args.registry)
+
+    # --halo all: every row in the registry, enabled or not.  `enabled` governs
+    # what the pipeline spends machine time *running*; a halo that has been run
+    # and then held is exactly as worth looking at as one still going.
+    if str(args.halo).strip().lower() == "all":
+        halos = [int(r["halo_id"]) for r in table]
+        if not halos:
+            print("registry has no rows")
+            return 1
+        print("%d halo(s) from %s\n" % (len(halos),
+                                        args.registry or config.default_registry_path()))
+        rc = 0
+        for halo_id in halos:
+            sub = argparse.Namespace(**vars(args))
+            sub.halo = halo_id
+            print("--- halo %s ---" % halo_id)
+            try:
+                rc |= cmd_qc(sub)
+            except Exception as exc:
+                # One halo that has not been built yet, or whose dump is
+                # unreadable, must not stop the other thirteen.
+                print("  FAILED: %s" % exc)
+                rc = 1
+        return rc
+
     match = [r for r in table if int(r["halo_id"]) == int(args.halo)]
     rvir_min = float(match[0]["rvir_min"]) if match and "rvir_min" in match[0].colnames else None
     box = config.get_box(args.box or (match[0]["box"] if match else config.DEFAULT_BOX))
 
     if args.as_job:
-        jobid = build.submit_qc_job(box, args.halo, dry_run=args.dry_run)
+        jobid = build.submit_qc_job(box, args.halo, density=args.density,
+                                    dry_run=args.dry_run)
         return 0 if (jobid or args.dry_run) else 1
+
+    if args.density:
+        print("Projected density by level for halo %s (%s)" % (args.halo, box.sim_name))
+        path, rows = qc.make_density_figure(box, args.halo, out_path=args.out,
+                                            width_rvir=args.width_rvir,
+                                            context_mpc=args.context_mpc,
+                                            include_gas=args.include_gas,
+                                            recenter=args.recenter)
+        print(qc.format_density_report(args.halo, rows))
+        print("\nWrote %s" % path)
+
+        # A panel whose halo has drifted out of frame shows empty sky, which
+        # reads as a halo that dissolved under refinement.  The drift is one to
+        # two hundred kpc regardless of halo mass, so this is routine for the
+        # dwarfs and never happens for the massive ones.  Render the re-centered
+        # companion automatically rather than leaving a figure that has to be
+        # interpreted before it can be believed -- both are kept, since the
+        # uncentered one is the honest record of how far the halo moved.
+        if not args.recenter and any(r["note"].startswith("OUT OF FRAME") for r in rows):
+            second = (os.path.splitext(path)[0] + "_recentered.png")
+            print("\nSome panels are out of frame; also rendering re-centered:")
+            path2, rows2 = qc.make_density_figure(box, args.halo, out_path=second,
+                                                  width_rvir=args.width_rvir,
+                                                  context_mpc=args.context_mpc,
+                                                  include_gas=args.include_gas,
+                                                  recenter=True)
+            print(qc.format_density_report(args.halo, rows2))
+            print("\nWrote %s" % path2)
+        return 0
 
     levels = [int(x) for x in args.levels.split(",")] if args.levels else None
     print("Diagnostics for halo %s (%s)" % (args.halo, box.sim_name))
@@ -808,12 +970,27 @@ def main(argv=None):
     p.set_defaults(func=cmd_poll)
 
     p = sub.add_parser("qc",
-                       help="diagnostic plots per refinement level, centred on the halo")
-    p.add_argument("--halo", required=True)
+                       help="diagnostic plots per refinement level, centered on the halo")
+    p.add_argument("--halo", required=True,
+                   help="halo id, or `all` for every row in the registry")
     p.add_argument("--box", default=None)
     p.add_argument("--registry", default=None)
     p.add_argument("--levels", default=None,
                    help="comma-separated levels, e.g. 0,1,2 (default: all with data)")
+    p.add_argument("--density", action="store_true",
+                   help="projected DM density at every level on one color scale, "
+                        "instead of the particle contamination panels")
+    p.add_argument("--width-rvir", type=float, default=qc.DENSITY_WIDTH_RVIR,
+                   help="with --density, panel width in Rvir (default %(default)s)")
+    p.add_argument("--context-mpc", type=float, default=qc.DENSITY_CONTEXT_MPC,
+                   help="with --density, width in Mpc of the context row "
+                        "(default %(default)s)")
+    p.add_argument("--include-gas", action="store_true",
+                   help="with --density, also panel gas stages that have reached z = 0")
+    p.add_argument("--recenter", action="store_true",
+                   help="with --density, center each panel on the halo rather than on "
+                        "the catalog position; needed for dwarfs, whose ~150 kpc drift "
+                        "between levels is several Rvir and puts them out of frame")
     p.add_argument("--out", default=None, help="output PNG (default: halo dir)")
     p.add_argument("--as-job", action="store_true",
                    help="run on a compute node; this needs yt and several GB")
