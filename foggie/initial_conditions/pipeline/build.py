@@ -401,7 +401,13 @@ def center_for_level(box, halo_id, level, halo_dir, rvir_min=None):
             "Cannot build L%d: missing %s (level %d ICs were never generated)"
             % (level, conf_log, level - 1))
     shifts = read_shifts(conf_log)
-    return [c + s / box.shift_divisor for c, s in zip(center, shifts)]
+    # Wrap into [0,1).  The box is periodic and MUSIC's shift routinely carries
+    # a center past an edge: halo5348's L2 center came out as
+    # (0.442, 1.412, -0.465), which enzo-mrp-music then traced into a region
+    # ~27x too large, 15 Rvir off the halo, and contaminated at 3.3%.  It looks
+    # like a bad zoom rather than a bad coordinate, which is why it took a
+    # contamination check to find.
+    return [(c + s / box.shift_divisor) % 1.0 for c, s in zip(center, shifts)]
 
 
 # ---------------------------------------------------------------------------

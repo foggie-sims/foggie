@@ -68,7 +68,10 @@ def center_in_run(box, halo_id, level, halo_dir, rvir_min=None):
         raise RuntimeError("No %s -- cannot place the halo in the L%d frame"
                            % (conf_log, level))
     shifts = _build.read_shifts(conf_log)
-    return (np.array([c + s / box.shift_divisor for c, s in zip(center, shifts)]),
+    # Wrap into [0,1) -- the box is periodic and the shift routinely carries a
+    # center past an edge.  See build.center_for_level.
+    return (np.array([(c + s / box.shift_divisor) % 1.0
+                      for c, s in zip(center, shifts)]),
             rvir, zoom_radius)
 
 
