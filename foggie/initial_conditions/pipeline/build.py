@@ -418,6 +418,62 @@ def mrp_config_name(halo_id, level):
     return "halo%s_DM_%dto%d.conf" % (halo_id, level - 1, level)
 
 
+def refine_center_from_run(box, halo_id, level, halo_dir, analytic_center,
+                           search_kpc=500.0):
+    """Where the halo actually is in the previous level's run, at z = 0.
+
+    enzo-mrp-music traces the Lagrangian region from the parent-box particles
+    inside a sphere at the centre we give it.  Giving it the analytic centre --
+    catalog position plus the MUSIC shift -- is wrong by however far the halo
+    has drifted by z = 0, which across this fleet is 100 to 200 kpc and is not
+    correlated with halo mass.
+
+    For a big halo that is a fraction of the zoom radius and the sphere still
+    overlaps the object.  For a dwarf it is several Rvir, and the sphere can
+    miss entirely: halo5348's caught 5 particles instead of ~1000, and the
+    convex hull of 5 scattered positions produced a region 100x too large and
+    15 Rvir off the halo.  The Rvir floor exists to paper over exactly this, at
+    the cost of a zoom far bigger than the science needs -- 4.6M cells against
+    81k for a comparable halo.
+
+    So locate the halo first.  Returns (centre, drift_kpc), or (analytic, None)
+    if the previous level's output cannot be read, since a diagnostic must never
+    be the reason a build fails.
+    """
+    prev_dir = (os.path.join(_config.foggie_ics_dir(), "%s-L0" % box.sim_name)
+                if level - 1 == 0 else box.stage_dir(halo_id, level - 1, "DM"))
+    try:
+        import numpy as np
+        try:
+            from . import qc as _qc
+        except ImportError:
+            import qc as _qc
+
+        snap, name, _, is_final = _qc.last_output(prev_dir)
+        if snap is None or not is_final:
+            print("    centre refinement skipped: %s has no final dump"
+                  % os.path.basename(prev_dir))
+            return analytic_center, None
+        rel, mass, ds = _qc.load_particles(snap, analytic_center, search_kpc)
+        if rel is None:
+            print("    centre refinement skipped: no particles near the analytic centre")
+            return analytic_center, None
+        offset = _qc.locate_halo(rel, mass, guess_radius_kpc=search_kpc, verbose=False)
+        if offset is None:
+            print("    centre refinement skipped: halo not located in %s" % name)
+            return analytic_center, None
+        kpc_per_code = float(ds.quan(1.0, "code_length").in_units("kpc").d)
+        drift = float(np.sqrt((np.asarray(offset) ** 2).sum()))
+        centre = [(c + o / kpc_per_code) % 1.0
+                  for c, o in zip(analytic_center, offset)]
+        print("    centre refined using %s: halo is %.0f kpc from the analytic "
+              "position" % (name, drift))
+        return centre, drift
+    except Exception as exc:
+        print("    centre refinement skipped (%s); using the analytic centre" % exc)
+        return analytic_center, None
+
+
 def render_mrp_config(box, halo_id, level, halo_dir, rvir_min=None):
     """Render the enzo-mrp-music config for one DM level.
 
@@ -429,6 +485,18 @@ def render_mrp_config(box, halo_id, level, halo_dir, rvir_min=None):
         text = fp.read()
 
     center = center_for_level(box, halo_id, level, halo_dir, rvir_min)
+    # Trace the region from where the halo IS, not where the catalog says it
+    # was.  See refine_center_from_run.
+    #
+    # Level 1 is excluded deliberately.  Its region is traced from the L0 parent,
+    # which is unigrid: every particle has the same mass, so locate_halo's
+    # finest-species selection matches all of them and the shrinking spheres
+    # converge on the largest object nearby rather than the target.  Doing it
+    # anyway moved halo39829 394 kpc onto a neighbour and produced a 37-million
+    # cell region.  It is also unnecessary -- the catalog position is measured in
+    # the L0 box itself, so the analytic centre there is exact to ~1 kpc.
+    if level >= 2 and getattr(box, "refine_centers", True):
+        center, _ = refine_center_from_run(box, halo_id, level, halo_dir, center)
     _, rvir = halo_center_and_radius(box, halo_id, rvir_min)
 
     # Level 1 reads the parent box from the shared ICs directory; deeper levels

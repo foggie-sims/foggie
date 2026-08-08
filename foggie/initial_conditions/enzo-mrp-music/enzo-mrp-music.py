@@ -196,6 +196,60 @@ def find_lagrangian_region(params):
     return params
 
 
+def trim_lagrangian_outliers(params, max_radius_factor=5.0, max_fraction=0.02):
+    """Drop the handful of far-flung particles that balloon the convex hull.
+
+    The Lagrangian region is the convex hull of the traced particles, so a
+    single particle far from the rest drags the whole region out to enclose it.
+    Some of the traced particles are unbound or fast-moving: they lie inside the
+    z = 0 sphere but started across the box.
+
+    halo39829 is the case that motivated this.  963 points, 99% of them within
+    0.017 of the cloud median -- a compact region -- and six points out at 0.34,
+    8.6 Mpc/h away.  Those six produced a 20.7-million-cell zoom for a halo
+    whose real region is smaller than halos that zoom in 41 thousand.
+
+    Trims points beyond max_radius_factor times the 99th-percentile radius,
+    measured periodically about the median.  Refuses to trim more than
+    max_fraction of the cloud: if that many points are far out, the region is
+    genuinely extended and quietly discarding it would be wrong.
+    """
+    import numpy as np
+
+    path = params.get("lagr_particle_file")
+    if not path or not os.path.exists(path):
+        return params
+
+    pts = np.loadtxt(path)
+    if pts.ndim != 2 or len(pts) < 20:
+        return params
+
+    med = np.median(pts, axis=0)
+    off = pts - med
+    off -= np.round(off)                      # periodic, box is [0,1)
+    r = np.sqrt((off ** 2).sum(axis=1))
+    r99 = np.percentile(r, 99.0)
+    cut = max_radius_factor * r99
+    keep = r <= cut
+    n_drop = int((~keep).sum())
+
+    if n_drop == 0:
+        return params
+    if n_drop > max_fraction * len(pts):
+        print("  region: %d of %d points lie beyond %.4f; that is more than %.0f%% "
+              "so the region is genuinely extended -- not trimming"
+              % (n_drop, len(pts), cut, 100 * max_fraction))
+        return params
+
+    print("  region: trimming %d of %d points beyond %.4f (99th pct %.4f, "
+          "furthest %.4f); hull extent %s -> %s"
+          % (n_drop, len(pts), cut, r99, r.max(),
+             np.round(pts.max(axis=0) - pts.min(axis=0), 4),
+             np.round(pts[keep].max(axis=0) - pts[keep].min(axis=0), 4)))
+    np.savetxt(path, pts[keep], fmt="%.18e")
+    return params
+
+
 def run_music(params):
     #
     # Read the zoom-in MUSIC file, modify/add zoom-in parameters, and write out.
@@ -287,5 +341,6 @@ if __name__ == "__main__":
         params = comm.bcast(params)
     params = get_previous_run_params(params)
     params = find_lagrangian_region(params)
+    params = trim_lagrangian_outliers(params)
     if yt.is_root():
         run_music(params)

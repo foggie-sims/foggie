@@ -83,6 +83,13 @@ class Box:
     # disk are resolution-test variants (25Mpc_DM_256-L0-max*), plus halo15097's
     # hand-built ladder, which mixes both conventions across its own levels.
     overdensity_at_root: float = 8.0
+    # Locate the halo in the previous level's z = 0 output and trace the
+    # Lagrangian region from there, rather than from the catalog position plus
+    # the MUSIC shift.  The halo drifts 100-200 kpc from that analytic position
+    # by z = 0 -- see build.refine_center_from_run -- which for a dwarf can be
+    # several Rvir and can make the traced sphere miss the halo entirely.
+    # Needs yt, which the build job has because enzo-mrp-music itself uses it.
+    refine_centers: bool = True
     # Output-redshift cadence, as filenames in the template directory.  The 512
     # box takes 15 outputs for DM and 266 for gas; the 256 box was run with 266
     # for both.  Held here rather than inline in the templates because it is the
