@@ -1,3 +1,9 @@
+HISTORICAL NOTE -- Britton Smith's original instructions for enzo-mrp-music.
+
+The four manual parameter-file edits described below are now made automatically
+by the IC pipeline; see doc/source/user_guide/generating_new_ICs.rst, section
+"Per-level parameter edits", which maps each one to how it is handled. Kept
+here as the original record of why those edits are needed.
 
 This is a code that works with both yt and MUSIC.  What you do is
 give it the center and radius of the halo you want to resimulate

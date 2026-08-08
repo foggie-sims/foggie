@@ -1,0 +1,238 @@
+# FOGGIE "NEW ICS" L3 baryons 
+
+ProblemType                = 30      // cosmology simulation
+TopGridRank                = 3
+TopGridDimensions          = __TOP_GRID__
+TopGridGravityBoundary     = 0       // Periodic BC for gravity
+LeftFaceBoundaryCondition  = 3 3 3   // same for fluid
+RightFaceBoundaryCondition = 3 3 3
+SelfGravity                = 1       // gravity on
+PotentialIterations        = 4
+
+#
+#  problem parameters
+#
+CosmologySimulationOmegaBaryonNow        = 0.04576
+CosmologySimulationOmegaCDMNow           = 0.24524
+CosmologySimulationDensityName           = GridDensity
+CosmologySimulationVelocity1Name         = GridVelocities_x
+CosmologySimulationVelocity2Name         = GridVelocities_y
+CosmologySimulationVelocity3Name         = GridVelocities_z
+CosmologySimulationParticleVelocity1Name = ParticleVelocities_x
+CosmologySimulationParticleVelocity2Name = ParticleVelocities_y
+CosmologySimulationParticleVelocity3Name = ParticleVelocities_z
+CosmologySimulationParticleDisplacement1Name = ParticleDisplacements_x
+CosmologySimulationParticleDisplacement2Name = ParticleDisplacements_y
+CosmologySimulationParticleDisplacement3Name = ParticleDisplacements_z
+CosmologySimulationParticleTypeName     = RefinementMask
+CosmologySimulationCalculatePositions    = 1
+CosmologySimulationNumberOfInitialGrids  = __NUM_INITIAL_GRIDS__
+
+#
+#  define cosmology parameters
+#
+ComovingCoordinates        = 1       // Expansion ON
+CosmologyOmegaMatterNow    = 0.291
+CosmologyOmegaDarkMatterNow = 0.24524
+CosmologyOmegaLambdaNow    = 0.709
+CosmologyHubbleConstantNow = 0.7
+CosmologyComovingBoxSize   = 25.0    // in Mpc/h 
+CosmologyMaxExpansionRate  = 0.015   // maximum allowed delta(a)/a
+CosmologyInitialRedshift   = 99.0
+CosmologyFinalRedshift 	   = __GAS_STOP_REDSHIFT__   // first leg only; RunScript.sh
+                                     // rewrites this to 0 and restarts once
+                                     // shielded cooling is switched on
+GravitationalConstant      = 1       // this must be true for cosmology
+
+
+CosmologySimulationUseMetallicityField = 1 
+StarFeedbackTrackMetalSources          = 1 
+StarMakerStoreInitialMass              = 1 
+ComputePotential =1 
+WritePotential =1 
+
+#
+#  set I/O and stop/start parameters
+#
+DataDumpDir      = DD
+DataDumpName     = DD
+RedshiftDumpName = RD
+RedshiftDumpDir  = RD
+
+dtDataDump 	 = 0        // no periodic DD dumps: the 266-entry redshift list
+                          // below already provides the analysis cadence, and
+                          // DD dumps merely duplicate it at ~28 TB per run.
+                          // dtRestartDump still checkpoints before the wall.
+dtRestartDump    = __RESTART_DUMP_SECONDS__  // wallclock checkpoint before the PBS wall
+
+OutputCoolingTime                        = 1
+OutputTemperature                        = 1
+
+NumberOfOutputsBeforeExit = 1
+
+StopCycle        = 100000
+StopCPUTime      = 3600000
+
+#
+#  set hydro parameters
+#
+HydroMethod                     = 0       // PPM
+RiemannSolver                   = 4       // HLLC
+Gamma                           = 1.6667
+PPMFlatteningParameter          = 3       // flatten the reconstruction near
+                                          // shocks; read straight through by
+                                          // ReadParameterFile.C:311 with no
+                                          // override, unlike Diffusion below
+PPMSteepeningParameter          = 0
+PPMDiffusionParameter           = 0       // Enzo forces this to 0 for every
+                                          // ProblemType except 60
+                                          // (ReadParameterFile.C:1981-1991), so
+                                          // any other value is silently
+                                          // discarded.  Set to 0 to match what
+                                          // the code actually runs.
+ApplyBoundsToBaryonFields       = 1       // clamp baryon fields to the
+                                          // density/energy floors rather than
+                                          // letting a bad zone crash the run
+# Stability guards.  Both completed gas runs on disk set these -- the reference
+# halo42189 L3-gas-radius3 and halo15134's L3-gas -- and both ran past 250
+# outputs.  Without them the two most massive halos of the first L2 gas batch
+# produced hundreds of flux_hllc.F Riemann failures within hours of the z = 15
+# transition; halo51541 segfaulted and halo42189 fell to 12% efficiency, while
+# the two lightest halos ran clean at 95%+ with zero warnings.
+RestrictTemperature             = 1
+RestrictVelocity                = 1
+# RestrictDensity exists as a third guard but both reference runs leave it off.
+RestrictDensity                 = 0
+DualEnergyFormalism             = 1       // use total & internal energy
+InterpolationMethod             = 1       // SecondOrderA
+ReconstructionMethod            = 1 // PPM
+RiemannSolverFallback           = 1 // HLL if there's a dnu<=0
+FluxCorrection                  = 1
+ConservativeInterpolation       = 0
+CourantSafetyNumber             = 0.4
+ParticleCourantSafetyNumber     = 0.5
+
+
+#
+#  set grid refinement parameters
+#
+StaticHierarchy                = 0    // dynamic hierarchy
+MaximumRefinementLevel         = __MAX_REFINE_LEVEL__
+MaximumGravityRefinementLevel  = __MAX_REFINE_LEVEL__
+MaximumParticleRefinementLevel = __MAX_REFINE_LEVEL__
+RefineBy                       = 2    // refinement factor
+CellFlaggingMethod             = 2 4 8 
+MinimumEfficiency              = 0.4  // fraction efficiency
+MinimumOverDensityForRefinement = __MIN_OVERDENSITY_GAS__
+
+MinimumMassForRefinementLevelExponent = 0.0 0.0
+MustRefineParticlesCreateParticles = 3
+MustRefineParticlesRefineToLevel   = __MRP_REFINE_TO_LEVEL__
+NumberOfBufferZones                      = 2
+
+RebuildHierarchyCycleSkip[0] = 2
+RebuildHierarchyCycleSkip[1] = 2
+RebuildHierarchyCycleSkip[2] = 2
+RebuildHierarchyCycleSkip[3] = 2
+RebuildHierarchyCycleSkip[4] = 2
+RebuildHierarchyCycleSkip[5] = 2
+RebuildHierarchyCycleSkip[6] = 2
+
+# Output cadence copied verbatim from the completed gas runs, all of which
+# use this 266-entry list.  dtDataDump does NOT supply the analysis cadence
+# for these runs -- every one of them wrote its outputs from this list and
+# essentially no DD dumps.  The entry at z = 15 is load-bearing: it is the
+# dump the second leg restarts from after the cooling transition.
+__OUTPUT_REDSHIFTS__
+
+
+#
+#  chemistry, cooling, radiation background
+#
+RadiativeCooling                         = 1
+use_grackle                              = 1
+MultiSpecies                             = 2
+MultiMetals                              = 0
+MetalCooling                             = 1
+# Unshielded cooling for the first leg (z > __GAS_STOP_REDSHIFT__).  RunScript.sh
+# flips all three of these, together with CosmologyFinalRedshift, at the stop
+# redshift.  Kept explicit rather than left to Enzo's defaults so that a restart
+# file shows plainly which leg it belongs to.
+H2FormationOnDust                        = 0
+self_shielding_method                    = 0
+H2_self_shielding                        = 0
+UVbackground                             = 1
+grackle_data_file                        = /u/jtumlins/grackle/grackle-3.3.1-dev/grackle_data_files/input/CloudyData_UVB=HM2012.h5
+CMBTemperatureFloor                      = 1
+
+#
+# star formation and feedback parameters
+#
+StarParticleCreation                     = 2048
+StarFormationOncePerRootGridTimeStep     = 1
+StarParticleFeedback                     = 64
+StarMakerOverDensityThreshold            = 1.0e+4
+StarMakerMinimumMass                     = 10
+StarMakerMinimumDynamicalTime            = 1e6
+StarMakerMassEfficiency                  = 0.02
+StarMassEjectionFraction                 = 0.25
+StarMetalYield                           = 0.025
+StarEnergyToThermalFeedback              = 1e-5
+StarFeedbackSNePerTimestepLimit           = 0.001   // Enzo defaults this to 1e-6
+                                          // (SetDefaultGlobalValues.C:628), which
+                                          // is what our runs were silently using.
+                                          // halo42189-manual completed 258 outputs
+                                          // at 0.001.  Set it explicitly rather
+                                          // than inheriting a default.
+StarFeedbackDistRadius                   = 1
+StarFeedbackDistCellStep                 = 3
+
+H2StarMakerH2FractionMethod        = 1
+H2StarMakerEfficiency              = 0.002    // NOT 0.02.  This is the efficiency
+                                          // star_maker_h2reg actually uses, and at
+                                          // 0.02 it drains star-forming cells ten
+                                          // times faster than both completed runs
+                                          // on disk, which use 0.002.  Every gas
+                                          // run that crashed used 0.02; the crash
+                                          // is a cell at the 1e-30 density floor
+                                          // with a star particle ~1.3 cells away
+                                          // and a specific energy 1e7 times its
+                                          // neighbours' -- momentum injected into
+                                          // gas that star formation has removed.
+H2StarMakerNumberDensityThreshold  = 0
+H2StarMakerMinimumH2FractionForStarFormation = 0
+H2StarMakerStochastic              = 0
+H2StarMakerUseSobolevColumn        = 1
+H2StarMakerSigmaOverR              = 0.0333333
+H2StarMakerAssumeColdWarmPressureBalance = 1
+H2StarMakerH2DissociationFlux_MW   = 1
+H2StarMakerH2FloorInColdGas        = 0
+H2StarMakerColdGasTemperature      = 10000
+H2StarMakerUseLocalDensityMax      = 1
+H2StarMakerWriteStarLogFiles       = 1
+
+#
+# parallelism stuff
+#
+
+SubgridSizeAutoAdjust       = 1
+OptimalSubgridsPerProcessor = 16
+
+#
+#
+GreensFunctionMaxNumber = 30 
+ParallelRootGridIO                       = 1
+ParallelParticleIO                       = 1
+PartitionNestedGrids                     = 1
+UnigridTranspose     = 2
+
+LoadBalancing          = 1
+ResetLoadBalancing     = 1
+LoadBalancingCycleSkip = 10
+LoadBalancingMinLevel  = 0
+LoadBalancingMaxLevel  = 50
+
+#
+#  nested grid geometry, written by MUSIC into parameter_file.txt
+#
+__GRID_PARAMETERS__

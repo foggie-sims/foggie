@@ -25,7 +25,15 @@ def parse_config(config_fn):
         simulation_name = "auto-wrapper",
         template_config = "template.conf",
         original_config = None,
+        # Where the *previous* level's Enzo outputs are read from.
         simulation_run_directory = ".",
+        # Where the *new* ICs for this level are written.  Kept separate from
+        # simulation_run_directory so a zoom can read its parent level from a
+        # shared directory while depositing its own ICs in the halo directory.
+        # Defaults to "." so existing configs behave as before.
+        new_ics_directory = ".",
+        # Runtime environment for the MUSIC subprocess.
+        music_ld_library_path = "/nasa/hdf5/1.8.18_serial/lib:/u/jtumlins/installs/gsl-2.4/lib",
         num_cores = None,
         final_type = "halo",
         final_redshift = 0.0,
@@ -112,10 +120,14 @@ def startup():
     return params
 
 def get_previous_run_params(params):
-    # Set simulation directories
+    # Set simulation directories.
+    #
+    # prev_sim_dir is where we look for the level N-1 outputs (e.g. level 0
+    # when we are making level 1); sim_dir is where we deposit the new level N
+    # ICs.  These are deliberately rooted in different config options.
     params["prev_sim_dir"] = os.path.join(params["simulation_run_directory"], "%s-L%d" %
                                           (params["simulation_name"], params["level"]-1))
-    params["sim_dir"] = os.path.join(params["simulation_run_directory"],
+    params["sim_dir"] = os.path.join(params["new_ics_directory"],
                                      "%s-L%d" % (params["simulation_name"], params["level"]))
     #
     # Obtain the maxlevel of the original run
@@ -184,6 +196,60 @@ def find_lagrangian_region(params):
     return params
 
 
+def trim_lagrangian_outliers(params, max_radius_factor=5.0, max_fraction=0.02):
+    """Drop the handful of far-flung particles that balloon the convex hull.
+
+    The Lagrangian region is the convex hull of the traced particles, so a
+    single particle far from the rest drags the whole region out to enclose it.
+    Some of the traced particles are unbound or fast-moving: they lie inside the
+    z = 0 sphere but started across the box.
+
+    halo39829 is the case that motivated this.  963 points, 99% of them within
+    0.017 of the cloud median -- a compact region -- and six points out at 0.34,
+    8.6 Mpc/h away.  Those six produced a 20.7-million-cell zoom for a halo
+    whose real region is smaller than halos that zoom in 41 thousand.
+
+    Trims points beyond max_radius_factor times the 99th-percentile radius,
+    measured periodically about the median.  Refuses to trim more than
+    max_fraction of the cloud: if that many points are far out, the region is
+    genuinely extended and quietly discarding it would be wrong.
+    """
+    import numpy as np
+
+    path = params.get("lagr_particle_file")
+    if not path or not os.path.exists(path):
+        return params
+
+    pts = np.loadtxt(path)
+    if pts.ndim != 2 or len(pts) < 20:
+        return params
+
+    med = np.median(pts, axis=0)
+    off = pts - med
+    off -= np.round(off)                      # periodic, box is [0,1)
+    r = np.sqrt((off ** 2).sum(axis=1))
+    r99 = np.percentile(r, 99.0)
+    cut = max_radius_factor * r99
+    keep = r <= cut
+    n_drop = int((~keep).sum())
+
+    if n_drop == 0:
+        return params
+    if n_drop > max_fraction * len(pts):
+        print("  region: %d of %d points lie beyond %.4f; that is more than %.0f%% "
+              "so the region is genuinely extended -- not trimming"
+              % (n_drop, len(pts), cut, 100 * max_fraction))
+        return params
+
+    print("  region: trimming %d of %d points beyond %.4f (99th pct %.4f, "
+          "furthest %.4f); hull extent %s -> %s"
+          % (n_drop, len(pts), cut, r99, r.max(),
+             np.round(pts.max(axis=0) - pts.min(axis=0), 4),
+             np.round(pts[keep].max(axis=0) - pts[keep].min(axis=0), 4)))
+    np.savetxt(path, pts[keep], fmt="%.18e")
+    return params
+
+
 def run_music(params):
     #
     # Read the zoom-in MUSIC file, modify/add zoom-in parameters, and write out.
@@ -199,7 +265,7 @@ def run_music(params):
             music_cf1.remove_option("setup", option)
 
     music_cf1.set("setup", "levelmax", "%d" % (params["initial_min_level"] + params["level"]))
-    music_cf1.set("output", "filename", os.path.join(params["simulation_run_directory"],"%s-L%d" % (params["simulation_name"], params["level"])))
+    music_cf1.set("output", "filename", os.path.join(params["new_ics_directory"], "%s-L%d" % (params["simulation_name"], params["level"])))
     music_cf1.set("setup", "region",
                   "convex_hull" if params["shape_type"] == "exact" else params["shape_type"])
     if params["shape_type"] == "box":
@@ -216,17 +282,23 @@ def run_music(params):
                                       params["region_shift"][2]))
         music_cf1.set("setup", "region_point_levelmin", "%d" % (params["initial_min_level"]))
 
-    new_config_file = os.path.join(params["simulation_run_directory"],"%s-L%d.conf" % (params["simulation_name"], params["level"]))
+    os.makedirs(params["new_ics_directory"], exist_ok=True)
+    new_config_file = os.path.join(params["new_ics_directory"], "%s-L%d.conf" % (params["simulation_name"], params["level"]))
+    print('new_config_file: ', new_config_file)
     with open(new_config_file, "w") as fp:
         music_cf1.write(fp)
 
     os.environ["OMP_NUM_THREADS"] = "%d" % (params["num_cores"])
-    os.environ["LD_LIBRARY_PATH"] = "/nasa/hdf5/1.8.18_serial/lib:/u/jtumlins/installs/gsl-2.4/lib"
-    os.environ["DYLD_LIBRARY_PATH"] = "/nasa/hdf5/1.8.18_serial/lib:/u/jtumlins/installs/gsl-2.4/lib"
-    command = """ echo $LD_LIBRARY_PATH ;
-                  /nobackupnfs1/jtumlins/foggie/foggie/initial_conditions/music/MUSIC """ + new_config_file
+    os.environ["LD_LIBRARY_PATH"] = params["music_ld_library_path"]
+    os.environ["DYLD_LIBRARY_PATH"] = params["music_ld_library_path"]
+    # Use the MUSIC binary that startup() already verified exists, rather than
+    # a second hardcoded copy of the path.
+    music_exe = os.path.join(params["music_exe_dir"], "MUSIC")
+    command = "%s %s" % (music_exe, new_config_file)
     print('about to run ', command)
-    os.system(command)
+    status = os.system(command)
+    if status != 0:
+        raise RuntimeError("MUSIC failed (exit status %d): %s" % (status, command))
     print('control has returned from MUSIC to the enzo_mrp script')
 
     # If we require the exact Lagrangian region, then we directly modify
@@ -269,5 +341,6 @@ if __name__ == "__main__":
         params = comm.bcast(params)
     params = get_previous_run_params(params)
     params = find_lagrangian_region(params)
+    params = trim_lagrangian_outliers(params)
     if yt.is_root():
         run_music(params)
