@@ -11,7 +11,7 @@ import glob
 import pickle 
 import foggie.utils.foggie_utils as futils
 from foggie.utils.consistency import axes_label_dict, logfields, categorize_by_temp, \
-    categorize_by_metals, categorize_by_fraction
+    categorize_by_metals, categorize_by_fraction, categorize_by_sound_speed
 
 
 def rays_to_dataframe(halo, run, wildcard): 
@@ -105,7 +105,21 @@ def prep_dataframe(cut_region, field_list, categories):
     if (('gas','cell_mass') in field_list) or ('cell_mass' in categories):
         data_frame['cell_mass'] = np.log10(cut_region[('gas','cell_mass')].in_units('Msun')) 
 
-    if ( ('gas','entropy') in field_list): data_frame["entropy"] = np.log10(cut_region["entropy"].in_units('cm**2*erg'))              
+    if ( ('gas','entropy') in field_list): data_frame["entropy"] = np.log10(cut_region["entropy"].in_units('cm**2*erg'))
+
+    # sound_speed comes out of yt in cm/s, but we want it in log km/s, both as a
+    # plot axis and as the thing categorize_by_sound_speed bins on.
+    if ( ('gas','sound_speed') in field_list):
+        data_frame["sound_speed"] = np.log10(cut_region[('gas','sound_speed')].in_units('km/s'))
+
+    if ('sound_speed' in categories):
+        if ( ('gas','sound_speed') in field_list):
+            print('prep_dataframe: WARNING - sound_speed is both a plot axis and the ',
+                  'colorcode, so the axis values are about to be overwritten by the categories.')
+        data_frame['sound_speed'] = categorize_by_sound_speed(
+            np.log10(cut_region[('gas','sound_speed')].in_units('km/s')))
+        data_frame.sound_speed = data_frame.sound_speed.astype('category')
+        print('Added sound_speed category to the dataframe')
 
     if ('metal' in categories):
         if ('metallicity' not in data_frame.columns):
