@@ -5069,6 +5069,8 @@ def calculate_shock_properties(ds, snap, snap_props, global_vars):
     vx = sph[('gas','vx_corrected')].in_units('km/s').v
     vy = sph[('gas','vy_corrected')].in_units('km/s').v
     vz = sph[('gas','vz_corrected')].in_units('km/s').v
+    rv = sph[('gas','radial_velocity_corrected')].in_units('km/s').v
+    ps_temp = sph[('enzo','PreShock_Temperature')].v
     temperature = sph[('gas','temperature')].in_units('K').v
     dx = sph[('gas','dx')].in_units('kpc').v
     Mach = sph[('enzo','Mach')].v
@@ -5128,11 +5130,12 @@ def calculate_shock_properties(ds, snap, snap_props, global_vars):
     vx_interp = build_scalar_interp(pos, vx)
     vy_interp = build_scalar_interp(pos, vy)
     vz_interp = build_scalar_interp(pos, vz)
+    rv_interp = build_scalar_interp(pos, rv)
 
     # Calculate normal directions for every shock cell by estimating a plane direction
     # for nearby shocked cells. Assign a sign to the normal direction such that it
     # points toward the high-temperature side of the shock.
-    def compute_shock_normals(positions, dx, temperature_interp, k=15, n_samples=10, start_offset=1, step=1):
+    def compute_shock_normals(positions, dx, temperature_interp, k=15, n_samples=3, start_offset=2, step=1):
         """
         Estimate local shock-surface normals for every shocked cell via
         batched local PCA (structure tensor) on the shocked-cell point cloud.
@@ -5229,9 +5232,6 @@ def calculate_shock_properties(ds, snap, snap_props, global_vars):
 
         return signed_normals, planarity, T_plus_out, T_minus_out
     shock_normals, planarity, T_plus, T_minus = compute_shock_normals(pos[shock_mask], dx[shock_mask], temp_interp)
-
-    # Restrict to only those shock cells that are highly planar
-    plane_shocks = (planarity > 0.5)
     
     # Get and plot shock-normal velocity profiles as function of distance
     # across the shock
@@ -5299,10 +5299,10 @@ def calculate_shock_properties(ds, snap, snap_props, global_vars):
     ax.text(0.05, 0.95, halo_dict[global_vars['halo']], fontsize=14, ha='left', va='top', transform=ax.transAxes)
     fig.savefig(prefix + snap + '_shock_velocity_profiles.png')'''
 
-    # Get the velocity in the normal direction as an average of 10 cells
+    # Get the velocity in the normal direction as an average of 6 cells
     # along the normal on both sides of the shock. Avoid
     # the 2 closest cells since they might still be part of the shock.
-    def sample_pre_and_post_velocity(positions, signed_normals, dx, vx_interp, vy_interp, vz_interp, n_samples=10, start_offset=2, step=1):
+    def sample_pre_and_post_velocity(positions, signed_normals, dx, vx_interp, vy_interp, vz_interp, rv_interp, n_samples=6, start_offset=2, step=1):
         """
         Sample shock-normal velocity on BOTH sides of each shocked cell:
         v_minus (low temperature side, along -normal) and v_plus (high temperature side, along
@@ -5311,9 +5311,10 @@ def calculate_shock_properties(ds, snap, snap_props, global_vars):
 
         Returns
         -------
-        v_minus, v_plus : (N,) arrays
+        v_minus, v_plus, frac_tan_p : (N,) arrays
             Mean normal-projected velocity on the pre-shock and post-shock
-            sides, respectively. Sign convention: positive = along +normal
+            sides, and fraction of post-shock velocity that is tangential,
+            respectively. Sign convention: positive = along +normal
             (toward high-T side) on WHICHEVER side it's measured -- i.e.
             v_minus > 0 means pre-shock gas is moving toward the
             shock, and v_plus > 0 means post-shock gas continues
@@ -5341,6 +5342,9 @@ def calculate_shock_properties(ds, snap, snap_props, global_vars):
         vy_m = vy_interp(flat_minus).reshape(N, n_samples)
         vz_m = vz_interp(flat_minus).reshape(N, n_samples)
 
+        rv_p = rv_interp(flat_plus).reshape(N,n_samples)
+        rv_m = rv_interp(flat_minus).reshape(N,n_samples)
+
         v_dot_n_plus = (vx_p * signed_normals[:, 0:1]
                         + vy_p * signed_normals[:, 1:2]
                         + vz_p * signed_normals[:, 2:3])
@@ -5348,16 +5352,24 @@ def calculate_shock_properties(ds, snap, snap_props, global_vars):
                         + vy_m * signed_normals[:, 1:2]
                         + vz_m * signed_normals[:, 2:3])
 
+        vp_total_sq = vx_p**2 + vy_p**2 + vz_p**2
+        vp_tan_sq = vp_total_sq - v_dot_n_plus**2
+        frac_tan_p = np.sqrt(np.nanmean(vp_tan_sq, axis=1)) / np.sqrt(np.nanmean(vp_total_sq, axis=1))
+
         v_plus = np.nanmean(v_dot_n_plus, axis=1)
         v_minus = np.nanmean(v_dot_n_minus, axis=1)
+        rv_plus = np.nanmean(rv_p, axis=1)
+        rv_minus = np.nanmean(rv_m, axis=1)
 
-        return v_minus, v_plus
-    v_minus, v_plus = sample_pre_and_post_velocity(pos[shock_mask], shock_normals, dx[shock_mask], vx_interp, vy_interp, vz_interp)
+        return v_minus, v_plus, frac_tan_p, rv_minus, rv_plus
+    v_minus, v_plus, frac_tan_p, rv_minus, rv_plus = sample_pre_and_post_velocity(pos[shock_mask], shock_normals, dx[shock_mask], vx_interp, vy_interp, vz_interp, rv_interp)
 
-    accretion = (v_minus > 0.) & (v_plus > 0.)
-    outflow = (v_minus < 0.) & (v_plus < 0.)
-    colliding = (v_minus > 0.) & (v_plus < 0.)
-    other = (v_minus < 0.) & (v_plus > 0.)      # Weird diverging flows, hopefully not many
+    # Define shock categories
+    oblique = (frac_tan_p > 0.9)
+    accretion = ((ps_temp[shock_mask] < 10**4.5) & (((v_minus > 0.) & (v_plus > 0.) & (~oblique)) | ((oblique) & (v_minus > 0.)))) | ((ps_temp[shock_mask] > 10**4.5) & (rv_minus < 0.) & (rv_plus < 0.))
+    outflow = ((ps_temp[shock_mask] < 10**4.5) & (((v_minus < 0.) & (v_plus < 0.) & (~oblique)) | ((oblique) & (v_minus < 0.)))) | ((ps_temp[shock_mask] > 10**4.5) & (rv_minus > 0.) & (rv_plus > 0.))
+    colliding = ((ps_temp[shock_mask] < 10**4.5) & (v_minus > 0.) & (v_plus < 0.) & (~oblique)) | ((ps_temp[shock_mask] > 10**4.5) & (((rv_minus < 0.) & (rv_plus > 0.)) | ((rv_minus > 0.) & (rv_plus < 0.))))
+    other = (v_minus < 0.) & (v_plus > 0.) & (~oblique)     # Weird diverging flows, hopefully not many
 
     # Build shock category into a yt field
     shock_cat = np.zeros(np.shape(v_minus))
@@ -5457,6 +5469,22 @@ def calculate_shock_properties(ds, snap, snap_props, global_vars):
     cax.tick_params(axis='both', which='both', direction='in', length=10, width=3, pad=5, labelsize=12, \
                     top=False, labelbottom=False, left=False, right=True, labelright=True, labelleft=False)
     cax.text(2., 0.5, 'Mach number', fontsize=14, ha='center', va='center', rotation=90, transform=cax.transAxes)
+
+    # Overplot velocity field quivers on Mach number plot
+    slc_x = yt.SlicePlot(ds, 'x', ('gas','vy_corrected'), center=ds.halo_center_kpc, width=(width, 'kpc'), buff_size=(800,800))
+    slc_x.set_unit(('gas','vy_corrected'), 'km/s')
+    slc_x.render()
+    vx = slc_x.frb[('gas','vy_corrected')]
+    slc_y = yt.SlicePlot(ds, 'x', ('gas','vz_corrected'), center=ds.halo_center_kpc, width=(width, 'kpc'), buff_size=(800,800))
+    slc_y.set_unit(('gas','vz_corrected'), 'km/s')
+    slc_y.render()
+    vy = slc_y.frb[('gas','vz_corrected')]
+    xloc = np.arange(0, len(Mach_frb), 30)*(width/len(Mach_frb)) - width/2.
+    yloc = np.arange(0, len(Mach_frb), 30)*(width/len(Mach_frb)) - width/2.
+    xloc, yloc = np.meshgrid(xloc, yloc)
+    vx_quiv = vx[::30, ::30]
+    vy_quiv = vy[::30, ::30]
+    ax3.quiver(xloc, yloc, vx_quiv, vy_quiv, color='white', alpha=0.5, width=0.004, headwidth=3, headlength=3.5)
 
     im = ax4.imshow(cat_frb, extent=[-width/2.,width/2.,-width/2.,width/2.], origin='lower', cmap=cat_cmap, norm=colors.Normalize(vmin=-0.5, vmax=3.5))
     ax4.tick_params(axis='both', which='both', direction='in', length=8, width=3, pad=5, labelsize=12, top=True, right=True)
@@ -5570,6 +5598,60 @@ def calculate_shock_properties(ds, snap, snap_props, global_vars):
 
     fig.savefig(prefix + snap + '_postshock_velocity_vs_radius_colliding-shocks.png')
     plt.close()'''
+
+    # Make 2D histogram of density and temperature for shock-tagged cells in inner region,
+    # and for pre-shock density and temperature
+    density = np.log10(sph['gas','density'].in_units('g*cm**-3').v)
+    ps_temp = np.log10(sph[('enzo','PreShock_Temperature')].v)
+    ps_den = np.log10(ds.arr(sph[('enzo','PreShock_Density')].v, 'code_density').to('g/cm**3').v)
+    temperature = np.log10(temperature)
+
+    shock_bool = (Mach>=1.)
+
+    x_range = [-32,-22]
+    y_range = [2,8]
+
+    fig = plt.figure(figsize=(12,6), dpi=250)
+    ax1 = fig.add_subplot(1,2,1)
+    ax2 = fig.add_subplot(1,2,2)
+    fig.subplots_adjust(left=0.08,right=0.92,wspace=0.2,top=0.98,bottom=0.08)
+
+    data_frame = pd.DataFrame({})
+    data_frame['density'] = density[(shock_bool)]
+    data_frame['temperature'] = temperature[(shock_bool)]
+    cvs = dshader.Canvas(plot_width=250, plot_height=250, x_range=x_range, y_range=y_range)
+    agg = cvs.points(data_frame, 'density', 'temperature', dshader.count())
+    arr = agg.values
+    im = ax1.imshow(arr, origin='lower', extent=[x_range[0], x_range[1], y_range[0], y_range[1]], norm=colors.LogNorm())
+    ax1.set_aspect(10*abs(x_range[1]-x_range[0])/(10*abs(y_range[1]-y_range[0])))
+    ax1.set_xlabel('Density [g cm$^{-3}$]', fontsize=16)
+    ax1.set_ylabel('Temperature [K]', fontsize=16)
+    ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+    top=True, right=True)
+
+    data_frame = pd.DataFrame({})
+    data_frame['ps_density'] = ps_den[(shock_bool)]
+    data_frame['ps_temp'] = ps_temp[(shock_bool)]
+    cvs = dshader.Canvas(plot_width=250, plot_height=250, x_range=x_range, y_range=y_range)
+    agg = cvs.points(data_frame, 'ps_density', 'ps_temp', dshader.count())
+    arr = agg.values
+    im = ax2.imshow(arr, origin='lower', extent=[x_range[0], x_range[1], y_range[0], y_range[1]], norm=colors.LogNorm())
+    ax2.set_aspect(10*abs(x_range[1]-x_range[0])/(10*abs(y_range[1]-y_range[0])))
+    ax2.set_xlabel('Pre-shock density [g cm$^{-3}$]', fontsize=16)
+    ax2.set_ylabel('Pre-shock temperature [K]', fontsize=16)
+    ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+    top=True, right=True)
+    pos = ax2.get_position()
+    cax = fig.add_axes([pos.x1, pos.y0, 0.02, pos.height])  # [left, bottom, width, height]
+    fig.colorbar(im, cax=cax, orientation='vertical')
+    cax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14, labelleft=False, labelright=False, left=False, right=False)
+    cax.text(2, 0.5, r'Number of shock cells', fontsize=16, ha='center', va='center', rotation=90, transform=cax.transAxes)
+
+    ax1.text(0.95, 0.95, halo_dict[args.halo], fontsize=16, ha='right', va='top', transform=ax1.transAxes)
+
+    fig.savefig(prefix + snap + '_den-temp_shock_preshock.png')
+
+
 
 if __name__ == "__main__":
 
