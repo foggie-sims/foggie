@@ -84,13 +84,30 @@ def get_center_from_catalog(ds, halo_c_v_name, snap, trackfile_name):
 
 def get_center_from_DM_region(ds):
     """This function is a helper function to get the halo center when there is no track.
-    The use case is for non-central halos without a track file (new ICs, etc.)"""
+    The use case is for non-central halos without a track file (new ICs, etc.)
+
+    The subregion is the bounding box of the finest DM mass species, which is the
+    zoom region in a nested IC. Selection is by particle mass rather than by
+    particle_type == 4, since that type code means "must-refine" and only
+    coincides with the finest species in ICs that flag the Lagrangian region."""
 
     ad = ds.all_data()
-    ptype = ad['particle_type'] 
-    x_dm = ad['all', 'particle_position_x'][ptype == 4]
-    y_dm = ad['all', 'particle_position_y'][ptype == 4]
-    z_dm = ad['all', 'particle_position_z'][ptype == 4]
+    ptype = ad['particle_type']
+    mass = ad['all', 'particle_mass'].in_units('Msun')
+    finest = finest_dm_particle_mass(ds)
+    is_fine = np.logical_and(ptype != 2, mass < finest * DM_MASS_TOLERANCE)
+
+    x_dm = ad['all', 'particle_position_x'][is_fine].in_units('code_length')
+    y_dm = ad['all', 'particle_position_y'][is_fine].in_units('code_length')
+    z_dm = ad['all', 'particle_position_z'][is_fine].in_units('code_length')
+
+    span = max(float(x_dm.max() - x_dm.min()), float(y_dm.max() - y_dm.min()), float(z_dm.max() - z_dm.min()))
+    box_frac = span / float(ds.domain_width[0].in_units('code_length'))
+    print('CENTER_FROM_DM_REGION: %d particles of the finest DM species, spanning %.3f of the box'
+          % (int(is_fine.sum()), box_frac))
+    if (box_frac > 0.5):
+        print('CENTER_FROM_DM_REGION: WARNING -- the finest DM species spans most of the domain, '
+              'so this is not a zoom region and any analysis will run on the full volume.')
 
     center_x = 0.5 * (x_dm.max() + x_dm.min())
     center_y = 0.5 * (y_dm.max() + y_dm.min())

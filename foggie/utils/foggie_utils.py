@@ -208,7 +208,8 @@ def filter_particles(data_source, filter_particle_types = ['stars', 'dm'], load_
             else:
                 print ('particle type %s not known'%ptype)
                 return
-            yt.add_particle_filter(ptype,function=func, filtered_type='all',requires=["particle_type"])
+            requires = ["particle_type", "particle_mass"] if (ptype == 'dm') else ["particle_type"]
+            yt.add_particle_filter(ptype,function=func, filtered_type='all',requires=requires)
             data_source.ds.add_particle_filter(ptype)
 
     if load_particles:
