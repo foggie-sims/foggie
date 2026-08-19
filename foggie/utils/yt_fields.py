@@ -4,10 +4,15 @@
 import numpy as np
 import yt
 yt_ver = yt.__version__
+# Import unit symbols explicitly rather than with `import *`: unyt exports a unit
+# named `min` (the minute), which silently shadows the `min` builtin for this whole
+# module and for the ~50 modules that do `from yt_fields import *`.
 if (yt_ver[0]=='3'):
-    from yt.units import *
+    from yt.units import G, Msun
+    from yt.units.yt_array import YTArray as unyt_array
+    from yt.units.yt_array import ucross
 if (yt_ver[0]=='4'):
-    from unyt import *
+    from unyt import G, Msun, ucross, unyt_array
 
 def _static_average_rampressure(field, data):
     bulk_velocity = data.get_field_parameter("bulk_velocity").in_units('km/s')
@@ -99,7 +104,8 @@ def finest_dm_particle_mass(ds):
         mass = chunk['all', 'particle_mass'].in_units('Msun')
         mass = mass[chunk['all', 'particle_type'] != 2]   # star particles are always type 2
         if (mass.size == 0): continue
-        finest = mass.min() if (finest is None) else min(finest, mass.min())
+        chunk_finest = mass.min()
+        if (finest is None) or (chunk_finest < finest): finest = chunk_finest
         species = np.union1d(species, np.unique(np.round(np.log10(mass.v), 2)))
 
     if (finest is None): raise ValueError('YT_FIELDS: this dataset has no non-star particles')
