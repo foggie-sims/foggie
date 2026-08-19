@@ -326,3 +326,33 @@ def cosmic_matter_density(z, h=0.678, omega_m=0.315):
     rho_m_z = rho_m_0 * (1 + z)**3
     
     return rho_m_z.value
+
+def cosmic_critical_density(z, h=0.678, omega_m=0.315, omega_l=None):
+
+    """
+    Calculate the critical density of the universe at redshift z in M_sun/Mpc^3.
+
+    This is the density that R200c / M200c are defined against (200 x rho_crit(z)),
+    as opposed to the mean matter density used by cosmic_matter_density (R200m / M200m).
+
+    Parameters:
+    z (float): Redshift
+    h (float): Hubble constant H_0 in units of 100 km/s/Mpc (default: 0.678, Planck 2018)
+    omega_m (float): Matter density parameter at z=0 (default: 0.315, Planck 2018)
+    omega_l (float): Dark energy density parameter at z=0 (default: 1 - omega_m, i.e. flat)
+
+    Returns:
+    float: Critical density in M_sun/Mpc^3
+    """
+    if (omega_l is None): omega_l = 1. - omega_m
+
+    G = (6.674e-11 * u.m**3 / u.kg / u.s**2) # Gravitational constant in m^3 kg^-1 s^-2
+    H_0 = (h * 100. * u.km / u.s / u.Mpc).to('1/s') #<----correct units!
+
+    # Critical density at z=0
+    rho_crit_0 = (3 * H_0**2 / (8 * 3.1415926535 * G)).to('Msun/Mpc**3')
+
+    # E(z)^2 = H(z)^2 / H_0^2 for a flat LCDM cosmology (radiation neglected)
+    E2 = omega_m * (1. + z)**3 + omega_l
+
+    return (rho_crit_0 * E2).value

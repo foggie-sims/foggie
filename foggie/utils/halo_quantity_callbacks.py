@@ -9,7 +9,7 @@ are designed to be used with yt's halo catalog analysis framework.
 
 Functions include:
     - halo_total_mass: Total mass (gas + stars + dark matter).
-    - halo_overdensity: Overdensity of the halo relative to cosmic mean density.
+    - halo_overdensity: Overdensity of the halo relative to the critical density.
     - halo_average_temperature: Mass-weighted average gas temperature.
     - halo_average_metallicity: Mass-weighted average gas metallicity.
     - halo_max_metallicity: Maximum gas metallicity (normalized to solar).
@@ -33,7 +33,7 @@ Functions include:
     - halo_sfr8: Star formation rate from young stars (<10^8 yr).
     - halo_average_fH2: Mass-weighted average molecular hydrogen fraction.
     - halo_actual_baryon_fraction: Actual baryon fraction (gas + stars) relative to total mass.
-    - halo_corrected_rvir: Corrected virial radius calculated to a fixed overdensity (200).
+    - halo_corrected_rvir: Corrected virial radius R200c (200 x the critical density).
 
 If the halo's data object is None (e.g., for very small halos), each function 
 returns a zero-valued yt quantity with appropriate units.
@@ -49,6 +49,21 @@ from foggie.utils import foggie_utils as futils
 import astropy.units as u
 import numpy as np 
 
+
+def critical_density_of_ds(ds):
+    """Critical density [Msun/Mpc^3] at the redshift of dataset ds.
+
+    Halo radii and masses in FOGGIE are defined against 200 x the critical density
+    (R200c / M200c), so this is the reference density for all overdensity
+    calculations here. omega_lambda is taken from the dataset when available and
+    otherwise assumed to close a flat cosmology.
+    """
+    omega_matter = ds.omega_matter
+    omega_lambda = getattr(ds, "omega_lambda", None)
+    if (omega_lambda is None): omega_lambda = 1. - omega_matter
+
+    return futils.cosmic_critical_density(ds.current_redshift, h=ds.hubble_constant,
+                                          omega_m=omega_matter, omega_l=omega_lambda)
 
 def halo_total_mass(halo, correct=True, rvir_factor = 1.): 
     if (correct): 
@@ -71,14 +86,14 @@ def halo_overdensity(halo, correct=True, rvir_factor=1.):
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
-    cosmic_matter_density = futils.cosmic_matter_density(halo.halo_catalog.data_ds.current_redshift,
-                                                  h=halo.halo_catalog.data_ds.hubble_constant,
-                                                  omega_m=halo.halo_catalog.data_ds.omega_matter)
+    # overdensities here are relative to the CRITICAL density (200 rho_crit -> M200c/R200c),
+    # not the mean matter density, so that these match the standard M200c/R200c convention
+    critical_density = critical_density_of_ds(halo.halo_catalog.data_ds)
 
     total_halo_mass = halo_total_mass(halo, correct=correct, rvir_factor=rvir_factor).to('Msun')
     halo_mean_density = (total_halo_mass / (4. / 3. * 3.141592653589793 * sphere.radius**3)).to('Msun/Mpc**3')
 
-    return (halo_mean_density.value / cosmic_matter_density)
+    return (halo_mean_density.value / critical_density)
 
 def halo_average_temperature(halo, correct=True, rvir_factor=1.):
     if (correct):
@@ -419,14 +434,14 @@ def halo_outflow_500(halo, correct=True, rvir_factor=1.):
 def halo_corrected_rvir(halo):
     sphere = halo.data_object    
     
-    cosmic_matter_density = futils.cosmic_matter_density(halo.halo_catalog.data_ds.current_redshift,
-                                                  h=halo.halo_catalog.data_ds.hubble_constant,
-                                                  omega_m=halo.halo_catalog.data_ds.omega_matter)
+    # R200c: the radius enclosing a mean density of 200 x the CRITICAL density at this
+    # redshift. Using the mean matter density instead would give R200m, which is larger.
+    critical_density = critical_density_of_ds(halo.halo_catalog.data_ds)
 
     delta_r = 0.05 * sphere.radius.in_units('kpc')
     total_halo_mass = sphere.quantities.total_quantity(("gas", "cell_mass")) + sphere.quantities.total_quantity(("nbody", "particle_mass"))   
     halo_mean_density = (total_halo_mass / (4. / 3. * 3.141592653589793 * sphere.radius**3)).to('Msun/Mpc**3')
-    overdensity = (halo_mean_density.value / cosmic_matter_density)
+    overdensity = (halo_mean_density.value / critical_density)
     new_radius = sphere.radius.in_units('kpc')
     
     while (overdensity > 200.):
@@ -434,6 +449,6 @@ def halo_corrected_rvir(halo):
         new_sphere = halo.halo_catalog.data_ds.sphere(sphere.center, radius = new_radius) 
         total_halo_mass = new_sphere.quantities.total_quantity(("gas", "cell_mass")) + new_sphere.quantities.total_quantity(("nbody", "particle_mass"))   
         halo_mean_density = (total_halo_mass / (4. / 3. * 3.141592653589793 * new_radius**3)).to('Msun/Mpc**3')
-        overdensity = (halo_mean_density.value / cosmic_matter_density)
+        overdensity = (halo_mean_density.value / critical_density)
          
     return new_radius
