@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Pipeline poller, rendered from templates_512/PollScript.sh.
+# Pipeline poller, rendered from templates/PollScript.sh.
 #
 # The job-chained hook in each RunScript is the primary trigger and fires within
 # seconds of a run finishing.  This is the safety net for the case where that

@@ -5,7 +5,7 @@
 #
 ProblemType                = 30      // cosmology simulation
 TopGridRank                = 3
-TopGridDimensions          = 512 512 512
+TopGridDimensions          = __TOP_GRID__
 TopGridGravityBoundary     = 0       // Periodic BC for gravity
 LeftFaceBoundaryCondition  = 3 3 3   // same for fluid
 RightFaceBoundaryCondition = 3 3 3
@@ -64,21 +64,7 @@ RedshiftDumpName    = RD
 
 NumberOfOutputsBeforeExit=0
 
-CosmologyOutputRedshift[0]  = 99.0
-CosmologyOutputRedshift[1]  = 50.0
-CosmologyOutputRedshift[2]  = 10.0
-CosmologyOutputRedshift[3]  = 9.0
-CosmologyOutputRedshift[4] = 8.0
-CosmologyOutputRedshift[5] = 7.0
-CosmologyOutputRedshift[6] = 6.0
-CosmologyOutputRedshift[7] = 5.0
-CosmologyOutputRedshift[8] = 4.0
-CosmologyOutputRedshift[9] = 3.0
-CosmologyOutputRedshift[10] = 2.0
-CosmologyOutputRedshift[11] = 1.0
-CosmologyOutputRedshift[12] = 0.5
-CosmologyOutputRedshift[13] = 0.2
-CosmologyOutputRedshift[14] = 0.0
+__OUTPUT_REDSHIFTS__
 
 #
 #  set grid refinement parameters

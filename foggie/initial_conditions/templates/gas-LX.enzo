@@ -188,17 +188,20 @@ StarFeedbackDistRadius                   = 1
 StarFeedbackDistCellStep                 = 3
 
 H2StarMakerH2FractionMethod        = 1
-H2StarMakerEfficiency              = 0.002    // NOT 0.02.  This is the efficiency
-                                          // star_maker_h2reg actually uses, and at
-                                          // 0.02 it drains star-forming cells ten
-                                          // times faster than both completed runs
-                                          // on disk, which use 0.002.  Every gas
-                                          // run that crashed used 0.02; the crash
-                                          // is a cell at the 1e-30 density floor
-                                          // with a star particle ~1.3 cells away
-                                          // and a specific energy 1e7 times its
-                                          // neighbours' -- momentum injected into
-                                          // gas that star formation has removed.
+H2StarMakerEfficiency              = 0.02     // This is the efficiency
+                                          // star_maker_h2reg actually uses --
+                                          // StarMakerMassEfficiency is not passed
+                                          // to it.  Matches the parent-box run
+                                          // 25Mpc_DM_512-L0-gas.  It was briefly
+                                          // set to 0.002 while the gas crashes
+                                          // were being chased; the crash is a cell
+                                          // at the 1e-30 density floor with a star
+                                          // particle ~1.3 cells away and a specific
+                                          // energy 1e7 times its neighbors', i.e.
+                                          // momentum injected into gas that star
+                                          // formation has removed, and the fix for
+                                          // it belongs in the feedback parameters
+                                          // below and in the Enzo binary, not here.
 H2StarMakerNumberDensityThreshold  = 0
 H2StarMakerMinimumH2FractionForStarFormation = 0
 H2StarMakerStochastic              = 0
@@ -210,6 +213,26 @@ H2StarMakerH2FloorInColdGas        = 0
 H2StarMakerColdGasTemperature      = 10000
 H2StarMakerUseLocalDensityMax      = 1
 H2StarMakerWriteStarLogFiles       = 1
+
+#
+# mechanical feedback.  StarParticleFeedback = 64 above selects star_feedback6,
+# but on its own it runs at Enzo's defaults: no tabular yields, no pre-SN winds
+# and no cap on the velocity kick.  These are the values from the parent-box run
+# 25Mpc_DM_512-L0-gas/sffb_gas_dm_AMR.enzo, which is the reference for what this
+# feedback method is supposed to be doing.
+#
+StarFeedbackMomentumMultiplier     = 1
+StarFeedbackUseTabularYields       = 1
+StarFeedbackTabularFilename        = /home1/jtumlins/nobackup/enzo-foggie-feedback-fix/run/StarParticle/TabularFeedbackTest/sygma_feedback_table_1000.h5
+StarFeedbackTabularSNIIEnergy      = 1e+51
+StarFeedbackTabularSNIaEnergy      = 1e+51
+StarFeedbackStochasticSNe          = 1
+StarFeedbackPreSNFeedback          = 1
+StarFeedbackPreSNMomentum          = 1
+StarFeedbackPreSNFilename          = /home1/jtumlins/nobackup/enzo-foggie-feedback-fix/input/preSN_feedback_SB99.hdf5
+StarFeedbackCapVelocityKick        = 1
+UseLocalStellarRadiation           = 0
+WriteFeedbackLogFiles              = 0
 
 #
 # parallelism stuff

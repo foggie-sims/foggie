@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# IC generation job, rendered from templates_512/BuildScript.sh.
+# IC generation job, rendered from templates/BuildScript.sh.
 #
 # This exists because enzo-mrp-music loads the parent box in yt and traces the
 # halo's particles back to z = 99, which is far too heavy for a login node.

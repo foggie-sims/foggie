@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Enzo run script, rendered from templates_512/RunScript.sh by the IC pipeline.
+# Enzo run script, rendered from templates/RunScript.sh by the IC pipeline.
 # Do not edit the copy inside a run directory -- edit this template, or the box
 # config in foggie/initial_conditions/pipeline/config.py, and re-render.
 #

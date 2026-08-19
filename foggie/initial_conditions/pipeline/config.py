@@ -98,13 +98,14 @@ class Box:
     # incomparable -- the same RD number then means a different redshift.
     dm_output_list: str = "outputs_15.txt"
     gas_output_list: str = "outputs_266.txt"
-    # enzo-cic_deposit_fix is enzo-foggie-aitken-mpich plus 0713af80, which
-    # fixes an out-of-bounds write in cic_deposit.F when cloudsize < cellsize
-    # -- a subgrid deposited onto a coarser parent ran one k-plane past the end
-    # of the field array.  That is a deep-hierarchy condition, which is why it
-    # showed up as a segfault inside RebuildHierarchy at level 5 and only on
-    # the L3 stages.  Do not point this back at the unfixed tree.
-    enzo_exe: str = "/nobackupnfs1/jtumlins/enzo-cic_deposit_fix/src/enzo/enzo.exe"
+    # enzo-foggie-feedback-fix (branch fcf-on-cassi) carries the cic_deposit
+    # out-of-bounds fix -- a subgrid deposited onto a coarser parent ran one
+    # k-plane past the end of the field array when cloudsize < cellsize, which
+    # is a deep-hierarchy condition and showed up as a segfault inside
+    # RebuildHierarchy at level 5 on the L3 stages -- plus the mechanical
+    # feedback and PPM NaN-laundering fixes on top of it.  Do not point this
+    # back at a tree without both.  Keep templates/simrun.pl's fallback in sync.
+    enzo_exe: str = "/home1/jtumlins/nobackup/enzo-foggie-feedback-fix/src/enzo/enzo.exe"
     music_exe_dir: str = None       # defaults to FOGGIE_REPO/initial_conditions/music
     email: str = "tumlinson@stsci.edu"
     group_list: str = "s3128"

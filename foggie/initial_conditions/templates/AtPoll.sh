@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Pipeline poller driven by a self-rescheduling `at` chain, rendered from
-# templates_512/AtPoll.sh.
+# templates/AtPoll.sh.
 #
 # Why `at` and not cron: user crontabs are accepted on the NAS front ends but
 # never executed -- crond is not running there (verified with a bare `date` on
