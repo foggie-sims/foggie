@@ -114,8 +114,10 @@ def halo_max_metallicity(halo, correct=True, rvir_factor=1.):
     if sphere is None:
         return halo.halo_catalog.data_ds.quan(0, "Zsun")
 
-    zmax = sphere.quantities.extrema(("gas", "metallicity")) / 0.02 
-    return zmax[1]
+    # extrema preserves the Zsun units that yt's ("gas", "metallicity") field carries,
+    # so no normalization is needed here. Dividing by 0.02 made this 50x too large.
+    zmax = sphere.quantities.extrema(("gas", "metallicity"))
+    return zmax[1].in_units('Zsun')
 
 def halo_max_gas_density(halo, correct=True, rvir_factor=1.):
     if (correct):
