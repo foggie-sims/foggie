@@ -1,0 +1,44 @@
+From 14142e07861e336857c1c5a5b5fcc355e785ad76 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 25 Aug 2026 15:44:01 +0000
+Subject: [PATCH 2/5] Raise MAX_INITIAL_GRIDS from 10 to 64
+
+Multi-zoom surveys place several nested-grid pyramids in one domain
+(e.g. 10 halos x 4 levels + the base grid = 41 initial grids). The
+IC filename suffix format (%1"ISYM") already prints multi-digit grid
+numbers, so only the array bound needs raising. The arrays sized by
+this macro are file-static (about 3 KB total at 64).
+---
+ src/enzo/CosmologySimulationInitialize.C       | 2 +-
+ src/enzo/NestedCosmologySimulationInitialize.C | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/enzo/CosmologySimulationInitialize.C b/src/enzo/CosmologySimulationInitialize.C
+index be5db8c..2c6f8e2 100644
+--- a/src/enzo/CosmologySimulationInitialize.C
++++ b/src/enzo/CosmologySimulationInitialize.C
+@@ -96,7 +96,7 @@ static float CosmologySimulationInitialUniformBField[MAX_DIMENSION];  // in prop
+ static float RadHydroInitialRadiationEnergy = 1.0e-32;
+ #endif
+ 
+-#define MAX_INITIAL_GRIDS 10
++#define MAX_INITIAL_GRIDS 64
+  
+  
+  
+diff --git a/src/enzo/NestedCosmologySimulationInitialize.C b/src/enzo/NestedCosmologySimulationInitialize.C
+index 60d9ae9..d212fd6 100644
+--- a/src/enzo/NestedCosmologySimulationInitialize.C
++++ b/src/enzo/NestedCosmologySimulationInitialize.C
+@@ -90,7 +90,7 @@ static int   CosmologySimulationCalculatePositions   = FALSE;
+ 
+ static float CosmologySimulationInitialUniformBField[MAX_DIMENSION];  // in proper Gauss
+ 
+-#define MAX_INITIAL_GRIDS 10
++#define MAX_INITIAL_GRIDS 64
+  
+ static  int   CosmologySimulationGridDimension[MAX_INITIAL_GRIDS][MAX_DIMENSION];
+ static  int   CosmologySimulationGridLevel[MAX_INITIAL_GRIDS];
+-- 
+2.43.0
+
