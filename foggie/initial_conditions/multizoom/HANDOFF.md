@@ -55,6 +55,33 @@ production tree; the shared L0 run was read-only input.
   `runs/multizoom_pairA/25Mpc_DM_512-L1`; compare against the standalone
   `halo15659` / `halo48014` L1 runs when it reaches z=0.
 
+### Sixpack six-halo multizoom ladder — overnight 2026-08-26/27 (Aitken)
+
+Group `sixpack` = 48014, 56672, 75392, 21246, 24122, 42502 (merge mode,
+common shift −134,234,125 via the patched MUSIC).  The ladder driver
+(`runs/advance_sixpack.sh`) carried it L1 → L2 → L3 unattended.
+
+* Two real bugs found and fixed live: Enzo patch **0006** (MRP creation
+  required level == NumberOfInitialGrids−1, a sixth single-pyramid
+  assumption; N=1 regression still byte-identical) and the legacy mask
+  deposit wrapping only negative positions (four of six masks came out
+  empty under the override; fixed with floor() wrap + an empty-mask guard
+  in the merge tool).
+* L1: 7 grids, 45,992 MRPs = mask cells exactly, z=0.  L2: 13 grids, z=0.
+  L3: 19 grids, 2.45M MRPs, running (z≈2 at 02:23 wall).
+* **Cost (core-h, performance.out):** standalone sum vs multizoom —
+  L1 334.6 vs 69.6 (0.21); L2 441.4 vs 111.7 (0.25); L3 775.4 vs 153.6
+  in progress.  Six halos for roughly a fifth to a quarter of the cost.
+* **Load balance** (time-weighted max/mean, lower is better): multizoom is
+  BETTER than the standalone runs on every AMR level, e.g. L1 hierarchy
+  level 1: 1.36 vs 1.58; L2 level 7: 1.48 vs 1.81; L3 level 7: 1.07 vs
+  1.35 — six dense regions distribute across ranks more evenly than one.
+* pairA (union mode) reached z=0: halos within 4/16 kpc/h and 1%/7% in
+  mass of the standalone runs, identical contamination; 59.3 core-h vs
+  119.4 standalone.
+* Report tool: `compare_costs.py`; figure at
+  `runs/multizoom_sixpack/cost_comparison.png`.
+
 ## Where things stand
 
 Branch `claude/multi-zoom-single-domain-goqnjp` of foggie-sims/foggie,
