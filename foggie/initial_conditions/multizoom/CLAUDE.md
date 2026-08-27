@@ -11,7 +11,7 @@ Read `HANDOFF.md` (session state, decisions, next steps) and
   `music/`) must stay byte-for-byte untouched.  This package is a
   deliberate, fully isolated fork; changes to Enzo or MUSIC are carried
   only as patch files in `enzo_patches/` and `music_patches/`.
-- All work happens on branch `claude/multi-zoom-single-domain-goqnjp`.
+- All work happens on branch `multizoom`.
 - Physics invariants the code enforces (do not weaken them): every MUSIC
   run in a merge set shares identical `[random]` seeds and one common
   domain frame (`no_shift = yes` or one shared `region_shift_override`);

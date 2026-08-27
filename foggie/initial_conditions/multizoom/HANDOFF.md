@@ -84,7 +84,7 @@ common shift −134,234,125 via the patched MUSIC).  The ladder driver
 
 ## Where things stand
 
-Branch `claude/multi-zoom-single-domain-goqnjp` of foggie-sims/foggie,
+Branch `multizoom` of foggie-sims/foggie,
 three commits ahead of master (`d6aac60`):
 
 1. `f24c5ab` — audit & plan document.

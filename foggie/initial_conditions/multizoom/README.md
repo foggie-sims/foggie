@@ -46,7 +46,7 @@ Poisson/2LPT solve are measured and reported by the merge tool.
 | `merge_music_ics.py` | merge N same-seed MUSIC runs into one multi-patch IC set |
 | `pipeline_integration.py` | drives multizoom builds from the ics_refactor pipeline (registry groups → N-halo config) |
 | `templates/` | parameterized `.enzo` / `RunScript.sh` templates + `simrun.pl` copy |
-| `enzo_patches/` | five patches for enzo-foggie (apply with `git am`) |
+| `enzo_patches/` | six patches for enzo-foggie (apply with `git am`, or use its `multizoom` branch) |
 | `music_patches/` | optional `region_shift_override` patch for MUSIC |
 | `tests/` | pytest suite on synthetic MUSIC outputs (no yt/MUSIC/Enzo needed) |
 
@@ -99,8 +99,15 @@ on non-bit-identical `GridDensity.0` (baryon runs).  It writes a
 
 ## Enzo patches (merge mode only)
 
-Five minimal, upstream-friendly fixes; apply to `foggie-sims/enzo-foggie`
-(`edf858c` or later) and rebuild:
+Six minimal, upstream-friendly fixes.  They are published as the
+`multizoom` branch of `foggie-sims/enzo-foggie` (branched off `main` at
+`edf858c`), so the simplest route is to build that branch directly:
+
+```sh
+git clone -b multizoom https://github.com/foggie-sims/enzo-foggie
+```
+
+Or apply them to an existing checkout of `edf858c` or later:
 
 ```sh
 cd enzo-foggie
@@ -122,10 +129,18 @@ git am /path/to/foggie/foggie/initial_conditions/multizoom/enzo_patches/*.patch
    doesn't overlap the grid must not abort the scan over the remaining
    regions (`break` → `continue`); prevents duplicate coarse particles
    under later-scanned patches.
+6. **Must-refine particles on the deepest initial grid level** — the
+   mask-to-MRP conversion tested `level == NumberOfInitialGrids-1`, a
+   level no grid has in a merged set, so a six-halo run initialized with
+   no must-refine particles at all.  The initializers now record
+   `CosmologySimulationMaximumInitialLevel` and the conversion tests
+   against it.
 
-Patch 5 fixes a latent bug worth having even without multizoom; patches
-1–4 are inert for single-pyramid runs (validated by the N=1 regression
-in the plan).
+Patches 5 and 6 fix latent bugs worth having even without multizoom;
+patches 1–4 are inert for single-pyramid runs.  Validated twice by the
+N=1 regression: identical nested ICs through the patched and a pristine
+binary give a byte-identical hierarchy, the same particle count, and
+bit-identical field data.
 
 ## MUSIC patch (optional)
 

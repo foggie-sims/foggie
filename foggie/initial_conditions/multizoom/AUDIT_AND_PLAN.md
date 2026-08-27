@@ -238,7 +238,7 @@ ever matters.
   run** — one Enzo run per level, and the traced regions are consistent with
   the actual production realization *including mutual tides*. Single-halo runs
   survive only as validation references.
-- **Enzo changes** live on branch `claude/multi-zoom-single-domain-goqnjp` of
+- **Enzo changes** live on branch `multizoom` of
   `foggie-sims/enzo-foggie` (one commit per fix), exported with
   `git format-patch` into `multizoom/enzo_patches/` here, so the foggie branch
   is self-contained and the patches reviewable/appliable via `git am`.
@@ -491,7 +491,7 @@ invariants, overlap policy, base-donor approximation); note in
 
 ### Deliverables
 
-- **foggie-sims/foggie**, branch `claude/multi-zoom-single-domain-goqnjp`:
+- **foggie-sims/foggie**, branch `multizoom`:
   this document; then (as implementation proceeds) the `multizoom/` package
   (driver, merge tool, validation harness, templates, `enzo_patches/`,
   README), the `enzo-mrp-music/` modernization, and user-guide docs.
