@@ -354,7 +354,8 @@ mv pbs_output.txt pbs_output_$PBS_JOBID.txt
 
 
 def assemble_group_run(name, level, enzo_exe=None, table=None, halos=None,
-                       phase="DM", walltime=None, nranks=None):
+                       phase="DM", walltime=None, nranks=None,
+                       max_refine_level=None):
     """Fill the Enzo parameter file and job script into a merged IC dir.
 
     Uses the pipeline's own .enzo renderer, then corrects
@@ -383,6 +384,15 @@ def assemble_group_run(name, level, enzo_exe=None, table=None, halos=None,
     text = _re.sub(r"CosmologySimulationNumberOfInitialGrids\s*=\s*\d+",
                    "CosmologySimulationNumberOfInitialGrids  = %d" % n_grids,
                    text)
+    if max_refine_level is not None:
+        # The Box's gas_refine_offset sets this from the zoom depth, but a
+        # comparison against runs built under an older offset needs the value
+        # they used -- otherwise the hierarchies differ by a whole level.
+        for key in ("MaximumRefinementLevel", "MaximumGravityRefinementLevel",
+                    "MaximumParticleRefinementLevel"):
+            text = _re.sub(r"^%s(\s*)=.*$" % key,
+                           r"%s\g<1>= %d" % (key, max_refine_level),
+                           text, flags=_re.M)
     enzo_fn = os.path.join(ics_dir, "%s-L%d%s.enzo"
                            % (box.sim_name, level, suffix))
     with open(enzo_fn, "w") as fp:
@@ -456,6 +466,9 @@ def main(argv=None):
                        help="override the PBS walltime (gas assembly)")
         p.add_argument("--nranks", type=int, default=None,
                        help="override the rank count (gas assembly)")
+        p.add_argument("--max-refine-level", type=int, default=None,
+                       help="override MaximumRefinementLevel (e.g. to match "
+                            "runs built under a different gas_refine_offset)")
     args = parser.parse_args(argv)
     halos = parse_halo_ids(getattr(args, "halos", None))
 
@@ -478,7 +491,8 @@ def main(argv=None):
     if args.cmd == "assemble":
         assemble_group_run(args.group, args.level, args.enzo_exe, table, halos,
                            phase=args.phase, walltime=args.walltime,
-                           nranks=args.nranks)
+                           nranks=args.nranks,
+                           max_refine_level=args.max_refine_level)
         return
     build_group(args.group, args.level, args.mode, table, args.dry_run, halos)
 
