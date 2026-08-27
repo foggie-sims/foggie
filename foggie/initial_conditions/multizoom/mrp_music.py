@@ -113,12 +113,13 @@ def get_previous_run_params(params):
 
 def find_lagrangian_regions(params):
     """Trace every halo and (in union mode) build the union point file."""
+    os.makedirs(params["new_ics_directory"], exist_ok=True)
     params["halo_regions"] = lagrangian_regions.get_centers_and_extents(
         params["halos"], params["enzo_initial_fn"], params["enzo_final_fn"],
         round_size=params["round_factor"],
         radius_factor=params["radius_factor"],
         output_format="txt",
-        output_dir=params["simulation_run_directory"])
+        output_dir=params["new_ics_directory"])
     # Trim each cloud's far-flung strays BEFORE they are unioned or handed to
     # a per-halo MUSIC run, so one halo's outliers cannot inflate the whole
     # multizoom domain (ics_refactor added this for the single-halo case).
@@ -128,7 +129,7 @@ def find_lagrangian_regions(params):
 
     if params["mode"] == "union":
         union_fn = os.path.join(
-            params["simulation_run_directory"],
+            params["new_ics_directory"],
             lagrangian_regions.union_point_file_name(
                 params["tag"], os.path.basename(params["enzo_initial_fn"])))
         lagrangian_regions.write_union_point_file(

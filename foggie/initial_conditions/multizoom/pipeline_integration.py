@@ -91,8 +91,15 @@ def group_rvir_min(name, halo_id, table=None):
 
 
 def group_dir(box, name):
-    """Where a group's configs and ICs live, beside the per-halo directories."""
-    return os.path.join(pconfig.foggie_ics_dir(), "multizoom_%s" % name)
+    """Where a group's configs and ICs live.
+
+    Defaults to a multizoom_<name> directory beside the per-halo directories;
+    MULTIZOOM_ICS_DIR overrides the root, so development builds can deposit
+    everything in a private workspace while still reading the parent box from
+    the shared ICs directory.
+    """
+    root = os.environ.get("MULTIZOOM_ICS_DIR") or pconfig.foggie_ics_dir()
+    return os.path.join(root, "multizoom_%s" % name)
 
 
 def group_config_name(name, level):
@@ -207,16 +214,20 @@ def build_group(name, level, mode="union", table=None, dry_run=False):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("groups", help="list multizoom groups in the registry")
+    registry_help = ("alternate halo registry (default: the pipeline's "
+                     "production registry)")
+    g = sub.add_parser("groups", help="list multizoom groups in the registry")
+    g.add_argument("--registry", default=None, help=registry_help)
     for cmd in ("render", "build"):
         p = sub.add_parser(cmd)
         p.add_argument("--group", required=True)
         p.add_argument("--level", type=int, required=True)
         p.add_argument("--mode", choices=("union", "merge"), default="union")
         p.add_argument("--dry-run", action="store_true")
+        p.add_argument("--registry", default=None, help=registry_help)
     args = parser.parse_args(argv)
 
-    table = pconfig.read_registry()
+    table = pconfig.read_registry(args.registry)
     if args.cmd == "groups":
         groups = registry_groups(table)
         if not groups:
