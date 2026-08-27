@@ -82,15 +82,24 @@ class RunInfo(object):
                           for k in COSMOLOGY_KEYS
                           if cf.has_option("cosmology", k)}
         self.seeds = {}
+        # Non-seed [random] options that do not change which realization is
+        # drawn (cubesize is an RNG blocking parameter); anything else --
+        # in particular a seed whose value is a FILE of white noise -- is
+        # outside what the merge tool can verify.
+        benign = {"cubesize", "disk_cached"}
         if cf.has_section("random"):
             for key, value in cf.items("random"):
                 m = re.match(r"seed\[(\d+)\]$", key)
                 if m:
+                    if not value.strip().lstrip("+-").isdigit():
+                        raise MergeError(
+                            "Run %s: seed[%s] = %r is not an integer "
+                            "(file-based noise is not supported by the "
+                            "merge tool)" % (self.name, m.group(1), value))
                     self.seeds[int(m.group(1))] = value.strip()
-                else:
+                elif key not in benign:
                     raise MergeError(
-                        "Run %s: unsupported [random] entry %r (file-based "
-                        "noise is not supported by the merge tool)"
+                        "Run %s: unsupported [random] entry %r"
                         % (self.name, key))
 
         self.shift = self._read_shift()
