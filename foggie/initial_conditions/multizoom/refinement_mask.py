@@ -105,7 +105,11 @@ def particle_only_mask(music_config, smooth_edges=True, backup=True,
     clouds = []
     for fn in point_files:
         centered = np.loadtxt(fn, ndmin=2) + shift
-        centered[centered < 0.0] += 1.0
+        # wrap into [0,1) in BOTH directions: the legacy code handled only
+        # negative overflow because MUSIC's auto-shift centers the region,
+        # but a region_shift_override can push clouds past 1.0 (it silently
+        # emptied four of six sixpack masks)
+        centered -= np.floor(centered)
         clouds.append(((centered - geo["origin"]) *
                        2.0**geo["levelmax"]).astype("int32"))
     pts = np.concatenate(clouds, axis=0)

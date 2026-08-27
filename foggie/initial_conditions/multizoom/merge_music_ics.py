@@ -339,6 +339,17 @@ def check_base_grids(runs, fields, base_donor=0):
     return report
 
 
+def _check_mask_not_empty(path, name, run_name):
+    with h5py.File(path, "r") as fp:
+        n = int((fp[name][()] >= 0).sum())
+    if n == 0:
+        raise MergeError(
+            "Run %s: %s has no refine cells -- the deposit produced an "
+            "empty mask (check the point-file frame against the domain "
+            "shift)" % (run_name, name))
+    return n
+
+
 def _copy_and_renumber(src, dst, old_name, new_name):
     shutil.copyfile(src, dst)
     if old_name != new_name:
@@ -398,6 +409,9 @@ def merge_runs(run_dirs, out_dir, base_donor=0, min_gap_fine_cells=4,
                         os.path.join(out_dir, "%s.0" % field))
     for g, run, level in assignments:
         for field in fields:
+            if field == "RefinementMask" and level == run.n_levels:
+                _check_mask_not_empty(run.field_file(field, level),
+                                      "%s.%d" % (field, level), run.name)
             _copy_and_renumber(
                 run.field_file(field, level),
                 os.path.join(out_dir, "%s.%d" % (field, g)),
