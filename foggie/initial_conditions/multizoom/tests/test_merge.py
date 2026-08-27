@@ -172,3 +172,31 @@ def test_output_dir_must_be_empty(mergeable_pair):
     open(os.path.join(out, "something"), "w").close()
     with pytest.raises(mz.MergeError, match="not empty"):
         mz.merge_runs([run_a, run_b], out)
+
+
+def test_shift_from_config_override_beats_a_clobbered_log(tmp_path):
+    """A later aborted MUSIC run can truncate the log; the config still knows.
+
+    This is not hypothetical: a rerun aborted on 'File exists' after
+    rewriting the log, and a valid shifted IC set then looked unshifted.
+    """
+    base = np.random.default_rng(7).normal(size=(8, 8, 8))
+    run = make_run(tmp_path, "sim-L1-hA", base_field=base, shift=(-134, 234, 125),
+                   patches={1: ((0.125, 0.125, 0.125), (0.375, 0.375, 0.375))})
+    conf = run + ".conf"
+    text = open(conf).read().replace("[cosmology]",
+                                     "region_shift_override = -134, 234, 125\n\n[cosmology]")
+    open(conf, "w").write(text)
+    open(conf + "_log.txt", "w").write("truncated by an aborted run\n")
+    info = mz.RunInfo(run)
+    assert info.shift == (-134, 234, 125)
+
+
+def test_missing_shift_record_is_refused(tmp_path):
+    """No override, no log entries, no no_shift -> refuse rather than assume 0."""
+    base = np.random.default_rng(7).normal(size=(8, 8, 8))
+    run = make_run(tmp_path, "sim-L1-hB", base_field=base,
+                   patches={1: ((0.625, 0.625, 0.625), (0.875, 0.875, 0.875))})
+    open(run + ".conf_log.txt", "w").write("truncated\n")
+    with pytest.raises(mz.MergeError, match="records no domain shift"):
+        mz.RunInfo(run)

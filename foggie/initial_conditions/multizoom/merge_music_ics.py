@@ -108,13 +108,36 @@ class RunInfo(object):
         self.n_levels = self.levelmax - self.levelmin
 
     def _read_shift(self):
+        """The run's domain shift, from the config when it fixes one.
+
+        region_shift_override in the config IS the shift, and unlike the
+        MUSIC log it cannot be clobbered by a later aborted run in the same
+        directory -- which is exactly how a valid IC set once came to look
+        unshifted.  Without an override the log is the only record.
+        """
+        cf = configparser.ConfigParser()
+        cf.read(self.conf_path)
+        if cf.has_option("setup", "region_shift_override"):
+            v = cf.get("setup", "region_shift_override").split(",")
+            if len(v) == 3:
+                return tuple(int(x) for x in v)
         shift = [0, 0, 0]
+        seen = False
         if os.path.exists(self.log_path):
             with open(self.log_path) as fh:
                 for line in fh:
                     for i, ax in enumerate("xyz"):
                         if line.find("setup/shift_%s" % ax) >= 0:
                             shift[i] = int(line.split("=")[1])
+                            seen = True
+        no_shift = cf.has_option("setup", "no_shift") and \
+            cf.get("setup", "no_shift").strip().lower() in ("yes", "true", "1")
+        if not seen and not no_shift:
+            raise MergeError(
+                "Run %s: %s records no domain shift and the config fixes "
+                "none. The log may have been overwritten by a later aborted "
+                "MUSIC run; rebuild the ICs or set region_shift_override."
+                % (self.name, os.path.basename(self.log_path)))
         return tuple(shift)
 
     def _read_parameter_file(self):
