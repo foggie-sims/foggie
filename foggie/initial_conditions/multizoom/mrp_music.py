@@ -212,7 +212,9 @@ def write_music_conf(params, point_file, output_name, region_shift,
     output_path = os.path.join(params["new_ics_directory"], output_name)
     music_cf.set("output", "filename", output_path)
 
-    os.makedirs(output_path, exist_ok=True)
+    # MUSIC creates output_path itself and refuses one that already exists;
+    # its scratch/wnoise cache goes into a per-run sibling directory instead.
+    os.makedirs(output_path + ".music", exist_ok=True)
     conf_file = output_path + ".conf"
     with open(conf_file, "w") as fp:
         music_cf.write(fp)
@@ -245,7 +247,7 @@ def run_level_union(params):
         params, params["union_point_file"],
         "%s-L%d" % (params["simulation_name"], params["level"]),
         params["region_shift"])
-    run_music_exe(params, conf_file, cwd=ic_dir)
+    run_music_exe(params, conf_file, cwd=ic_dir + ".music")
     refinement_mask.particle_only_mask(
         conf_file, smooth_edges=True, backup=True,
         point_files=[r["point_file"]
@@ -268,7 +270,7 @@ def run_level_merge(params):
             "%s-L%d-h%s" % (params["simulation_name"], params["level"],
                             halo_id),
             point_shift, no_shift=True)
-        run_music_exe(params, conf_file, cwd=ic_dir)
+        run_music_exe(params, conf_file, cwd=ic_dir + ".music")
         refinement_mask.particle_only_mask(
             conf_file, smooth_edges=True, backup=True,
             point_files=[region["point_file"]])
