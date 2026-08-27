@@ -134,6 +134,29 @@ def survey_run(run_dir):
 
 
 
+def _timing_skip(path):
+    """Cycles between recorded blocks (Enzo's TimingCycleSkip), from the file.
+
+    Read from the data rather than the parameter file: a restart can change
+    it mid-run, and the blocks are the ground truth.
+    """
+    import re as _re
+    nums = []
+    for block in open(path).read().split("Cycle_Number")[1:]:
+        m = _re.match(r"\s*(\d+)", block)
+        if m:
+            nums.append(int(m.group(1)))
+        if len(nums) >= 12:
+            break
+    if len(nums) < 3:
+        return 1
+    deltas = [b - a for a, b in zip(nums, nums[1:]) if b > a]
+    if not deltas:
+        return 1
+    deltas.sort()
+    return max(deltas[len(deltas) // 2], 1)
+
+
 def parse_performance(run_dir, nprocs=64):
     """Cost and balance from Enzo's performance.out (ENZO_PERFORMANCE build).
 
@@ -150,6 +173,13 @@ def parse_performance(run_dir, nprocs=64):
     path = os.path.join(run_dir, "performance.out")
     if not os.path.exists(path):
         return None
+    # TimingCycleSkip (the ics_refactor gas template sets 10) changes how
+    # OFTEN a block is written, not what it measures: Enzo's timers accumulate
+    # over the skipped cycles, so summing blocks still gives the true elapsed
+    # time.  Verified against PBS: 42 blocks at skip=10 summed to 2.62 h
+    # against 2.92 h of job walltime.  What the skip does change is the
+    # RESOLUTION of any cycle window, which matters when comparing runs.
+    skip = _timing_skip(path)
     wall = 0.0
     cycles = 0
     level_time = collections.defaultdict(float)
@@ -175,16 +205,19 @@ def parse_performance(run_dir, nprocs=64):
             seconds=mean_t,
             imbalance=(level_max_time[lev] / mean_t) if mean_t else 0.0,
             cell_updates=level_updates[lev])
-    return dict(run=run_dir, cycles=cycles,
+    return dict(run=run_dir, cycles=cycles, timing_skip=skip,
+                sampled_cycles=cycles,
                 wall_hours=wall / 3600.0,
                 cpu_hours=wall / 3600.0 * nprocs,
                 levels=levels)
 
 
 def print_perf(perf):
-    print("%-46s cycles %5d  wall %6.2f h  cpu %7.1f core-h"
+    skip = perf.get("timing_skip", 1)
+    note = "" if skip == 1 else "  [blocks every %d cycles]" % skip
+    print("%-46s cycles %5d  wall %6.2f h  cpu %7.1f core-h%s"
           % (os.path.basename(perf["run"].rstrip("/")) or perf["run"],
-             perf["cycles"], perf["wall_hours"], perf["cpu_hours"]))
+             perf["cycles"] * skip, perf["wall_hours"], perf["cpu_hours"], note))
     for lev, d in perf["levels"].items():
         print("    L%02d  %8.1f s (%4.1f%%)  imbalance %5.2f  updates %.3e"
               % (lev, d["seconds"],
