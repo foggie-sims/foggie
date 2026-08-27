@@ -734,3 +734,238 @@ def format_density_report(halo_id, rows):
             "  Re-run with --recenter to put the panels on the halo itself.",
         ]
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Is the halo we asked for actually inside the region we built?
+# ---------------------------------------------------------------------------
+
+# How far the halo may sit from its analytic center before the region is judged
+# to be built around something else.  Not a tuned number: measured across the
+# twelve zooms that have gas runs, the ten sound ones land at 27-251 kpc/h and
+# the two broken ones at 1315 and 1524, so anything from ~400 to ~1200 splits
+# them identically.  600 sits in the middle of that gap.
+TARGET_OFFSET_TOLERANCE_KPC = 600.0
+
+# Below this the shrink has not found a halo at all, only noise.
+MIN_FINE_INSIDE_RVIR = 50
+
+
+def check_target_in_region(box, halo_id, level, halo_dir=None, rvir_min=None,
+                           tolerance_kpc=TARGET_OFFSET_TOLERANCE_KPC):
+    """Verify the level-N run refined the halo it was built for.
+
+    Nothing else in the pipeline asks this.  MUSIC prints the convex-hull
+    centroid it chose and moves on; check_region_points counts the particles
+    that were traced but never asks where they ended up; the density figure
+    measures the drift and only draws it.  So a zoom that refines the wrong
+    object passes every gate and is caught, if at all, when someone fails to
+    find the target in its catalogs -- which for halo79628 was after 3.6 days
+    on 128 ranks, refining an 8.4e9 neighbour 1.9 Mpc/h from the 2.7e9 halo
+    named in the registry.
+
+    The test is the one that separates the fleet cleanly: start at the analytic
+    center (catalog position plus this level's MUSIC shift) and shrink onto the
+    finest particles.  If the region really was built around the target, the
+    shrink stays put -- ten of the twelve zooms with gas runs converge within
+    251 kpc/h.  If it was built around something else there is nothing to
+    converge onto and the shrink either wanders off or finds too little mass.
+
+    Deliberately does NOT seed on the densest clump in the region: that finds
+    whichever halo is biggest nearby, which for a mis-built zoom is exactly the
+    interloper, and it would report a confident success.  See locate_halo.
+
+    Returns a dict; ``ok`` is False when the region cannot be trusted.
+    """
+    halo_dir = halo_dir or box.halo_dir(halo_id)
+    center, rvir, zoom_radius = center_in_run(box, halo_id, level, halo_dir,
+                                              rvir_min)
+    stage_dir = box.stage_dir(halo_id, level, "DM")
+    path, name, z, is_final = last_output(stage_dir)
+    out = dict(halo_id=halo_id, level=level, dump=name, z=z, final=is_final,
+               rvir_kpc=rvir, offset_kpc=None, n_fine_rvir=None,
+               m_fine_rvir=None, m_catalog=None, coarse_fraction=None,
+               ok=False, note="")
+    if path is None:
+        out["note"] = "no dump on disk"
+        return out
+    if not is_final:
+        # Rvir and the catalog position are z = 0 quantities; measuring against
+        # them at z = 4 gives a confident, meaningless answer.
+        out["note"] = "run has not reached z = 0 (%s) -- not checkable yet" % name
+        return out
+
+    rel, mass, _ = load_particles(path, center, max(25.0 * rvir, 500.0))
+    if mass is None or mass.size == 0:
+        out["note"] = "no particles near the analytic center"
+        return out
+
+    offset = locate_halo(rel, mass, guess_radius_kpc=max(25.0 * rvir, 500.0),
+                         verbose=False)
+    if offset is None:
+        out["note"] = "too few fine particles to locate anything"
+        return out
+    out["offset_kpc"] = float(np.sqrt((np.asarray(offset) ** 2).sum()))
+
+    rel = rel - offset
+    radius = np.sqrt((rel ** 2).sum(axis=1))
+    fine = mass < COARSE_FACTOR * mass.min()
+    inside = radius < rvir
+    out["n_fine_rvir"] = int((fine & inside).sum())
+    _, _, out["coarse_fraction"] = contamination(rel, mass, rvir)
+
+    try:
+        out["m_catalog"] = float(_build.catalog_mvir(box, halo_id))
+    except Exception:
+        out["m_catalog"] = None
+
+    if out["n_fine_rvir"] < MIN_FINE_INSIDE_RVIR:
+        out["note"] = ("only %d fine particles inside Rvir -- no halo here"
+                       % out["n_fine_rvir"])
+    elif out["offset_kpc"] > tolerance_kpc:
+        out["note"] = ("halo is %.0f kpc from its analytic center (tolerance "
+                       "%.0f) -- the region was built around something else"
+                       % (out["offset_kpc"], tolerance_kpc))
+    else:
+        out["ok"] = True
+        out["note"] = "target found %.0f kpc from its analytic center" % out["offset_kpc"]
+    return out
+
+
+def format_target_check(rows):
+    lines = ["", "  %-8s %-6s %-8s %-9s %-9s %-8s %s"
+             % ("halo", "level", "dump", "offset", "n_fine", "coarse", "verdict")]
+    for r in rows:
+        lines.append("  %-8s L%-5d %-8s %-9s %-9s %-8s %s"
+                     % (r["halo_id"], r["level"], r["dump"] or "-",
+                        ("%.0f kpc" % r["offset_kpc"]) if r["offset_kpc"] is not None else "-",
+                        r["n_fine_rvir"] if r["n_fine_rvir"] is not None else "-",
+                        ("%.3f" % r["coarse_fraction"]) if r["coarse_fraction"] is not None else "-",
+                        ("OK   " if r["ok"] else "FAIL ") + r["note"]))
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Projection with the Rockstar catalog overlaid
+# ---------------------------------------------------------------------------
+
+# Panel half-width, in Mpc/h comoving.  Wide enough to show the neighbourhood
+# the zoom is embedded in, which is the point of the figure.
+NEIGHBOR_PANEL_MPCH = 1.0
+
+# Only circle halos big enough to matter; below this the panel is a thicket of
+# labels and the IDs are unreadable.
+NEIGHBOR_MIN_MVIR = 1.0e8
+
+
+def catalog_neighbors(box, center_code, half_code, min_mvir=NEIGHBOR_MIN_MVIR,
+                      level=0, halo_dir=None):
+    """Rockstar halos inside the panel, in the frame of the level-N run.
+
+    The IDs are the ORIGINAL parent-box Rockstar IDs, deliberately: the whole
+    use of this figure is correlating what the zoom refined against the catalog
+    the halo was selected from, and a zoom-local AHF numbering cannot do that.
+
+    The catalog is in the unshifted parent frame and the run is not, so every
+    position gets the same shift center_in_run applies to the target -- catalog
+    position plus this level's MUSIC shift, wrapped.  Getting this wrong puts
+    the circles in plausible but wrong places, which is worse than no circles.
+    """
+    halos = _build._read_catalog(box.catalog_path())
+    pos = np.column_stack([np.asarray(halos[c], dtype=float) / box.boxsize_mpc
+                           for c in ("X", "Y", "Z")])
+    if level > 0:
+        conf_log = os.path.join(halo_dir or box.halo_dir(0),
+                                "%s-L%d.conf_log.txt" % (box.sim_name, level))
+        shifts = _build.read_shifts(conf_log)
+        pos = (pos + np.array(shifts) / box.shift_divisor) % 1.0
+
+    d = pos - np.asarray(center_code)
+    d -= np.round(d)                      # periodic
+    mvir = np.asarray(halos["Mvir"], dtype=float)
+    sel = (np.abs(d) <= half_code).all(axis=1) & (mvir >= min_mvir)
+    return dict(ids=np.asarray(halos["ID"], dtype=np.int64)[sel],
+                mvir=mvir[sel],
+                rvir_code=np.asarray(halos["Rvir"], dtype=float)[sel]
+                / (box.boxsize_mpc * 1000.0),
+                rel=d[sel])
+
+
+def make_neighbor_projection(box, halo_id, level=None, phase="DM", out_path=None,
+                             half_mpch=NEIGHBOR_PANEL_MPCH,
+                             min_mvir=NEIGHBOR_MIN_MVIR, rvir_min=None):
+    """DM projection of one IC set with the Rockstar catalog circled on it.
+
+    One panel per IC set, showing what the zoom actually refined and what sits
+    around it, with every catalog halo drawn at its own Rvir and labelled by its
+    parent-box Rockstar ID.  The target is labelled larger and its mass printed,
+    so the figure answers "did we refine the halo we asked for, and what are its
+    neighbours" without cross-referencing anything by hand.
+    """
+    import yt
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Circle
+    import matplotlib.patheffects as _pe
+
+    halo_dir = box.halo_dir(halo_id)
+    level = box.final_level(halo_id) if level is None and hasattr(box, "final_level") else level
+    stage_dir = box.stage_dir(halo_id, level, phase)
+    snap, name, zdump, is_final = last_output(stage_dir)
+    if snap is None:
+        return None, "no dump on disk"
+
+    center, rvir_kpc, _ = center_in_run(box, halo_id, level, halo_dir, rvir_min)
+    center = np.array(center)
+    ds = yt.load(snap)
+    half_code = float(half_mpch / box.boxsize_mpc)
+
+    field = DENSITY_FIELD
+    if field not in ds.derived_field_list:
+        field = ("deposit", "all_density")
+    region = ds.region(center, center - half_code, center + half_code)
+    frb = ds.proj(field, 2, data_source=region).to_frb(
+        (2 * half_code, "code_length"), DENSITY_NPIX, center=center)
+    img = np.array(frb[field])
+
+    nb = catalog_neighbors(box, center, half_code, min_mvir, level, halo_dir)
+    # Axes in Mpc/h comoving, measured from the target rather than from the box
+    # corner: the panel is about this halo, and absolute box coordinates change
+    # under the MUSIC shift while offsets do not.
+    ext = half_mpch
+    fig, ax = plt.subplots(figsize=(9.0, 7.6))
+    im = ax.imshow(img, origin="lower", extent=[-ext, ext, -ext, ext],
+                   norm=matplotlib.colors.LogNorm(), cmap="magma")
+    cb = fig.colorbar(im, ax=ax, pad=0.02)
+    cb.set_label(r"Projected DM Density  $\left(\mathrm{g\,cm^{-2}}\right)$")
+
+    mpch = box.boxsize_mpc
+    for hid, mv, rv, rel in zip(nb["ids"], nb["mvir"], nb["rvir_code"], nb["rel"]):
+        x, y = rel[0] * mpch, rel[1] * mpch
+        ax.add_patch(Circle((x, y), rv * mpch, fill=False, color="white",
+                            lw=1.0, alpha=0.85))
+        is_target = int(hid) == int(halo_id)
+        # Offset in POINTS, not data units: a dwarf's Rvir is a few kpc and an
+        # offset of that size in Mpc puts the label on top of the circle.
+        ax.annotate(str(int(hid)), (x, y), color="white",
+                    fontsize=11 if is_target else 6.5,
+                    ha="left", va="bottom", xytext=(4, 4),
+                    textcoords="offset points",
+                    path_effects=[_pe.withStroke(linewidth=1.6, foreground="black")])
+    tm = nb["mvir"][nb["ids"] == int(halo_id)]
+    ax.text(0.03, 0.06, "%s\nM = %.2e" % (halo_id, tm[0] if len(tm) else float("nan")),
+            transform=ax.transAxes, color="white", fontsize=13, va="bottom")
+    ax.text(0.03, 0.955, "L%d %s   %s   z = %.2f   %d catalog halos > %.0e"
+            % (level, phase, name, abs(zdump if zdump is not None else 0.0),
+               len(nb["ids"]), min_mvir),
+            transform=ax.transAxes, color="white", fontsize=8.5, va="top")
+    ax.set_xlabel(r"$x$  (Mpc/h, comoving, from halo%s)" % halo_id)
+    ax.set_ylabel(r"$y$  (Mpc/h, comoving, from halo%s)" % halo_id)
+    fig.tight_layout()
+
+    out_path = out_path or os.path.join(halo_dir, "qc_neighbors_halo%s_L%d%s.png"
+                                        % (halo_id, level, phase))
+    fig.savefig(out_path, dpi=130)
+    plt.close(fig)
+    return out_path, "%d halos circled" % len(nb["ids"])

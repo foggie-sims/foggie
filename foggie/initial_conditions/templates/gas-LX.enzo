@@ -130,6 +130,14 @@ MustRefineParticlesCreateParticles = 3
 MustRefineParticlesRefineToLevel   = __MRP_REFINE_TO_LEVEL__
 NumberOfBufferZones                      = 2
 
+# Every level must appear here: unset levels default to 1 = rebuild the grid
+# hierarchy on EVERY subcycle of that level, and the deepest levels are where
+# both the subcycles and the rebuild cost concentrate.  This list once stopped
+# at [6], which left levels 7-9 rebuilding every subcycle -- measured on the
+# nref9c/nref7f run as 3,272 level-9 rebuilds per root cycle, with
+# RebuildHierarchy at 12% of wall.  Skip = 2 is the FOGGIE production standard;
+# the enzo-performance audit measured skip = 3 as unsafe (particle drift
+# exceeds the 2-cell flagging buffer).
 RebuildHierarchyCycleSkip[0] = 2
 RebuildHierarchyCycleSkip[1] = 2
 RebuildHierarchyCycleSkip[2] = 2
@@ -137,6 +145,17 @@ RebuildHierarchyCycleSkip[3] = 2
 RebuildHierarchyCycleSkip[4] = 2
 RebuildHierarchyCycleSkip[5] = 2
 RebuildHierarchyCycleSkip[6] = 2
+RebuildHierarchyCycleSkip[7] = 2
+RebuildHierarchyCycleSkip[8] = 2
+RebuildHierarchyCycleSkip[9] = 2
+RebuildHierarchyCycleSkip[10] = 2
+
+# performance.out is written through ~15-20 blocking MPI_Gathers (one per named
+# timer; EnzoTiming.h Reduce_Times) plus a rank-0 file open/close.  The default
+# TimingCycleSkip = 1 pays that every cycle.  10 keeps the record useful for
+# post-hoc budgets at 10% of the cost.  Bench runs set it back to 1 -- the
+# per-cycle budget is the measurement there.
+TimingCycleSkip = 10
 
 # Output cadence copied verbatim from the completed gas runs, all of which
 # use this 266-entry list.  dtDataDump does NOT supply the analysis cadence

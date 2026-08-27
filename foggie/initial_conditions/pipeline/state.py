@@ -218,11 +218,18 @@ _PBS_STATES = {"R": RUNNING, "Q": QUEUED, "H": QUEUED, "S": QUEUED,
 def qstat_states(user=None):
     """Map of PBS job id prefix -> our state, for the current user's jobs."""
     user = user or os.getenv("USER")
+    # A failed or timed-out qstat must NOT read as "no jobs".  It used to return
+    # {} here, and ledger.live_job then found no live job for any stage, so one
+    # transient qstat failure made the sweep resubmit every submittable stage at
+    # once: on 2026-08-24 five L3 gas runs each got a second Enzo job that
+    # restarted from an older dump, collided with the first, and left the stage
+    # marked STALLED.  None means "queue state unknown"; callers that submit
+    # must skip the sweep, callers that only report may treat it as empty.
     try:
         out = subprocess.check_output(["qstat", "-u", user],
                                       stderr=subprocess.DEVNULL, timeout=30).decode()
     except Exception:
-        return {}
+        return None
 
     states = {}
     for line in out.splitlines():

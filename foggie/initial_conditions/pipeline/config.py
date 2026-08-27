@@ -90,14 +90,31 @@ class Box:
     # several Rvir and can make the traced sphere miss the halo entirely.
     # Needs yt, which the build job has because enzo-mrp-music itself uses it.
     refine_centers: bool = True
-    # Output-redshift cadence, as filenames in the template directory.  The 512
-    # box takes 15 outputs for DM and 266 for gas; the 256 box was run with 266
-    # for both.  Held here rather than inline in the templates because it is the
-    # one parameter where two boxes legitimately disagree while sharing
-    # everything else, and because changing it mid-ladder makes the levels
-    # incomparable -- the same RD number then means a different redshift.
+    # Output-redshift cadence, as filenames in the template directory.  Held
+    # here rather than inline in the templates because it is the one parameter
+    # where two boxes legitimately disagree while sharing everything else.
+    #
+    # TESTING CADENCE, 2026-08-22: gas runs take the same 15 science redshifts
+    # as the DM ladder instead of 266.  266 dumps is 12-17 TB per gas zoom and a
+    # dozen are running at once while the physics is still being tested; 15 is
+    # enough to see the growth history at a twentieth of the disk.  Put
+    # gas_output_list back to "outputs_266.txt" for production.
+    #
+    # outputs_16_gas.txt is those 15 redshifts PLUS one at z = 15.0.  That extra
+    # dump is not science, it is structural: gas runs are two legs joined at
+    # gas_stop_redshift = 15, and simrun.pl restarts the second leg from the
+    # LAST line of OutputLog.  outputs_266.txt happens to contain z = 15.0
+    # (index 6), so the handoff has always had a dump to resume from.  The bare
+    # 15-entry list jumps 50 -> 10, so the second leg would have resumed from
+    # z = 50 and re-run 50 -> 15 with self-shielded cooling switched on -- a
+    # silent physics change, not a cadence change.  Keep a dump at
+    # gas_stop_redshift in any list this parameter points at.
+    #
+    # Changing this mid-ladder makes levels incomparable -- the same RD number
+    # then means a different redshift -- so runs already on disk keep the
+    # cadence they were built with.  Only newly built gas stages are affected.
     dm_output_list: str = "outputs_15.txt"
-    gas_output_list: str = "outputs_266.txt"
+    gas_output_list: str = "outputs_16_gas.txt"
     # enzo-foggie-feedback-fix (branch fcf-on-cassi) carries the cic_deposit
     # out-of-bounds fix -- a subgrid deposited onto a coarser parent ran one
     # k-plane past the end of the field array when cloudsize < cellsize, which
@@ -109,10 +126,15 @@ class Box:
     music_exe_dir: str = None       # defaults to FOGGIE_REPO/initial_conditions/music
     email: str = "tumlinson@stsci.edu"
     group_list: str = "s3128"
-    # Queue for the Enzo runs.  Empty means emit no "#PBS -q" line and let PBS
-    # route on walltime, which is what the hand-built scripts do.  Naming a
-    # queue whose walltime cap is below dm_walltime gets the job rejected.
-    queue: str = ""
+    # Queue for the Enzo runs.  An explicit queue is now REQUIRED: a bare qsub
+    # is refused with "No queue specified" and exit status 32, which is how the
+    # poller silently failed to start eight runs on 2026-08-21 -- every IC build
+    # succeeded (those carry build_queue) and every Enzo submission after it was
+    # rejected.  Leaving this empty emits no "#PBS -q" line and no longer works,
+    # whatever the hand-built scripts used to do.  'long' allows 120 h, which is
+    # what gas_walltime asks for; a queue whose cap is below the walltime gets
+    # the job rejected instead, so check_queue_fits still guards that.
+    queue: str = "long"
     # PBS resources for the Enzo runs.
     dm_select: str = "1:ncpus=64:mpiprocs=64:model=mil_ait"
     dm_nranks: int = 64
@@ -134,6 +156,36 @@ class Box:
     # every hand-built gas run on disk; 9 is the eventual target and should be
     # adopted deliberately, not drifted into.
     gas_max_refine_level: int = 7
+    # MaximumRefinementLevel counts levels above the ROOT grid, so the value
+    # that gives a particular cell size depends on BOTH the root grid and how
+    # deep the zoom goes.  Holding it fixed per box was correct only while every
+    # halo in a box shared one final_level; with halos at L2 and L3 in the same
+    # box it silently gives them different cell-to-particle-spacing ratios.
+    #
+    # The invariant that actually matters is the ratio of the finest cell to the
+    # zoom's mean particle spacing, and it is the same for every run on disk:
+    #     512 root, L2 zoom, nref7  -> 2^5 cells per particle spacing, 545 pc
+    #     256 root, L3 zoom, nref8  -> 2^5, 545 pc
+    # so the rule is nref = final_level + GAS_REFINE_OFFSET.  Deriving it means
+    # a halo promoted from L2 to L3 gets nref8 automatically, and one left at L2
+    # keeps nref7 -- rather than a box-wide constant handing L2 halos a
+    # resolution their dark matter cannot support.
+    gas_refine_offset: int = 5
+    # Gas output cadence depends on what the run is FOR, not just on the box.
+    # 16 outputs is enough to watch a galaxy evolve and was adopted when disk
+    # was short, but it is far too sparse to build a forced-refinement track
+    # from: Enzo interpolates the refine box linearly between track rows, and
+    # on the 16-entry list the halo moves a median 242 ckpc/h between rows
+    # against a 50 ckpc/h box half-width -- every single step leaves the box
+    # behind.  The 100-entry list is a strict SUBSET of outputs_266.txt, so its
+    # dumps sit at redshifts the existing L2 runs already have and the two are
+    # directly comparable; it gives a median step of 29 ckpc/h and the same
+    # maximum (49) as the full 266, because that ceiling is set by the halo's
+    # motion rather than by the sampling.
+    gas_output_list_deep: str = "outputs_100_gas.txt"
+    # Zoom depth at or beyond which the deep list is used.  L3 zooms are the
+    # ones we intend to run forced-refinement boxes on.
+    gas_deep_level: int = 3
     # Gas runs are done in two legs.  Grackle's cooling changes character at
     # z = 15, where self-shielding starts to matter, so the first leg runs with
     # unshielded cooling and stops there; the parameters below are then written
@@ -232,6 +284,16 @@ class Box:
     def param_filename(self, level, phase="DM"):
         return "%s.enzo" % self.stage_dirname(level, phase)
 
+    def gas_refine_level(self, level):
+        """MaximumRefinementLevel for a gas run whose zoom reaches `level`."""
+        return int(level) + int(self.gas_refine_offset)
+
+    def gas_outputs_for(self, level):
+        """Which output-redshift list a gas run at this zoom depth should use."""
+        if int(level) >= int(self.gas_deep_level):
+            return self.gas_output_list_deep
+        return self.gas_output_list
+
 
 BOXES = {
     "25Mpc_DM_512": Box(
@@ -252,6 +314,13 @@ BOXES = {
         # 80 kpc against a catalog Rvir of 33.66.  Halos already above the
         # floor are untouched, so halo42189 keeps its 88.963.
         rvir_floor_kpc=80.0,
+        # Deepen gas one level past the DM-matched value (2026-08-26, user):
+        # offset=6 gives L2->nref8 and L3->nref9 (2^6 cells/particle spacing),
+        # the eventual production target and the natural-run precursor to the
+        # nref9c cooling ceiling of the forced runs. Both are intended: L2 gas
+        # is nref8, L3 gas is nref9. The L2-nref7 straggler runs already on disk
+        # keep their cadence (they never rebuild); new gas builds follow this.
+        gas_refine_offset=6,
     ),
     # Shares templates/ with the 512 box.  The only differences a second parent
     # box actually needs are the root grid and the output cadence, both
@@ -336,8 +405,14 @@ def box_problems(box):
 # rvir_min: per-halo floor on the zoom radius in kpc, 0 meaning "use the
 # catalog Rvir".  Exists because halo11177 was hand-built at 80 kpc against a
 # catalog Rvir of 33.66 kpc via an --rvir_min flag that no script implemented.
+# queue/nodes/model used to live here too, but every row carried the same three
+# values -- normal, 1, mil_ait -- and nothing ever read them: scheduling comes
+# from the Box dataclass above (queue, dm_select, gas_select, build_select,
+# build_queue, poll_select, poll_queue), which already names the model and the
+# node count. Dropped 2026-08-21; a registry that still has the columns reads
+# fine, the extra ones are simply ignored.
 REGISTRY_COLUMNS = ("halo_id", "box", "enabled", "final_level", "gas",
-                    "rvir_min", "queue", "nodes", "model", "notes")
+                    "rvir_min", "notes")
 
 
 def default_registry_path():

@@ -268,6 +268,8 @@ def cmd_validate_templates(args):
 def collect_registry_records(table, include_gas=False, qstat=None):
     """Stage records for every enabled registry halo, in dependency order."""
     qstat = stagestate.qstat_states() if qstat is None else qstat
+    if qstat is None:            # reporting only: unknown queue shows as not-live
+        qstat = {}
     records = []
     for row in config.enabled_halos(table):
         box = config.get_box(row["box"])
@@ -531,6 +533,9 @@ def cmd_advance(args):
             return 0
 
     qstat = stagestate.qstat_states()
+    if qstat is None:
+        print("qstat unavailable: skipping this sweep so nothing is double-submitted")
+        return 1
     actions = []
     for row in rows:
         halo_dir = config.get_box(row["box"]).halo_dir(row["halo_id"])
@@ -709,6 +714,26 @@ def cmd_qc(args):
         print(qc.format_density_report(args.halo, rows))
         print("\nWrote %s" % path)
 
+        # One neighbourhood panel per IC set, circling every parent-box
+        # Rockstar halo at its own Rvir and labelling it with its ORIGINAL
+        # catalog ID.  That numbering is the point: it is what the halo was
+        # selected from, so a neighbour seen here can be looked up in the same
+        # catalog, which a zoom-local AHF id cannot do.  It also shows at a
+        # glance whether the zoom refined the halo it was built for -- the
+        # question that cost halo79628 three days of compute before anyone
+        # asked it.
+        for lev in range(1, int(match[0]["final_level"]) + 1) if match else ():
+            try:
+                npath, note = qc.make_neighbor_projection(
+                    box, args.halo, level=lev, phase="DM", rvir_min=rvir_min)
+            except Exception as exc:
+                print("  L%d neighbours: skipped (%s)" % (lev, exc))
+                continue
+            if npath is None:
+                print("  L%d neighbours: skipped (%s)" % (lev, note))
+            else:
+                print("  L%d neighbours: %s -> %s" % (lev, note, npath))
+
         # A panel whose halo has drifted out of frame shows empty sky, which
         # reads as a halo that dissolved under refinement.  The drift is one to
         # two hundred kpc regardless of halo mass, so this is routine for the
@@ -757,6 +782,9 @@ def cmd_resume(args):
         rows = [r for r in rows if int(r["halo_id"]) == int(args.halo)]
 
     qstat = stagestate.qstat_states()
+    if qstat is None:
+        print("qstat unavailable: refusing to resume anything on an unknown queue state")
+        return 1
     resumed, skipped = [], []
     for row in rows:
         box = config.get_box(row["box"])

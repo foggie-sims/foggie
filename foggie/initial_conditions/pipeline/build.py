@@ -84,7 +84,7 @@ def _fmt_redshift(z):
     return str(int(z)) if float(z) == int(z) else repr(float(z))
 
 
-def output_redshifts(box, phase="DM"):
+def output_redshifts(box, phase="DM", level=None):
     """The CosmologyOutputRedshift block for this box and phase.
 
     Read from a file in the template directory rather than held inline, because
@@ -92,7 +92,9 @@ def output_redshifts(box, phase="DM"):
     other line, and because it is long enough (266 entries) to bury the rest of
     the template.
     """
-    name = box.gas_output_list if phase == "gas" else box.dm_output_list
+    # Gas cadence depends on the zoom depth -- L3 runs need a list dense enough
+    # to build a forced-refinement track from.  See Box.gas_outputs_for.
+    name = box.gas_outputs_for(level) if phase == "gas" else box.dm_output_list
     path = os.path.join(box.template_dir_path(), name)
     if not os.path.exists(path):
         raise RuntimeError("Output redshift list missing: %s" % path)
@@ -110,12 +112,15 @@ def enzo_keywords(box, level, phase="DM", grid_parameters=""):
         # Box geometry and cadence: everything that used to force a separate
         # template directory per parent box.
         "__TOP_GRID__": "%d %d %d" % ((box.parent_ngrid,) * 3),
-        "__OUTPUT_REDSHIFTS__": output_redshifts(box, phase),
+        "__OUTPUT_REDSHIFTS__": output_redshifts(box, phase, level),
     }
     if phase == "gas":
         kw["__MIN_OVERDENSITY_GAS__"] = min_overdensity(
             level, "gas", box.overdensity_at_root)
-        kw["__MAX_REFINE_LEVEL__"] = str(box.gas_max_refine_level)
+        # Derived from this halo's zoom depth, not the box constant: see
+        # Box.gas_refine_level.  A halo at L3 needs nref8 where an L2 halo in
+        # the same box needs nref7, and both must be able to coexist.
+        kw["__MAX_REFINE_LEVEL__"] = str(box.gas_refine_level(level))
         # First leg only.  RunScript.sh rewrites this to 0 at the handoff, so
         # the two must come from the same place or the run either stops twice
         # or never stops at all.
@@ -235,12 +240,14 @@ def render_runscript(box, halo_id, level, phase="DM", pipeline_hook=""):
         "__GROUP__": box.group_list,
         "__SELECT__": box.gas_select if is_gas else box.dm_select,
         "__WALLTIME__": walltime,
-        # No -q line unless one is configured.  The hand-built RunScripts that
-        # ran successfully specify no queue and let PBS route by walltime;
-        # naming `normal` explicitly caps the job at 8 h and gets a 24 h request
-        # rejected outright ("Job violates queue and/or server resource limits").
+        # A queue is required; box.queue defaults to 'long'.  Emitting no -q
+        # line gets the submission refused outright with exit status 32, and
+        # because simrun.pl re-qsubs this same script at every walltime
+        # boundary, a missing queue would also silently end a run that had
+        # already started.  Naming a queue whose cap is below the walltime is
+        # the opposite failure and check_queue_fits catches that one.
         "__QUEUE_LINE__": ("#PBS -q %s" % box.queue if box.queue
-                           else "# no queue requested: PBS routes on walltime"),
+                           else "# WARNING: no queue configured; qsub will refuse this"),
         "__NRANKS__": box.gas_nranks if is_gas else box.dm_nranks,
         # simrun.pl needs the walltime in seconds so it knows when to resubmit.
         "__SIMRUN_WALL__": hours * 3600 + minutes * 60 + seconds,

@@ -7,9 +7,6 @@
 # - {name: final_level, datatype: int64}
 # - {name: gas, datatype: bool}
 # - {name: rvir_min, datatype: float64}
-# - {name: queue, datatype: string}
-# - {name: nodes, datatype: int64}
-# - {name: model, datatype: string}
 # - {name: notes, datatype: string}
 # meta: !!omap
 # - comments: [FOGGIE IC pipeline halo registry -- SEED COPY. This file is not read by the pipeline., '', 'Copy it to your own
@@ -23,18 +20,18 @@
 #       row below is enabled = False on purpose. Enabling one commits real, 'resources -- a DM ladder is days of queue time and a gas run is 8-12 TB --',
 #     so turn them on deliberately and a few at a time., '', Status is NOT written here -- see status.ecsv in FOGGIE_ICS_DIR.]
 # schema: astropy-2.0
-halo_id box enabled final_level gas rvir_min queue nodes model notes
-42189 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait "8.2e+10 Msun"
-51541 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait "3.2e+10 Msun"
-79628 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait ""
-80181 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait "1.0e+09 Msun"
-52675 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait ""
-15659 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait "6.8e+09 Msun"
-48014 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait ""
-56672 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait ""
-47314 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait ""
-51741 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait ""
-15516 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait ""
-75392 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait ""
-59186 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait ""
-46615 25Mpc_DM_512 False 2 True 0.0 normal 1 mil_ait ""
+halo_id box enabled final_level gas rvir_min notes
+42189 25Mpc_DM_512 False 2 True 0.0 "8.2e+10 Msun"
+51541 25Mpc_DM_512 False 2 True 0.0 "3.2e+10 Msun"
+79628 25Mpc_DM_512 False 2 True 0.0 ""
+80181 25Mpc_DM_512 False 2 True 0.0 "1.0e+09 Msun"
+52675 25Mpc_DM_512 False 2 True 0.0 ""
+15659 25Mpc_DM_512 False 2 True 0.0 "6.8e+09 Msun"
+48014 25Mpc_DM_512 False 2 True 0.0 ""
+56672 25Mpc_DM_512 False 2 True 0.0 ""
+47314 25Mpc_DM_512 False 2 True 0.0 ""
+51741 25Mpc_DM_512 False 2 True 0.0 ""
+15516 25Mpc_DM_512 False 2 True 0.0 ""
+75392 25Mpc_DM_512 False 2 True 0.0 ""
+59186 25Mpc_DM_512 False 2 True 0.0 ""
+46615 25Mpc_DM_512 False 2 True 0.0 ""

@@ -142,6 +142,8 @@ def qc_in_flight(halo_dir, kind, qstat_states):
     Without this the trigger would resubmit on every poll sweep between a level
     finishing and its qc job starting, which on a busy queue is hours.
     """
+    if qstat_states is None:      # queue state unknown -- see state.qstat_states
+        qstat_states = {}
     record = last_qc(halo_dir, kind)
     if not record or not record.get("jobid"):
         return False
@@ -156,6 +158,8 @@ def live_job(halo_dir, level, phase, qstat_states):
     IC generation and "enzo" for the run itself, which lets the caller show a
     queued IC build as BUILDING rather than QUEUED.
     """
+    if qstat_states is None:      # queue state unknown -- see state.qstat_states
+        qstat_states = {}
     key = stage_key(level, phase)
     for record in reversed(read_ledger(halo_dir)):
         if record.get("stage") != key:
