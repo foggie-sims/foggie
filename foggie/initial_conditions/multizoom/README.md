@@ -138,3 +138,10 @@ Gas/baryon multizoom (the merge tool already handles `GridDensity` /
 `GridVelocities_*` files generically), per-halo refinement ceilings
 (needs the MultiRefineRegion fixes listed in AUDIT_AND_PLAN.md), and
 the full in-code MUSIC multi-region refactor.
+
+**Planned — particle-tracked forced refinement** (AUDIT_AND_PLAN.md
+Part III): runtime MultiRefineRegion boxes centered on per-zoom
+particle-ID sets instead of precomputed `halo_track` files, with a
+DM→gas ID translation utility.  Designed and estimated; to be
+implemented as `enzo_patches/0006-0008` plus
+`translate_particle_ids.py`.

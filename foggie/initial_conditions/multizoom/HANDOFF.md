@@ -72,6 +72,13 @@ patches were verified with `git apply --check` against enzo-foggie head
 5. 3-halo then 10-halo survey dry run (IC generation + Enzo startup).
 6. Docs milestone: `doc/source/user_guide/multizoom_ics.rst` not yet
    written (README.md and AUDIT_AND_PLAN.md exist).
+7. Milestone 5 (designed 2026-08-27, NOT implemented): particle-tracked
+   forced refinement — runtime MultiRefineRegion boxes centered on
+   per-zoom particle-ID sets instead of precomputed halo_track files,
+   plus the `translate_particle_ids.py` DM→gas ID bridge.  Full design,
+   verified building blocks, and effort estimate in AUDIT_AND_PLAN.md
+   Part III; implement as enzo_patches 0006-0008 + the utility when the
+   user asks.
 
 ## Gotchas for the next session
 
@@ -84,6 +91,12 @@ patches were verified with `git apply --check` against enzo-foggie head
   change needed).
 - The legacy wrapper bugs are fixed only in the forks here; the legacy
   scripts still have them (by design — untouched).
+- Particle IDs are NOT portable between runs initialized on different
+  core counts (ParallelParticleIO/CalculatePositions assigns IDs by
+  partition layout; verified at
+  Grid_NestedCosmologySimulationInitializeGrid.C:1586).  Any particle-ID
+  list must be generated per run, or translated via Lagrangian-position
+  matching (AUDIT_AND_PLAN.md Part III).
 - `multizoom512.py` merge mode expects the previous level's MERGED run
   in the workdir as `<simname>-L<n-1>/` with its `.enzo` file, as the
   driver lays out.  Level-0 (unigrid) comes from the user's existing

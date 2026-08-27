@@ -499,3 +499,95 @@ invariants, overlap policy, base-donor approximation); note in
   patches E1–E5, mirrored as `git format-patch` files in
   `multizoom/enzo_patches/` so the foggie branch is self-contained and the
   patches can be applied with `git am`.
+
+---
+
+## Part III — Milestone 5: particle-tracked forced refinement (designed, not yet implemented)
+
+Added 2026-08-27.  Replaces the precomputed `halo_track` /
+`MustRefineRegion` box of production runs with a box **re-derived at
+runtime from a discrete set of particle IDs per zoom target**.  This
+removes the track chicken-and-egg (a track requires a completed prior
+run with similar physics; N halos would need N track files) and gives N
+independently-moving forced-refinement boxes naturally — the runtime
+complement to the multi-patch ICs of Milestones 1–3.
+
+### Verified building blocks (all present in enzo-foggie)
+
+| piece | where | role |
+|---|---|---|
+| Sorted-ID bisection matching against a grid's particles | `Grid_MustRefineParticlesFlagFromList.C` (Simpson & Bryan 2009) | template for the new "match and accumulate" grid method |
+| Per-root-step geometry hook | `SetEvolveRefineRegion` called from `EvolveHierarchy.C:477` (and at startup, :292) | where the live box update slots in |
+| Global reductions | `CommunicationSumValues` overloads, `CommunicationUtilities.C:258-366` | combine per-processor partial sums |
+| N-region storage with per-region min/max level and SF mass floor | `MultiRefineRegion*` arrays (1000 static + 20 tracks; FOGGIE 2023-24) | the boxes the update writes into |
+
+### Design
+
+New parameters (one entry per zoom target):
+
+```
+RefineRegionParticleListFile[i]  = <sorted particle-ID file, one per zoom>
+RefineRegionParticleHalfWidth[i] = <box half-width, comoving code units>
+```
+
+Each root-grid timestep (same cadence as the existing track
+interpolation): scan every grid's particles against the cached ID sets
+(bisection, as in FlagFromList); accumulate positions **relative to the
+previous box center with ±0.5 periodic wrap**; reduce across
+processors; take the **per-axis median** (or an iterative
+shrinking-sphere center — not a plain mean: a fixed ID set accumulates
+outliers as particles are stripped or ejected); set
+`MultiRefineRegionLeftEdge/RightEdge[i] = center ± halfwidth` (and the
+CoolingRefineRegion analog where wanted).  No restart state — the box
+is re-derived from the IDs every step.  Choose the ID set from the
+halo's most-bound inner particles (~10^2–10^3), not the full Lagrangian
+volume.
+
+Cost: one O(N_particles) bisection scan per root step — negligible at
+that cadence.
+
+### Effort estimate
+
+Roughly 400–600 lines across ~8–10 files, no solver/gravity/IO changes:
+one new grid method (~120 lines adapted from FlagFromList), one
+top-level per-step routine (~150 lines), parameter plumbing
+(`ReadParameterFile` / `WriteParameterFile` / `SetDefaultGlobalValues` /
+`global_data.h` / `Grid.h` / `Make.config.objects`), plus the two
+already-documented MultiRefineRegion fixes this depends on (the latched
+per-cell level variables and the never-enforced per-region maximum
+level, ~40 lines).  Planned as patches `0006–0008` in
+`multizoom/enzo_patches/` when implemented.
+
+### Particle-ID consistency between DM-only and gas runs (verified)
+
+In FOGGIE's IO configuration (`ParallelRootGridIO=1`,
+`ParallelParticleIO=1`, `CosmologySimulationCalculatePositions=1`),
+particle IDs are assigned locally 0..N−1 per partitioned grid
+(`Grid_NestedCosmologySimulationInitializeGrid.C:1586`) and offset in
+hierarchy-traversal order (`NestedRecursivelySetParticleCount`).
+**IDs therefore depend on the MPI partition layout at initialization:**
+
+- same IC geometry + same core count at init → a DM-only run and a gas
+  run assign identical IDs to the same DM particles (gas adds no
+  particles at t=0; stars are appended later without renumbering);
+- different core counts → the ID↔particle mapping differs, and raw ID
+  reuse silently selects the wrong particles.
+
+**Rule: ID list files are per-run generated, never copied between
+runs.**  The bridge is Lagrangian position, which is one-to-one with ID
+within any single run: planned utility
+`multizoom/translate_particle_ids.py` (~50 lines, yt/scipy) takes the
+cheap DM run's halo IDs, looks up their z≈z_init positions in that
+run's first output, nearest-neighbor matches them (tolerance ≪ fine
+cell) against the target gas run's first output, and emits the target
+run's own IDs.  Reuses the cross-output matching pattern of
+`lagrangian_regions.get_centers_and_extents`.
+
+### Validation (when implemented)
+
+1. Tag ~1000 inner particles of an existing single-zoom halo; run with
+   the live box alongside its known `halo_track`; compare box centers
+   over time (agreement within the box slack).
+2. DM→gas ID translation round trip: translate, then verify the matched
+   particles' z=0 positions cluster on the same halo in the gas run.
+3. Restart mid-run and confirm the box is bit-identically re-derived.
