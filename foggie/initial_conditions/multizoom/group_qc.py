@@ -65,12 +65,11 @@ class GroupBox(object):
 
 def run_group_qc(name, table, max_level=None, neighbors_level=None,
                  halos=None):
-    box = pi.group_box(name, table)
+    ids, box = pi.resolve_group(name, table, halos)
     gdir = pi.group_dir(box, name)
     gbox = GroupBox(box, gdir, max_level)
     out_dir = os.path.join(gdir, "qc")
     os.makedirs(out_dir, exist_ok=True)
-    ids = halos or pi.registry_groups(table)[name]
     for halo_id in ids:
         rvir_min = pi.group_rvir_min(name, halo_id, table)
         print("=== halo %s ===" % halo_id)
@@ -106,10 +105,12 @@ def main(argv=None):
     p.add_argument("--registry", default=None)
     p.add_argument("--max-level", type=int, default=None)
     p.add_argument("--neighbors-level", type=int, default=None)
-    p.add_argument("--halos", default=None)
+    p.add_argument("--halos", default=None,
+                   help="comma-separated halo IDs defining the group ad hoc "
+                        "(overrides the registry column)")
     args = p.parse_args(argv)
     table = pconfig.read_registry(args.registry)
-    halos = [int(h) for h in args.halos.split(",")] if args.halos else None
+    halos = pi.parse_halo_ids(args.halos)
     run_group_qc(args.group, table, args.max_level, args.neighbors_level,
                  halos)
 

@@ -65,20 +65,71 @@ def registry_groups(table=None, box_name=None):
     return groups
 
 
-def group_box(name, table=None):
-    """The Box shared by a group; every member must sit in the same box."""
+def parse_halo_ids(spec):
+    """"48014,56672,..." -> [48014, 56672, ...]; None/empty -> None."""
+    if not spec:
+        return None
+    ids = [int(v) for v in str(spec).replace(" ", "").split(",") if v]
+    if not ids:
+        return None
+    seen, out = set(), []
+    for h in ids:
+        if h in seen:
+            raise RuntimeError("halo %s listed twice" % h)
+        seen.add(h)
+        out.append(h)
+    if len(out) < 2:
+        raise RuntimeError("a multizoom group needs at least two halos "
+                           "(got %s)" % out)
+    return out
+
+
+def resolve_group(name, table=None, halos=None):
+    """(halo_ids, box) for a group, from an explicit list or the registry.
+
+    A group can be named two ways.  Passing `halos` defines it ad hoc, so a
+    run needs no registry edit and the same tooling serves a different set
+    every time; `name` is then just the label the directory takes.  With no
+    `halos`, membership comes from the registry's multizoom_group column.
+
+    Either way every member must be an enabled row of the registry sharing
+    one parent box -- a group is one noise realization, and rvir_min and the
+    catalog position still come from that row.
+    """
     if table is None:
         table = pconfig.read_registry()
-    boxes = {str(r["box"]) for r in table
-             if r["enabled"] and GROUP_COLUMN in table.colnames
-             and str(r[GROUP_COLUMN]).strip() == name}
-    if not boxes:
-        raise RuntimeError("multizoom group %r has no enabled members" % name)
+    rows = {int(r["halo_id"]): r for r in table}
+
+    if halos:
+        halo_ids = list(halos)
+        missing = [h for h in halo_ids if h not in rows]
+        if missing:
+            raise RuntimeError("halo(s) %s are not in the registry" % missing)
+        disabled = [h for h in halo_ids if not rows[h]["enabled"]]
+        if disabled:
+            raise RuntimeError(
+                "halo(s) %s are disabled in the registry; enable them or drop "
+                "them from the group" % disabled)
+    else:
+        groups = registry_groups(table)
+        if name not in groups:
+            raise RuntimeError(
+                "no multizoom group %r in the registry (found: %s).  Pass "
+                "--halos to define a group without editing the registry."
+                % (name, sorted(groups) or "none"))
+        halo_ids = groups[name]
+
+    boxes = {str(rows[h]["box"]) for h in halo_ids}
     if len(boxes) > 1:
         raise RuntimeError(
             "multizoom group %r spans several boxes (%s); a group must share "
             "one parent box and one noise realization" % (name, sorted(boxes)))
-    return pconfig.get_box(boxes.pop())
+    return halo_ids, pconfig.get_box(boxes.pop())
+
+
+def group_box(name, table=None, halos=None):
+    """The Box shared by a group; every member must sit in the same box."""
+    return resolve_group(name, table, halos)[1]
 
 
 def group_rvir_min(name, halo_id, table=None):
@@ -250,16 +301,12 @@ def write_group_config(box, name, halo_ids, level, table=None, mode="union",
 # build
 # --------------------------------------------------------------------------
 
-def build_group(name, level, mode="union", table=None, dry_run=False):
+def build_group(name, level, mode="union", table=None, dry_run=False,
+                halos=None):
     """Render the group config and run the multizoom IC build for one level."""
     if table is None:
         table = pconfig.read_registry()
-    groups = registry_groups(table)
-    if name not in groups:
-        raise RuntimeError("no multizoom group %r in the registry (found: %s)"
-                           % (name, sorted(groups) or "none"))
-    box = group_box(name, table)
-    halo_ids = groups[name]
+    halo_ids, box = resolve_group(name, table, halos)
     path = write_group_config(box, name, halo_ids, level, table, mode, dry_run)
     print("group %r: %d halos %s -> %s" % (name, len(halo_ids), halo_ids, path))
     if dry_run:
@@ -306,7 +353,7 @@ mv pbs_output.txt pbs_output_$PBS_JOBID.txt
 """
 
 
-def assemble_group_run(name, level, enzo_exe=None, table=None):
+def assemble_group_run(name, level, enzo_exe=None, table=None, halos=None):
     """Fill the Enzo parameter file and job script into a merged IC dir.
 
     Uses the pipeline's own .enzo renderer, then corrects
@@ -315,7 +362,7 @@ def assemble_group_run(name, level, enzo_exe=None, table=None):
     holds one base grid plus one patch per halo per level.
     """
     import re as _re
-    box = group_box(name, table)
+    box = group_box(name, table, halos)
     gdir = group_dir(box, name)
     ics_dir = os.path.join(gdir, "%s-L%d" % (box.sim_name, level))
     pf = os.path.join(ics_dir, "parameter_file.txt")
@@ -362,15 +409,22 @@ def main(argv=None):
                      "production registry)")
     g = sub.add_parser("groups", help="list multizoom groups in the registry")
     g.add_argument("--registry", default=None, help=registry_help)
+    halos_help = ("comma-separated halo IDs defining the group ad hoc, e.g. "
+                  "--halos 48014,56672,75392,21246,24122,42502.  Overrides "
+                  "the registry's %s column, so a different set every run "
+                  "needs no registry edit; --group is then just the label "
+                  "the directory takes." % GROUP_COLUMN)
     for cmd in ("render", "build", "assemble"):
         p = sub.add_parser(cmd)
         p.add_argument("--group", required=True)
         p.add_argument("--level", type=int, required=True)
+        p.add_argument("--halos", default=None, help=halos_help)
         p.add_argument("--mode", choices=("union", "merge"), default="union")
         p.add_argument("--dry-run", action="store_true")
         p.add_argument("--registry", default=None, help=registry_help)
         p.add_argument("--enzo-exe", default=None)
     args = parser.parse_args(argv)
+    halos = parse_halo_ids(getattr(args, "halos", None))
 
     table = pconfig.read_registry(args.registry)
     if args.cmd == "groups":
@@ -384,14 +438,14 @@ def main(argv=None):
                   % (name, len(ids), group_box(name, table).sim_name, ids))
         return
     if args.cmd == "render":
-        box = group_box(args.group, table)
-        write_group_config(box, args.group, registry_groups(table)[args.group],
-                           args.level, table, args.mode, dry_run=True)
+        halo_ids, box = resolve_group(args.group, table, halos)
+        write_group_config(box, args.group, halo_ids, args.level, table,
+                           args.mode, dry_run=True)
         return
     if args.cmd == "assemble":
-        assemble_group_run(args.group, args.level, args.enzo_exe, table)
+        assemble_group_run(args.group, args.level, args.enzo_exe, table, halos)
         return
-    build_group(args.group, args.level, args.mode, table, args.dry_run)
+    build_group(args.group, args.level, args.mode, table, args.dry_run, halos)
 
 
 if __name__ == "__main__":

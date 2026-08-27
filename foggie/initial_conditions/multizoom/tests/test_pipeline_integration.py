@@ -59,8 +59,10 @@ def test_group_spanning_two_boxes_is_refused():
 
 
 def test_unknown_group_is_refused():
+    """An unknown name now points at --halos rather than reporting an
+    empty group, since a group can be defined ad hoc."""
     t = _registry([(11, "25Mpc_DM_512", True, 0.0, "dwarfs")])
-    with pytest.raises(RuntimeError, match="no enabled members"):
+    with pytest.raises(RuntimeError, match="no multizoom group"):
         pi.group_box("nope", t)
 
 
@@ -112,3 +114,49 @@ def test_trim_lagrangian_outliers(tmp_path):
     np.savetxt(fn2, diffuse)
     assert lagrangian_regions.trim_lagrangian_outliers(str(fn2)) == 0
     assert len(np.loadtxt(fn2)) == 500
+
+
+def test_parse_halo_ids():
+    assert pi.parse_halo_ids("48014,56672, 75392") == [48014, 56672, 75392]
+    assert pi.parse_halo_ids(None) is None
+    assert pi.parse_halo_ids("") is None
+    with pytest.raises(RuntimeError, match="twice"):
+        pi.parse_halo_ids("11,22,11")
+    with pytest.raises(RuntimeError, match="at least two"):
+        pi.parse_halo_ids("11")
+
+
+def test_resolve_group_from_explicit_halos():
+    """An ad-hoc list defines the group without any registry column."""
+    t = _registry([(11, "25Mpc_DM_512", True, 0.0, ""),
+                   (22, "25Mpc_DM_512", True, 0.0, ""),
+                   (33, "25Mpc_DM_512", True, 0.0, "")], with_column=False)
+    import foggie.initial_conditions.pipeline.config as pconfig
+    ids, box = pi.resolve_group("adhoc", t, halos=[11, 33])
+    assert ids == [11, 33]
+    assert box is pconfig.get_box("25Mpc_DM_512")
+
+
+def test_resolve_group_rejects_unknown_and_disabled():
+    t = _registry([(11, "25Mpc_DM_512", True, 0.0, ""),
+                   (22, "25Mpc_DM_512", False, 0.0, "")], with_column=False)
+    with pytest.raises(RuntimeError, match="not in the registry"):
+        pi.resolve_group("adhoc", t, halos=[11, 99])
+    with pytest.raises(RuntimeError, match="disabled"):
+        pi.resolve_group("adhoc", t, halos=[11, 22])
+
+
+def test_resolve_group_rejects_mixed_boxes_from_explicit_halos():
+    t = _registry([(11, "25Mpc_DM_512", True, 0.0, ""),
+                   (22, "25Mpc_DM_256", True, 0.0, "")], with_column=False)
+    with pytest.raises(RuntimeError, match="spans several boxes"):
+        pi.resolve_group("adhoc", t, halos=[11, 22])
+
+
+def test_resolve_group_falls_back_to_registry_column():
+    t = _registry([(11, "25Mpc_DM_512", True, 0.0, "dwarfs"),
+                   (22, "25Mpc_DM_512", True, 0.0, "dwarfs")])
+    ids, _ = pi.resolve_group("dwarfs", t)
+    assert ids == [11, 22]
+    with pytest.raises(RuntimeError, match="--halos"):
+        pi.resolve_group("nope", t)
