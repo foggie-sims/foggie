@@ -403,6 +403,13 @@ def assemble_group_run(name, level, enzo_exe=None, table=None, halos=None,
         if walltime:
             script = re.sub(r"#PBS -l walltime=\S+",
                             "#PBS -l walltime=%s" % walltime, script)
+            # SIMRUN_WALL must follow, or simrun.pl believes it has the box's
+            # full walltime, never stops to checkpoint, and the job is killed
+            # hard at the shorter PBS wall.
+            h, m, sec = (int(x) for x in walltime.split(":"))
+            script = re.sub(r"SIMRUN_WALL=\d+",
+                            "SIMRUN_WALL=%d" % (h * 3600 + m * 60 + sec),
+                            script)
         if nranks:
             script = re.sub(r"select=1:ncpus=\d+:mpiprocs=\d+",
                             "select=1:ncpus=%d:mpiprocs=%d" % (nranks, nranks),
