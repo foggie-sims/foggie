@@ -187,21 +187,26 @@ def write_music_conf(params, point_file, output_name, region_shift,
     output_path = os.path.join(params["new_ics_directory"], output_name)
     music_cf.set("output", "filename", output_path)
 
+    os.makedirs(output_path, exist_ok=True)
     conf_file = output_path + ".conf"
     with open(conf_file, "w") as fp:
         music_cf.write(fp)
     return conf_file, output_path
 
 
-def run_music_exe(params, conf_file):
+def run_music_exe(params, conf_file, cwd=None):
     env = dict(os.environ)
     env["OMP_NUM_THREADS"] = "%d" % params["num_cores"]
     if params.get("music_ld_library_path"):
         env["LD_LIBRARY_PATH"] = params["music_ld_library_path"]
         env["DYLD_LIBRARY_PATH"] = params["music_ld_library_path"]
     env.update(mzconfig.parse_music_env(params.get("music_env")))
-    print("Running:", params["music_exe"], conf_file)
-    subprocess.run([params["music_exe"], conf_file], env=env, check=True)
+    # Each run gets its own working directory: MUSIC caches wnoise_*.bin and
+    # writes scratch files into its CWD, and per-halo merge-mode runs have
+    # different windows, so a shared cache directory would collide.
+    print("Running:", params["music_exe"], conf_file, "(cwd=%s)" % cwd)
+    subprocess.run([params["music_exe"], os.path.abspath(conf_file)],
+                   env=env, check=True, cwd=cwd)
 
 
 def append_mrp_block(ic_dir, level):
@@ -215,7 +220,7 @@ def run_level_union(params):
         params, params["union_point_file"],
         "%s-L%d" % (params["simulation_name"], params["level"]),
         params["region_shift"])
-    run_music_exe(params, conf_file)
+    run_music_exe(params, conf_file, cwd=ic_dir)
     refinement_mask.particle_only_mask(
         conf_file, smooth_edges=True, backup=True,
         point_files=[r["point_file"]
@@ -234,7 +239,7 @@ def run_level_merge(params):
             "%s-L%d-h%s" % (params["simulation_name"], params["level"],
                             halo_id),
             [0, 0, 0], no_shift=True)
-        run_music_exe(params, conf_file)
+        run_music_exe(params, conf_file, cwd=ic_dir)
         refinement_mask.particle_only_mask(
             conf_file, smooth_edges=True, backup=True,
             point_files=[region["point_file"]])
