@@ -31,6 +31,30 @@ purely additive, and the merge back is conflict-free.
   46615/47314/51741/52675 neighbourhood is the one cluster needing a union
   sub-run.
 
+### Phase 1 first union build — PASSED (2026-08-26, Aitken)
+
+Group `pairA` = halos 15659 + 48014 (4.13 Mpc/h apart, straddling the
+periodic y-boundary).  Built via `pipeline_integration build --group pairA
+--level 1 --mode union` with a workspace registry
+(`runs/halo_registry_multizoom.ecsv`, `multizoom_group` column) and
+`MULTIZOOM_ICS_DIR` pointing at the workspace — nothing written into the
+production tree; the shared L0 run was read-only input.
+
+* Single-pass tracer found both clouds (852 + 176 particles); MUSIC
+  recentred the pair across the boundary (shift −54, −227, 72).
+* `validation.py union` PASSES: one 3.6 Mpc/h L1 patch, exactly 2 disjoint
+  refine clouds (10000 + 2608 cells), 1.3% of the patch refined — the
+  volume between the halos is untouched.
+* Both clouds sit 22 / 38 kpc/h (≈1 mask cell) from their halos' traced
+  Lagrangian centers after unshifting.
+* Standalone production masks have fewer cells (6536 / 968) because the
+  fleet builds with shape_type=convex_hull while multizoom uses the exact
+  particle deposit — different mask construction, same regions.
+* The L1 Enzo run (patched binary, pipeline-rendered .enzo, simrun.pl
+  auto-restart) was submitted as PBS 25045576 in
+  `runs/multizoom_pairA/25Mpc_DM_512-L1`; compare against the standalone
+  `halo15659` / `halo48014` L1 runs when it reaches z=0.
+
 ## Where things stand
 
 Branch `claude/multi-zoom-single-domain-goqnjp` of foggie-sims/foggie,
