@@ -225,3 +225,54 @@ def get_center_and_extent(halo_info, initial_dataset, final_dataset,
         output_format=output_format)
     r = results[halo_id]
     return r["center"], r["size"], r["point_file"]
+
+
+def trim_lagrangian_outliers(point_file, max_radius_factor=5.0,
+                             max_fraction=0.02, label=None):
+    """Drop the handful of far-flung particles that balloon the convex hull.
+
+    Ported from the ics_refactor pipeline's enzo-mrp-music
+    (trim_lagrangian_outliers), which added it after halo39829 produced a
+    20.7-million-cell zoom from six stray points 8.6 Mpc/h off the cloud.
+    Here it is applied per halo, before the clouds are unioned or handed to
+    per-halo MUSIC runs, so one halo's strays cannot inflate the whole
+    multizoom domain.
+
+    Trims points beyond max_radius_factor times the 99th-percentile radius,
+    measured periodically about the median.  Refuses to trim more than
+    max_fraction of the cloud: if that many points are far out the region is
+    genuinely extended, and quietly discarding it would be wrong.
+
+    Returns the number of points dropped.
+    """
+    if not point_file or not os.path.exists(point_file):
+        return 0
+    pts = np.loadtxt(point_file, ndmin=2)
+    if pts.ndim != 2 or len(pts) < 20:
+        return 0
+
+    med = np.median(pts, axis=0)
+    off = pts - med
+    off -= np.round(off)                      # periodic, box is [0,1)
+    r = np.sqrt((off ** 2).sum(axis=1))
+    r99 = np.percentile(r, 99.0)
+    cut = max_radius_factor * r99
+    keep = r <= cut
+    n_drop = int((~keep).sum())
+    tag = "" if label is None else "halo %s: " % label
+
+    if n_drop == 0:
+        return 0
+    if n_drop > max_fraction * len(pts):
+        print("  region: %s%d of %d points lie beyond %.4f; that is more than "
+              "%.0f%% so the region is genuinely extended -- not trimming"
+              % (tag, n_drop, len(pts), cut, 100 * max_fraction))
+        return 0
+
+    print("  region: %strimming %d of %d points beyond %.4f (99th pct %.4f, "
+          "furthest %.4f); hull extent %s -> %s"
+          % (tag, n_drop, len(pts), cut, r99, r.max(),
+             np.round(pts.max(axis=0) - pts.min(axis=0), 4),
+             np.round(pts[keep].max(axis=0) - pts[keep].min(axis=0), 4)))
+    np.savetxt(point_file, pts[keep], fmt="%.18e")
+    return n_drop

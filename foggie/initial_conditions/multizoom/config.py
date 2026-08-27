@@ -51,9 +51,18 @@ SETUP_DEFAULTS = dict(
     template_config="template.conf",
     original_config=None,
     simulation_run_directory=".",
+    # Where the NEW ICs for this level are written.  Kept separate from
+    # simulation_run_directory so a zoom reads its parent level from the shared
+    # ICs directory while depositing its own ICs in the group directory.
+    # Matches the ics_refactor pipeline's enzo-mrp-music option of the same
+    # name; defaults to "." so older configs behave as before.
+    new_ics_directory=".",
     num_cores=None,
     mode="union",
     music_env=None,
+    # Runtime environment for the MUSIC subprocess (ported from ics_refactor,
+    # which replaced the hard-coded Pleiades path with a config option).
+    music_ld_library_path="/nasa/hdf5/1.8.18_serial/lib:/u/jtumlins/installs/gsl-2.4/lib",
 )
 
 REGION_DEFAULTS = dict(

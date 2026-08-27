@@ -67,7 +67,8 @@ def get_previous_run_params(params):
     params["prev_sim_dir"] = os.path.join(
         rundir, "%s-L%d" % (params["simulation_name"], level - 1))
     params["sim_dir"] = os.path.join(
-        rundir, "%s-L%d" % (params["simulation_name"], level))
+        params["new_ics_directory"],
+        "%s-L%d" % (params["simulation_name"], level))
 
     if params["original_config"] is None:
         original_config_file = "%s-L0.conf" % params["simulation_name"]
@@ -118,6 +119,13 @@ def find_lagrangian_regions(params):
         radius_factor=params["radius_factor"],
         output_format="txt",
         output_dir=params["simulation_run_directory"])
+    # Trim each cloud's far-flung strays BEFORE they are unioned or handed to
+    # a per-halo MUSIC run, so one halo's outliers cannot inflate the whole
+    # multizoom domain (ics_refactor added this for the single-halo case).
+    for halo_id, region in params["halo_regions"].items():
+        lagrangian_regions.trim_lagrangian_outliers(
+            region["point_file"], label=halo_id)
+
     if params["mode"] == "union":
         union_fn = os.path.join(
             params["simulation_run_directory"],
@@ -174,7 +182,8 @@ def write_music_conf(params, point_file, output_name, region_shift,
                  "%d" % params["initial_min_level"])
     if no_shift:
         music_cf.set("setup", "no_shift", "yes")
-    output_path = os.path.join(params["simulation_run_directory"], output_name)
+    os.makedirs(params["new_ics_directory"], exist_ok=True)
+    output_path = os.path.join(params["new_ics_directory"], output_name)
     music_cf.set("output", "filename", output_path)
 
     conf_file = output_path + ".conf"
@@ -186,6 +195,9 @@ def write_music_conf(params, point_file, output_name, region_shift,
 def run_music_exe(params, conf_file):
     env = dict(os.environ)
     env["OMP_NUM_THREADS"] = "%d" % params["num_cores"]
+    if params.get("music_ld_library_path"):
+        env["LD_LIBRARY_PATH"] = params["music_ld_library_path"]
+        env["DYLD_LIBRARY_PATH"] = params["music_ld_library_path"]
     env.update(mzconfig.parse_music_env(params.get("music_env")))
     print("Running:", params["music_exe"], conf_file)
     subprocess.run([params["music_exe"], conf_file], env=env, check=True)

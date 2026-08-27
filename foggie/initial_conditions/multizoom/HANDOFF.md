@@ -4,6 +4,33 @@ State transfer for continuing this work in a new Claude Code session (or
 by a human).  Companion documents: `AUDIT_AND_PLAN.md` (full audit +
 staged plan), `README.md` (usage), `CLAUDE.md` (working rules).
 
+## Status update — 2026-08-26 (Aitken)
+
+Rebased onto **ics_refactor** (the branch that actually builds the dwarf
+fleet).  The branch is now exactly `ics_refactor` + the multizoom commits,
+purely additive, and the merge back is conflict-free.
+
+* `multizoom512.py` **deleted** — superseded by `pipeline/build.py`.
+* New `pipeline_integration.py`: registry `multizoom_group` column → N-halo
+  config, reusing the pipeline's `center_for_level` / `halo_center_and_radius`.
+  Nothing in `pipeline/` is modified, so the live fleet cannot be disturbed.
+* Ported from ics_refactor's enzo-mrp-music into the multizoom fork:
+  `new_ics_directory`, `music_ld_library_path`, and `trim_lagrangian_outliers`
+  (applied per halo, before union/merge).
+* **Enzo built and validated on Aitken.**  See `BUILD_NOTES.md` in the
+  workspace root (`/nobackupnfs1/jtumlins/foggie-multizoom`, not in git).
+  Patched binary = `edf858c` + the 5 patches; a pristine baseline binary from
+  the same commit sits beside it.
+* **N=1 regression PASSED** (`runs/n1_regression`, PBS 25045407): identical
+  nested ICs (256^3 + L1 + L2, MRP mode 3) through both binaries give a
+  byte-identical `RD0000.hierarchy`, the same 192 grids, the same 16,787,107
+  particles, and all 216 HDF5 datasets bit-identical.  The five patches are
+  inert for a single zoom, as required.
+* Fleet survey: of 120 pairs among the 16 enabled dwarfs, 119 have disjoint
+  Lagrangian patches; only 52675 & 51741 overlap (0.098 Mpc/h).  The
+  46615/47314/51741/52675 neighbourhood is the one cluster needing a union
+  sub-run.
+
 ## Where things stand
 
 Branch `claude/multi-zoom-single-domain-goqnjp` of foggie-sims/foggie,

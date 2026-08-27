@@ -591,3 +591,74 @@ run's own IDs.  Reuses the cross-output matching pattern of
 2. DM→gas ID translation round trip: translate, then verify the matched
    particles' z=0 positions cluster on the same halo in the gas run.
 3. Restart mid-run and confirm the box is bit-identically re-derived.
+
+
+---
+
+## Part IV — Architecture update: integration with the ics_refactor pipeline (2026-08-26)
+
+The plan above was written against the legacy `script512.py` /
+`enzo-mrp-music` workflow on `master`.  Production has since moved to the
+**`ics_refactor`** branch, whose `foggie/initial_conditions/pipeline/` package
+(65 commits ahead of master) builds and runs the dwarf fleet.  Multizoom was
+rebased onto it.
+
+### What the pipeline did and did not replace
+
+`pipeline/` is an **orchestration** layer: the halo registry, the `Box`
+definitions, staging, submission, QC, ledger and reporting.  It did *not*
+replace the workhorse — `build.py:render_mrp_config()` still writes a
+`halo<id>_DM_<n-1>to<n>.conf` and `BuildScript.sh` still runs
+`enzo-mrp-music.py <conf> <level>` to trace the Lagrangian region and drive
+MUSIC.
+
+That is precisely the layer multizoom extends, so the overlap was smaller than
+it first appeared:
+
+* **Dropped** — `multizoom512.py`.  `pipeline/build.py` already provides
+  `halo_center_and_radius`, `read_shifts`, `center_for_level`,
+  `render_enzo_param`, `render_runscript` and `read_grid_parameters`.
+* **Kept** — the forked workhorse modules, the merge tool, the Enzo patches
+  and the Milestone 5 design; none of these have a pipeline equivalent.
+
+### The seam
+
+`multizoom/pipeline_integration.py` is additive: it *reads* from `pipeline/`
+and modifies nothing there, so a multizoom build cannot disturb the running
+fleet.  It provides group discovery (an optional `multizoom_group` column in
+the registry), an N-halo config renderer that reuses the pipeline's own
+per-halo centring, and a `build` entry point that calls `multizoom.mrp_music`
+in place of `enzo-mrp-music.py`.
+
+### Ported from ics_refactor into the multizoom fork
+
+`ics_refactor` had improved `enzo-mrp-music.py` after the fork was taken:
+
+* `new_ics_directory` — read the parent level from the shared ICs directory
+  while depositing this level's ICs elsewhere (multizoom writes into the
+  group directory);
+* `music_ld_library_path` — replaces the hard-coded Pleiades library path;
+* `trim_lagrangian_outliers()` — drops far-flung strays that balloon the
+  convex hull (halo39829 produced a 20.7-million-cell zoom from six points
+  8.6 Mpc/h off the cloud).  In multizoom this runs **per halo**, before the
+  clouds are unioned or handed to per-halo MUSIC runs, so one halo's strays
+  cannot inflate the whole domain.
+
+### Fleet survey (the real target)
+
+Using each enabled halo's existing finest-patch extents, un-shifted into a
+common frame via its own `Domain shifted by` log line: of the 120 pairs among
+the 16 enabled dwarfs, **119 are cleanly disjoint**.  One pair overlaps
+(52675 & 51741, by 0.098 Mpc/h) and three more are close but well above the
+4-parent-cell threshold.  The 46615/47314/51741/52675 neighbourhood is the
+single cluster that needs a union sub-run; the rest of the fleet merges
+directly.
+
+### Milestone 2 status: DONE
+
+The five Enzo patches are built and validated on Aitken.  The N=1 regression
+(`runs/n1_regression`) ran identical nested ICs (256^3 + L1 + L2, MRP mode 3)
+through the patched binary and a pristine baseline built from the same commit:
+byte-identical `RD0000.hierarchy`, 192 grids each, 16,787,107 particles each,
+and all 216 HDF5 datasets bit-identical.  The patches are inert for a single
+zoom.

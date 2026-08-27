@@ -8,6 +8,12 @@ modules here began as forks of those scripts (provenance in each file
 header), the Enzo changes are carried as patch files, and the templates
 in `templates/` are parameterized copies.
 
+This package sits on top of the **ics_refactor** IC pipeline (it was rebased
+onto that branch on 2026-08-26; the earlier standalone `multizoom512.py`
+driver was dropped because `pipeline/build.py` already does rockstar lookup,
+shift bookkeeping, `.enzo` rendering and submission — better, and in
+production use for the dwarf fleet).
+
 Design, audit, and physics rationale: `AUDIT_AND_PLAN.md` in this
 directory.  In short:
 
@@ -38,7 +44,7 @@ Poisson/2LPT solve are measured and reported by the merge tool.
 | `refinement_mask.py` | deposit N particle clouds into a MUSIC `RefinementMask` |
 | `mrp_music.py` | per-level MUSIC orchestration (union + merge modes) |
 | `merge_music_ics.py` | merge N same-seed MUSIC runs into one multi-patch IC set |
-| `multizoom512.py` | command-line driver for the 512³ 25 Mpc/h workflow |
+| `pipeline_integration.py` | drives multizoom builds from the ics_refactor pipeline (registry groups → N-halo config) |
 | `templates/` | parameterized `.enzo` / `RunScript.sh` templates + `simrun.pl` copy |
 | `enzo_patches/` | five patches for enzo-foggie (apply with `git am`) |
 | `music_patches/` | optional `region_shift_override` patch for MUSIC |
@@ -46,27 +52,39 @@ Poisson/2LPT solve are measured and reported by the merge tool.
 
 ## Usage
 
-Per level, from your run directory (the L(n−1) run must exist there as
-`25Mpc_DM_512-L<n-1>/` with its `.enzo` file, as this driver lays out):
+Multizoom is driven by the **ics_refactor pipeline**, which owns the halo
+registry, the `Box` definitions, staging, submission and QC.  The pipeline
+already drives `enzo-mrp-music` as its workhorse; multizoom slots in at that
+seam, rendering one config that names N halos instead of one.  Nothing in
+`pipeline/` is modified, so a multizoom build cannot disturb the production
+fleet.
+
+Group membership comes from an optional `multizoom_group` column in the halo
+registry: enabled rows sharing a non-empty value form one group built into a
+single domain.  A registry without the column simply has no groups.
 
 ```sh
-python multizoom512.py --halo_ids 5016,5033,2392 --level 1 --mode union \
-    --music-exe-dir /path/to/music-build \
-    --music-template /path/to/25Mpc_DM_512_planck18.conf \
-    --workdir $PWD [--no-submit] [--email you@example.edu]
+# what groups exist?
+python -m foggie.initial_conditions.multizoom.pipeline_integration groups
+
+# inspect the config that would be rendered
+python -m foggie.initial_conditions.multizoom.pipeline_integration render \
+    --group dwarfs --level 1
+
+# build one level's ICs for the group
+python -m foggie.initial_conditions.multizoom.pipeline_integration build \
+    --group dwarfs --level 1 --mode union      # or --mode merge
 ```
 
-* `--mode union` needs no code changes anywhere. `--mode merge` runs
-  MUSIC once per halo and merges; the Enzo executable must include the
-  patches below.
-* The MUSIC template must list `seed[<level>]` for every level the
-  deepest zoom will reach, and the SAME template must be used for every
-  halo, level, and reference run.
-* In merge mode nothing ever shifts: halo centers stay in the catalog
-  frame at every level, and the legacy shift-tracking files are not
-  used.  In union mode the driver applies the accumulated `conf_log`
-  shifts to the catalog centers exactly as `script512.py` did (but with
-  the correct 1/2^levelmin cell size).
+* `--mode union` needs no code changes anywhere: one MUSIC run over the union
+  of the clouds, with the mask re-deposited per halo.  `--mode merge` runs
+  MUSIC once per halo (identical seeds, `no_shift`) and merges; it needs an
+  Enzo built with the patches below.
+* Per-halo centres come from the pipeline's own `center_for_level`, including
+  the level ≥ 2 refine-from-the-run correction, so a group member is traced
+  exactly as it would be as a standalone zoom.
+* Each halo's cloud is passed through `trim_lagrangian_outliers` before it is
+  unioned or handed to MUSIC, so one halo's strays cannot inflate the domain.
 * The merge tool can also be run standalone:
 
 ```sh
@@ -75,10 +93,9 @@ python merge_music_ics.py --out 25Mpc_DM_512-L2 \
 ```
 
 It hard-fails on any seed/shift/cosmology mismatch, on overlapping or
-nearly-touching patches (remedy: concatenate those halos' point files
-into one union sub-run), and on non-bit-identical `GridDensity.0`
-(baryon runs).  It writes a `merge_manifest.json` recording which grid
-came from which run.
+nearly-touching patches (remedy: fold those halos into one union sub-run), and
+on non-bit-identical `GridDensity.0` (baryon runs).  It writes a
+`merge_manifest.json` recording which grid came from which run.
 
 ## Enzo patches (merge mode only)
 
