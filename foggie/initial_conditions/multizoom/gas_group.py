@@ -79,7 +79,12 @@ def build_gas_group(group, level, halos, out_group=None, table=None,
                               % (box.sim_name, level, h))
         conf = render_gas_conf(dm_conf, ic_dir + ".conf", box.omega_b, ic_dir)
         print("halo %s: %s" % (h, conf))
-        if not dry_run:
+        # MUSIC refuses an existing output directory, and a 512^3 gas run is
+        # expensive: reuse a complete IC set rather than rebuilding it.
+        complete = os.path.exists(os.path.join(ic_dir, "parameter_file.txt"))
+        if complete:
+            print("  reusing existing gas ICs in %s" % ic_dir)
+        if not dry_run and not complete:
             cwd = ic_dir + ".music"
             os.makedirs(cwd, exist_ok=True)
             subprocess.run([music_exe, os.path.abspath(conf)], env=env,
