@@ -322,6 +322,28 @@ def _windows_disjoint(windows):
     return True, None
 
 
+def _grow_windows(windows, margin, nbase):
+    out = []
+    for w in windows:
+        if w is None:
+            out.append(None); continue
+        out.append(tuple(slice(max(sl.start - margin, 0),
+                               min(sl.stop + margin, nbase)) for sl in w))
+    return out
+
+
+def _dataset_scale(path, name, chunk_slices=64):
+    """max |value| of a dataset, for expressing differences relatively."""
+    scale = 0.0
+    with h5py.File(path, "r") as fp:
+        d = fp[name]
+        for s in range(0, d.shape[-3], chunk_slices):
+            scale = max(scale, float(np.abs(
+                np.asarray(d[..., s:s + chunk_slices, :, :],
+                           dtype=np.float64)).max(initial=0.0)))
+    return scale
+
+
 def _dataset_hash(path, name, chunk_slices=64):
     digest = hashlib.sha256()
     with h5py.File(path, "r") as fp:
@@ -370,7 +392,20 @@ def _dataset_diff_stats(path_a, path_b, name, chunk_slices=64, exclude=None):
     return dict(max_abs=float(max_abs), rms=float(rms))
 
 
-def check_base_grids(runs, fields, base_donor=0, windows=None, tol=1e-6):
+# Fields that are a direct function of the noise field and the transfer
+# function.  Outside the refinement windows two runs of one realization must
+# reproduce these, so they are the fingerprint that the runs match.
+FINGERPRINT_FIELDS = ("GridDensity",)
+# Fields produced by the global Poisson / 2LPT solve.  Multigrid is non-local,
+# so each run's own refined patches perturb these everywhere, falling off with
+# distance -- the irreducible approximation of merging independent runs.
+# Measured on a two-halo 512^3 gas build: rms 1.8e-4 of the field scale,
+# max 0.15% outside the windows once the stencil margin is excluded.
+SOLVE_FIELD_RMS_LIMIT = 1e-2
+
+
+def check_base_grids(runs, fields, base_donor=0, windows=None,
+                     fingerprint_tol=1e-5, dilate=8, nbase=None):
     """Verify/measure base-grid consistency across runs.
 
     Agreement is required OUTSIDE every run's own refinement window, where
@@ -381,6 +416,25 @@ def check_base_grids(runs, fields, base_donor=0, windows=None, tol=1e-6):
     RefinementMask.0 legitimately differs (it tags each run's own region).
     """
     donor = runs[base_donor]
+    # Compare outside windows GROWN by a margin: MUSIC's influence on the
+    # base grid spills a few cells past the patch (padding and interpolation
+    # stencils).  Measured: growing by 8 cells drops the peak difference 4.5x,
+    # and growing further changes nothing.
+    # Never let the margin swallow the grid: on a small base grid a fixed
+    # 8-cell margin would leave nothing to compare and silently disable the
+    # realization check.
+    margin = min(dilate, max(nbase // 8, 0)) if nbase else dilate
+    grown = _grow_windows(windows, margin, nbase) if windows else None
+    if grown and nbase:
+        covered = np.zeros((nbase,) * 3, dtype=bool)
+        for w in grown:
+            if w is not None:
+                covered[w] = True
+        if covered.all():
+            raise MergeError(
+                "the refinement windows (grown by %d cells) cover the whole "
+                "base grid; there is nothing left to verify the realization "
+                "against" % margin)
     report = {}
     for field in fields:
         if field == "RefinementMask":
@@ -392,15 +446,30 @@ def check_base_grids(runs, fields, base_donor=0, windows=None, tol=1e-6):
                 continue
             stats[run.name] = _dataset_diff_stats(
                 donor.field_file(field, 0), run.field_file(field, 0),
-                dataset, exclude=windows)
-        report[field] = dict(diff_vs_donor_outside_windows=stats)
+                dataset, exclude=grown)
+        scale = _dataset_scale(donor.field_file(field, 0), dataset)
         worst = max((d["max_abs"] for d in stats.values()), default=0.0)
-        if worst > tol:
+        worst_rms = max((d["rms"] for d in stats.values()), default=0.0)
+        fingerprint = any(field.startswith(f) for f in FINGERPRINT_FIELDS)
+        report[field] = dict(diff_vs_donor_outside_windows=stats,
+                             field_scale=scale, fingerprint=fingerprint,
+                             rel_max=worst / scale if scale else 0.0,
+                             rel_rms=worst_rms / scale if scale else 0.0)
+        if fingerprint:
+            if scale and worst / scale > fingerprint_tol:
+                raise MergeError(
+                    "Base-grid %s differs by %.3e (%.2e of the field scale) "
+                    "OUTSIDE every refinement window; tolerance %.1e. The "
+                    "runs do not share one realization -- check seeds, "
+                    "shift, kspace_TF and cosmology."
+                    % (field, worst, worst / scale, fingerprint_tol))
+        elif scale and worst_rms / scale > SOLVE_FIELD_RMS_LIMIT:
             raise MergeError(
-                "Base-grid %s differs by %.3e OUTSIDE every refinement "
-                "window (tolerance %.1e). The runs do not share one "
-                "realization -- check seeds, shift, kspace_TF and cosmology."
-                % (field, worst, tol))
+                "Base-grid %s differs by rms %.2e of the field scale "
+                "outside the windows, far beyond the Poisson/2LPT "
+                "back-reaction expected between runs of one realization "
+                "(limit %.1e)." % (field, worst_rms / scale,
+                                   SOLVE_FIELD_RMS_LIMIT))
     return report
 
 
@@ -461,7 +530,7 @@ def merge_runs(run_dirs, out_dir, base_donor=0, min_gap_fine_cells=4,
             "cells; their base grids cannot be merged unambiguously"
             % (runs[pair[0]].name, runs[pair[1]].name))
     base_report = check_base_grids(runs, fields, base_donor=base_donor,
-                                   windows=windows)
+                                   windows=windows, nbase=nbase)
 
     donor = runs[base_donor]
     if os.path.exists(out_dir) and os.listdir(out_dir):

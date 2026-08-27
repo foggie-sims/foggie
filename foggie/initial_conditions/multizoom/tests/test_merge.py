@@ -200,3 +200,27 @@ def test_missing_shift_record_is_refused(tmp_path):
     open(run + ".conf_log.txt", "w").write("truncated\n")
     with pytest.raises(mz.MergeError, match="records no domain shift"):
         mz.RunInfo(run)
+
+
+def test_solve_fields_tolerate_global_back_reaction(tmp_path):
+    """Displacements differ globally between runs; density must not.
+
+    Multigrid is non-local, so each run's refined patches perturb the
+    displacement/velocity fields everywhere. A small global difference there
+    is expected; the same difference in GridDensity would mean the runs are
+    not one realization.
+    """
+    rng = np.random.default_rng(5)
+    base = rng.normal(size=(8, 8, 8))
+    dens = rng.normal(size=(8, 8, 8))
+    perturbed = base + 1e-3 * rng.normal(size=(8, 8, 8))   # solve back-reaction
+    run_a = make_run(tmp_path, "sim-L1-hA", base_field=base, grid_density=dens,
+                     patches={1: ((0.125, 0.125, 0.125), (0.375, 0.375, 0.375))})
+    run_b = make_run(tmp_path, "sim-L1-hB", base_field=perturbed,
+                     grid_density=dens,
+                     patches={1: ((0.625, 0.625, 0.625), (0.875, 0.875, 0.875))})
+    out = os.path.join(str(tmp_path), "m")
+    manifest = mz.merge_runs([run_a, run_b], out)      # tolerated
+    rep = manifest["base_grid_report"]["ParticleDisplacements_x"]
+    assert rep["fingerprint"] is False and rep["rel_rms"] > 0
+    assert manifest["base_grid_report"]["GridDensity"]["fingerprint"] is True
