@@ -74,10 +74,8 @@ def test_rendered_config_parses_back(tmp_path, monkeypatch):
             return "/path/to/music"
 
     monkeypatch.setattr(pi.pconfig, "foggie_ics_dir", lambda: str(tmp_path))
-    monkeypatch.setattr(pi.pbuild, "center_for_level",
-                        lambda box, h, lv, d, rv: np.array([0.5, 0.4, 0.3]))
     monkeypatch.setattr(pi.pbuild, "halo_center_and_radius",
-                        lambda box, h, rv: (None, 205.0))
+                        lambda box, h, rv: ([0.5, 0.4, 0.3], 205.0))
     t = _registry([(11, "25Mpc_DM_512", True, 0.0, "dwarfs"),
                    (22, "25Mpc_DM_512", True, 400.0, "dwarfs")])
 

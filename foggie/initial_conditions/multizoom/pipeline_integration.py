@@ -106,6 +106,52 @@ def group_config_name(name, level):
     return "multizoom_%s_DM_%dto%d.conf" % (name, level - 1, level)
 
 
+def group_refine_center(box, halo_id, level, gdir, analytic_center,
+                        search_kpc=500.0):
+    """Locate the halo in the GROUP's previous merged run, at z = 0.
+
+    The multizoom analogue of pipeline.build.refine_center_from_run, which
+    hardwires the standalone per-halo directory layout.  In merge mode no
+    level ever shifts the domain, so the analytic center is the catalog
+    position at every level; this refines it to where the halo actually sits
+    in the merged L(n-1) run.  Falls back to the analytic center rather than
+    failing -- a diagnostic must never be the reason a build fails.
+    """
+    prev_dir = (os.path.join(pconfig.foggie_ics_dir(), "%s-L0" % box.sim_name)
+                if level - 1 == 0 else
+                os.path.join(gdir, "%s-L%d" % (box.sim_name, level - 1)))
+    try:
+        import numpy as np
+        from foggie.initial_conditions.pipeline import qc as _qc
+        snap, name, _, is_final = _qc.last_output(prev_dir)
+        if snap is None or not is_final:
+            print("    centre refinement skipped: %s has no final dump"
+                  % os.path.basename(prev_dir))
+            return analytic_center
+        rel, mass, ds = _qc.load_particles(snap, analytic_center, search_kpc)
+        if rel is None:
+            print("    centre refinement skipped: no particles near the "
+                  "analytic centre")
+            return analytic_center
+        offset = _qc.locate_halo(rel, mass, guess_radius_kpc=search_kpc,
+                                 verbose=False)
+        if offset is None:
+            print("    centre refinement skipped: halo not located in %s"
+                  % name)
+            return analytic_center
+        kpc_per_code = float(ds.quan(1.0, "code_length").in_units("kpc").d)
+        centre = [(c + o / kpc_per_code) % 1.0
+                  for c, o in zip(analytic_center, offset)]
+        drift = float(np.sqrt((np.asarray(offset) ** 2).sum()))
+        print("    halo %s centre refined using %s: %.0f kpc from analytic"
+              % (halo_id, name, drift))
+        return centre
+    except Exception as exc:
+        print("    centre refinement skipped (%s); using the analytic centre"
+              % exc)
+        return analytic_center
+
+
 # --------------------------------------------------------------------------
 # config rendering
 # --------------------------------------------------------------------------
@@ -155,13 +201,12 @@ def render_group_config(box, name, halo_ids, level, table=None, mode="union"):
 
     for halo_id in halo_ids:
         rvir_min = group_rvir_min(name, halo_id, table)
-        halo_dir = os.path.join(ics, "halo%s" % halo_id)
-        center = pbuild.center_for_level(box, halo_id, level, halo_dir,
-                                         rvir_min)
+        # Merge mode never shifts the domain, so the analytic center is the
+        # catalog position at every level; refine it against the group's own
+        # previous merged run (there is no standalone ladder to consult).
+        center, rvir = pbuild.halo_center_and_radius(box, halo_id, rvir_min)
         if level >= 2 and getattr(box, "refine_centers", True):
-            center, _ = pbuild.refine_center_from_run(box, halo_id, level,
-                                                      halo_dir, center)
-        _, rvir = pbuild.halo_center_and_radius(box, halo_id, rvir_min)
+            center = group_refine_center(box, halo_id, level, gdir, center)
         lines += [
             "[halo:%s]" % halo_id,
             "halo_center = %s , %s , %s" % tuple(repr(float(c)) for c in center),
@@ -211,6 +256,89 @@ def build_group(name, level, mode="union", table=None, dry_run=False):
     return mrp_music.run_level(params)
 
 
+RUNSCRIPT = """#!/bin/bash
+#
+# Multizoom group Enzo run, rendered by multizoom.pipeline_integration.
+#
+#PBS -N mz-{name}-L{level}
+#PBS -W group_list=s3128
+#PBS -l select=1:ncpus=64:mpiprocs=64:model=mil_ait
+#PBS -l walltime=24:00:00
+#PBS -q long
+#PBS -j oe
+#PBS -m abe
+#PBS -V
+#PBS -e pbs_error.txt
+#PBS -o pbs_output.txt
+
+module load comp-intel/2020.4.304
+module load hdf5/1.8.18_serial
+
+export HDF5_DISABLE_VERSION_CHECK=1
+export LD_LIBRARY_PATH="/u/jtumlins/installs/mpich-4.0.3/usr/local/lib":"/u/jtumlins/installs/mpich-4.0.3/usr/lib":"/u/jtumlins/grackle/grackle-3.3.1-dev/build/lib64":"/u/jtumlins/installs/compat_gfortran3":$LD_LIBRARY_PATH
+export PATH="/nobackup/jtumlins/anaconda3/bin:/u/scicon/tools/bin/:/u/jtumlins/installs/mpich-4.0.3/usr/local/bin:$PATH"
+
+cd $PBS_O_WORKDIR
+/u/jtumlins/installs/memory_gauge.sh $PBS_JOBID > memory.$PBS_JOBID 2>&1 &
+
+./simrun.pl -mpi "mpiexec -np 64 /u/scicon/tools/bin/mbind.x -cs " \
+            -wall 86400 \
+            -exe "{enzo_exe}" \
+            -pf "{sim_name}-L{level}.enzo" \
+            -jf "RunScript.sh"
+mv pbs_output.txt pbs_output_$PBS_JOBID.txt
+"""
+
+
+def assemble_group_run(name, level, enzo_exe=None, table=None):
+    """Fill the Enzo parameter file and job script into a merged IC dir.
+
+    Uses the pipeline's own .enzo renderer, then corrects
+    CosmologySimulationNumberOfInitialGrids: the pipeline keyword assumes the
+    single-pyramid layout (level+1 grids), while a merged multizoom directory
+    holds one base grid plus one patch per halo per level.
+    """
+    import re as _re
+    box = group_box(name, table)
+    gdir = group_dir(box, name)
+    ics_dir = os.path.join(gdir, "%s-L%d" % (box.sim_name, level))
+    pf = os.path.join(ics_dir, "parameter_file.txt")
+    grid_parameters = pbuild.read_grid_parameters(pf)
+    n_grids = None
+    for line in open(pf):
+        m = _re.match(r"CosmologySimulationNumberOfInitialGrids\s*=\s*(\d+)",
+                      line)
+        if m:
+            n_grids = int(m.group(1))
+    if n_grids is None:
+        raise RuntimeError("NumberOfInitialGrids not found in %s" % pf)
+
+    text = pbuild.render_enzo_param(box, level, "DM", grid_parameters)
+    text = _re.sub(r"CosmologySimulationNumberOfInitialGrids\s*=\s*\d+",
+                   "CosmologySimulationNumberOfInitialGrids  = %d" % n_grids,
+                   text)
+    enzo_fn = os.path.join(ics_dir, "%s-L%d.enzo" % (box.sim_name, level))
+    with open(enzo_fn, "w") as fp:
+        fp.write(text)
+
+    enzo_exe = enzo_exe or os.environ.get("MULTIZOOM_ENZO_EXE")
+    if not enzo_exe or not os.path.exists(enzo_exe):
+        raise RuntimeError("set MULTIZOOM_ENZO_EXE (or --enzo-exe) to the "
+                           "patched enzo.exe; merged ICs need it")
+    with open(os.path.join(ics_dir, "RunScript.sh"), "w") as fp:
+        fp.write(RUNSCRIPT.format(name=name, level=level,
+                                  sim_name=box.sim_name, enzo_exe=enzo_exe))
+    import shutil, stat
+    simrun_src = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "templates", "simrun.pl")
+    simrun_dst = os.path.join(ics_dir, "simrun.pl")
+    shutil.copyfile(simrun_src, simrun_dst)
+    for fn in (simrun_dst, os.path.join(ics_dir, "RunScript.sh")):
+        os.chmod(fn, os.stat(fn).st_mode | stat.S_IXUSR)
+    print("assembled %s (NumberOfInitialGrids = %d)" % (ics_dir, n_grids))
+    return ics_dir
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -218,13 +346,14 @@ def main(argv=None):
                      "production registry)")
     g = sub.add_parser("groups", help="list multizoom groups in the registry")
     g.add_argument("--registry", default=None, help=registry_help)
-    for cmd in ("render", "build"):
+    for cmd in ("render", "build", "assemble"):
         p = sub.add_parser(cmd)
         p.add_argument("--group", required=True)
         p.add_argument("--level", type=int, required=True)
         p.add_argument("--mode", choices=("union", "merge"), default="union")
         p.add_argument("--dry-run", action="store_true")
         p.add_argument("--registry", default=None, help=registry_help)
+        p.add_argument("--enzo-exe", default=None)
     args = parser.parse_args(argv)
 
     table = pconfig.read_registry(args.registry)
@@ -242,6 +371,9 @@ def main(argv=None):
         box = group_box(args.group, table)
         write_group_config(box, args.group, registry_groups(table)[args.group],
                            args.level, table, args.mode, dry_run=True)
+        return
+    if args.cmd == "assemble":
+        assemble_group_run(args.group, args.level, args.enzo_exe, table)
         return
     build_group(args.group, args.level, args.mode, table, args.dry_run)
 
