@@ -48,10 +48,10 @@ def test_merge_two_runs(mergeable_pair):
     m = re.search(r"CosmologySimulationGridLeftEdge\[2\]\s*=\s*(\S+)", pf)
     assert float(m.group(1)) == pytest.approx(0.625)
 
-    # Base-grid displacement report exists (identical here, so zero diff).
+    # Base-grid agreement is now measured OUTSIDE each run's own refinement
+    # window, where a shared realization must agree.
     report = manifest["base_grid_report"]["ParticleDisplacements_x"]
-    assert not report["identical"]
-    assert report["diff_vs_donor"]["sim-L2-hB"]["max_abs"] == 0.0
+    assert report["diff_vs_donor_outside_windows"]["sim-L2-hB"]["max_abs"] == 0.0
 
     with open(os.path.join(out, "merge_manifest.json")) as fp:
         assert json.load(fp)["base_donor"] == "sim-L2-hA"
@@ -102,23 +102,53 @@ def test_shift_mismatch_aborts(tmp_path):
         mz.merge_runs([run_a, run_b], os.path.join(str(tmp_path), "m"))
 
 
-def test_grid_density_mismatch_aborts(tmp_path):
+def test_base_grid_mismatch_outside_windows_aborts(tmp_path):
+    """A realization mismatch shows up OUTSIDE the refinement windows.
+
+    Differences inside a run's own window are expected -- MUSIC modifies the
+    base grid there -- so only the outside is diagnostic.
+    """
     rng = np.random.default_rng(7)
     base = rng.normal(size=(8, 8, 8))
     density = rng.normal(size=(8, 8, 8))
     run_a = make_run(tmp_path, "sim-L1-hA", base_field=base,
                      grid_density=density,
                      patches={1: ((0.125, 0.125, 0.125), (0.375, 0.375, 0.375))})
+    # differs everywhere -> not one realization
     run_b = make_run(tmp_path, "sim-L1-hB", base_field=base,
-                     grid_density=density + 1e-12,
+                     grid_density=density + 0.5,
                      patches={1: ((0.625, 0.625, 0.625), (0.875, 0.875, 0.875))})
-    with pytest.raises(mz.MergeError, match="bit-identical"):
+    with pytest.raises(mz.MergeError, match="OUTSIDE"):
         mz.merge_runs([run_a, run_b], os.path.join(str(tmp_path), "m"))
-    # Identical densities pass.
+    # identical outside the windows -> fine
     run_c = make_run(tmp_path, "sim-L1-hC", base_field=base,
                      grid_density=density,
                      patches={1: ((0.625, 0.625, 0.625), (0.875, 0.875, 0.875))})
     mz.merge_runs([run_a, run_c], os.path.join(str(tmp_path), "m2"))
+
+
+def test_base_window_differences_are_kept_per_run(tmp_path):
+    """Each run's own window is taken from that run, the rest from the donor."""
+    rng = np.random.default_rng(11)
+    base = rng.normal(size=(8, 8, 8))
+    dens_a = rng.normal(size=(8, 8, 8))
+    dens_b = dens_a.copy()
+    # B's window (cells 5:7 at nbase=8 for edges 0.625->0.875) differs
+    dens_b[5:7, 5:7, 5:7] += 3.0
+    run_a = make_run(tmp_path, "sim-L1-hA", base_field=base,
+                     grid_density=dens_a,
+                     patches={1: ((0.125, 0.125, 0.125), (0.375, 0.375, 0.375))})
+    run_b = make_run(tmp_path, "sim-L1-hB", base_field=base,
+                     grid_density=dens_b,
+                     patches={1: ((0.625, 0.625, 0.625), (0.875, 0.875, 0.875))})
+    out = os.path.join(str(tmp_path), "m")
+    mz.merge_runs([run_a, run_b], out)          # A is the donor
+    with h5py.File(os.path.join(out, "GridDensity.0")) as f:
+        merged = f["GridDensity.0"][0]
+    # B's window came from B, everything else from the donor A
+    np.testing.assert_allclose(merged[5:7, 5:7, 5:7], dens_b[5:7, 5:7, 5:7])
+    mask = np.ones_like(merged, dtype=bool); mask[5:7, 5:7, 5:7] = False
+    np.testing.assert_allclose(merged[mask], dens_a[mask])
 
 
 def test_nesting_violation_aborts(tmp_path):

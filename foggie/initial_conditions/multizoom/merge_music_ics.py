@@ -269,6 +269,35 @@ def detect_overlaps(runs, min_gap_fine_cells=4):
                         "level-%d patch" % (run.name, level, level - 1))
 
 
+def base_window(run, nbase):
+    """A run's level-1 patch as base-grid index slices (z, y, x).
+
+    MUSIC modifies the base grid inside the refinement window -- the
+    long-range/short-range split -- so two runs of one realization agree
+    everywhere except each one's own window.  Measured on a two-halo gas
+    build: outside the windows the base density agreed to 3e-10 (float32
+    output precision) while inside it differed by 4e-3 rms.
+    """
+    entry = run.grids.get(1)
+    if entry is None:
+        return None
+    lo = [int(np.floor(v * nbase)) for v in entry["LeftEdge"]]
+    hi = [int(np.ceil(v * nbase)) for v in entry["RightEdge"]]
+    return tuple(slice(max(lo[d], 0), min(hi[d], nbase)) for d in (2, 1, 0))
+
+
+def _windows_disjoint(windows):
+    for i in range(len(windows)):
+        for j in range(i + 1, len(windows)):
+            a, b = windows[i], windows[j]
+            if a is None or b is None:
+                continue
+            if all(a[d].start < b[d].stop and b[d].start < a[d].stop
+                   for d in range(3)):
+                return False, (i, j)
+    return True, None
+
+
 def _dataset_hash(path, name, chunk_slices=64):
     digest = hashlib.sha256()
     with h5py.File(path, "r") as fp:
@@ -280,7 +309,12 @@ def _dataset_hash(path, name, chunk_slices=64):
     return digest.hexdigest()
 
 
-def _dataset_diff_stats(path_a, path_b, name, chunk_slices=64):
+def _dataset_diff_stats(path_a, path_b, name, chunk_slices=64, exclude=None):
+    """Difference statistics, optionally ignoring a set of index windows.
+
+    `exclude` is a list of (z, y, x) slice triples -- the runs' refinement
+    windows, where the base grid is legitimately allowed to differ.
+    """
     max_abs = 0.0
     sq_sum = 0.0
     count = 0
@@ -289,10 +323,22 @@ def _dataset_diff_stats(path_a, path_b, name, chunk_slices=64):
         if da.shape != db.shape:
             raise MergeError("%s: dataset %s shapes differ (%s vs %s)"
                              % (path_b, name, da.shape, db.shape))
-        n = da.shape[0]
-        for start in range(0, n, chunk_slices):
-            diff = np.asarray(da[start:start + chunk_slices], dtype=np.float64) - \
-                np.asarray(db[start:start + chunk_slices], dtype=np.float64)
+        nz = da.shape[-3]
+        mask3 = None
+        if exclude:
+            mask3 = np.zeros(da.shape[-3:], dtype=bool)
+            for w in exclude:
+                if w is not None:
+                    mask3[w] = True
+        for start in range(0, nz, chunk_slices):
+            sl = slice(start, start + chunk_slices)
+            diff = np.asarray(da[..., sl, :, :], dtype=np.float64) - \
+                np.asarray(db[..., sl, :, :], dtype=np.float64)
+            if mask3 is not None:
+                keep = ~mask3[sl]
+                diff = diff.reshape(keep.shape + (-1,)).squeeze(-1) \
+                    if diff.ndim == keep.ndim + 1 else diff
+                diff = diff[keep]
             max_abs = max(max_abs, np.abs(diff).max(initial=0.0))
             sq_sum += float((diff * diff).sum())
             count += diff.size
@@ -300,7 +346,7 @@ def _dataset_diff_stats(path_a, path_b, name, chunk_slices=64):
     return dict(max_abs=float(max_abs), rms=float(rms))
 
 
-def check_base_grids(runs, fields, base_donor=0):
+def check_base_grids(runs, fields, base_donor=0, windows=None, tol=1e-6):
     """Verify/measure base-grid consistency across runs.
 
     GridDensity.0 (present only with baryons) must be bit-identical.
@@ -314,28 +360,21 @@ def check_base_grids(runs, fields, base_donor=0):
         if field == "RefinementMask":
             continue
         dataset = "%s.0" % field if donor.n_levels > 0 else field
-        strict = field.startswith("GridDensity")
-        if strict:
-            donor_hash = _dataset_hash(donor.field_file(field, 0), dataset)
-            for run in runs:
-                if run is donor:
-                    continue
-                if _dataset_hash(run.field_file(field, 0), dataset) != donor_hash:
-                    raise MergeError(
-                        "Run %s: %s.0 is not bit-identical to %s. The runs "
-                        "do not share one realization (check seeds, shift, "
-                        "kspace_TF, and cosmology)." % (run.name, field,
-                                                        donor.name))
-            report[field] = dict(identical=True)
-        else:
-            stats = {}
-            for run in runs:
-                if run is donor:
-                    continue
-                stats[run.name] = _dataset_diff_stats(
-                    donor.field_file(field, 0), run.field_file(field, 0),
-                    dataset)
-            report[field] = dict(identical=False, diff_vs_donor=stats)
+        stats = {}
+        for run in runs:
+            if run is donor:
+                continue
+            stats[run.name] = _dataset_diff_stats(
+                donor.field_file(field, 0), run.field_file(field, 0),
+                dataset, exclude=windows)
+        report[field] = dict(diff_vs_donor_outside_windows=stats)
+        worst = max((d["max_abs"] for d in stats.values()), default=0.0)
+        if worst > tol:
+            raise MergeError(
+                "Base-grid %s differs by %.3e OUTSIDE every refinement "
+                "window (tolerance %.1e). The runs do not share one "
+                "realization -- check seeds, shift, kspace_TF and cosmology."
+                % (field, worst, tol))
     return report
 
 
@@ -384,7 +423,19 @@ def merge_runs(run_dirs, out_dir, base_donor=0, min_gap_fine_cells=4,
 
     fields = verify_runs(runs)
     detect_overlaps(runs, min_gap_fine_cells=min_gap_fine_cells)
-    base_report = check_base_grids(runs, fields, base_donor=base_donor)
+    # Base-grid dimension from the file itself, not 2**levelmin: the two
+    # must agree in a real run, but the array is what the windows index.
+    with h5py.File(runs[base_donor].field_file(fields[0], 0), "r") as fp:
+        nbase = fp["%s.0" % fields[0]].shape[-1]
+    windows = [base_window(r, nbase) for r in runs]
+    ok, pair = _windows_disjoint(windows)
+    if not ok:
+        raise MergeError(
+            "Runs %s and %s have overlapping level-1 windows in base-grid "
+            "cells; their base grids cannot be merged unambiguously"
+            % (runs[pair[0]].name, runs[pair[1]].name))
+    base_report = check_base_grids(runs, fields, base_donor=base_donor,
+                                   windows=windows)
 
     donor = runs[base_donor]
     if os.path.exists(out_dir) and os.listdir(out_dir):
@@ -404,9 +455,22 @@ def merge_runs(run_dirs, out_dir, base_donor=0, min_gap_fine_cells=4,
                 assignments.append((gridnum, run, level))
     n_grids = 1 + len(assignments)
 
+    # Base grid: the donor's everywhere, then each run's own refinement
+    # window taken from that run -- MUSIC modifies the base grid inside the
+    # window, and the windows are disjoint (checked above).
     for field in fields:
-        shutil.copyfile(donor.field_file(field, 0),
-                        os.path.join(out_dir, "%s.0" % field))
+        dst = os.path.join(out_dir, "%s.0" % field)
+        shutil.copyfile(donor.field_file(field, 0), dst)
+        if field == "RefinementMask":
+            continue
+        name = "%s.0" % field
+        with h5py.File(dst, "a") as fo:
+            for run, win in zip(runs, windows):
+                if run is donor or win is None:
+                    continue
+                with h5py.File(run.field_file(field, 0), "r") as fi:
+                    sel = (Ellipsis,) + win
+                    fo[name][sel] = fi[name][sel]
     for g, run, level in assignments:
         for field in fields:
             if field == "RefinementMask" and level == run.n_levels:
