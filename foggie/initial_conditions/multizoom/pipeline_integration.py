@@ -169,6 +169,10 @@ def render_group_config(box, name, halo_ids, level, table=None, mode="union"):
     gdir = group_dir(box, name)
     ics = pconfig.foggie_ics_dir()
 
+    music_exe_dir = os.environ.get("MULTIZOOM_MUSIC_EXE_DIR") or \
+        box.music_exe_dir_path()
+    shift_override = os.environ.get("MULTIZOOM_SHIFT_OVERRIDE", "").strip()
+
     lines = [
         "# Multizoom config rendered by multizoom.pipeline_integration.",
         "# Group %r, level %d, %d halos, mode %s." % (name, level,
@@ -176,7 +180,7 @@ def render_group_config(box, name, halo_ids, level, table=None, mode="union"):
         "# Do not edit by hand: re-render from the registry instead.",
         "",
         "[setup]",
-        "music_exe_dir = %s" % box.music_exe_dir_path(),
+        "music_exe_dir = %s" % music_exe_dir,
         "simulation_name = %s" % box.sim_name,
         "template_config = %s" % os.path.join(ics, box.template_config),
         "original_config = %s" % os.path.join(ics, box.template_config),
@@ -186,6 +190,10 @@ def render_group_config(box, name, halo_ids, level, table=None, mode="union"):
         "new_ics_directory = %s" % gdir,
         "num_cores = None",
         "mode = %s" % mode,
+    ]
+    if shift_override:
+        lines += ["region_shift_override = %s" % shift_override]
+    lines += [
         "",
         "[region]",
         "final_type = halo",
@@ -205,8 +213,13 @@ def render_group_config(box, name, halo_ids, level, table=None, mode="union"):
         # catalog position at every level; refine it against the group's own
         # previous merged run (there is no standalone ladder to consult).
         center, rvir = pbuild.halo_center_and_radius(box, halo_id, rvir_min)
-        if level >= 2 and getattr(box, "refine_centers", True):
-            center = group_refine_center(box, halo_id, level, gdir, center)
+        if level >= 2:
+            if shift_override:
+                sh = [int(v) for v in shift_override.split(",")]
+                ncoarse = float(box.parent_ngrid)
+                center = [(c + v / ncoarse) % 1.0 for c, v in zip(center, sh)]
+            if getattr(box, "refine_centers", True):
+                center = group_refine_center(box, halo_id, level, gdir, center)
         lines += [
             "[halo:%s]" % halo_id,
             "halo_center = %s , %s , %s" % tuple(repr(float(c)) for c in center),

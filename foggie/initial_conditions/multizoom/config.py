@@ -59,6 +59,12 @@ SETUP_DEFAULTS = dict(
     new_ics_directory=".",
     num_cores=None,
     mode="union",
+    # One common domain shift (integer coarse cells, "sx,sy,sz") shared by
+    # every run of a merge-mode group, in place of no_shift.  Needs a MUSIC
+    # built with music_patches/0001-region-shift-override.patch.  Used when
+    # a target's Lagrangian region sits too close to the periodic boundary
+    # for no_shift.
+    region_shift_override=None,
     music_env=None,
     # Runtime environment for the MUSIC subprocess (ported from ics_refactor,
     # which replaced the hard-coded Pleiades path with a config option).

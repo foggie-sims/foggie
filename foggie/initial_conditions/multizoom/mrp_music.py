@@ -57,6 +57,9 @@ def startup(config_fn, level):
         raise RuntimeError("File/directory not found: %s"
                            % params["original_config"])
     params["music_exe"] = music_exe
+    if params.get("region_shift_override"):
+        params["region_shift_override"] = [
+            int(v) for v in str(params["region_shift_override"]).split(",")]
     return params
 
 
@@ -139,16 +142,33 @@ def find_lagrangian_regions(params):
     return params
 
 
+def _final_frame_shift(params):
+    """Code-units shift from the previous run's frame to this run's frame.
+
+    With a region_shift_override every level of the group shares one frame:
+    level 1 traces from the unshifted L0 (shift applies), deeper levels
+    trace from the group's own shifted runs (frames coincide).  Without an
+    override, merge mode is no_shift everywhere and this is zero.
+    """
+    import numpy as np
+    override = params.get("region_shift_override")
+    if override and params["level"] == 1:
+        return np.array(override) / 2.0**params["initial_min_level"]
+    return np.zeros(3)
+
+
 def check_periodic_wrap(params, margin_coarse_cells=8):
     """In merge mode, no_shift keeps every cloud in the catalog frame; a
     cloud whose padded bounding box crosses the box boundary makes MUSIC
     fail ("Internal refinement bounding box error").  Detect that before
     running and point at the region_shift_override remedy."""
     margin = margin_coarse_cells / 2.0**params["initial_min_level"]
+    frame_shift = _final_frame_shift(params)
     offenders = []
     for halo_id, region in params["halo_regions"].items():
-        low = region["center"] - 0.5 * region["size"] - margin
-        high = region["center"] + 0.5 * region["size"] + margin
+        center = (region["center"] + frame_shift) % 1.0
+        low = center - 0.5 * region["size"] - margin
+        high = center + 0.5 * region["size"] + margin
         if (low < 0.0).any() or (high > 1.0).any():
             offenders.append(halo_id)
     if offenders:
@@ -182,7 +202,12 @@ def write_music_conf(params, point_file, output_name, region_shift,
     music_cf.set("setup", "region_point_levelmin",
                  "%d" % params["initial_min_level"])
     if no_shift:
-        music_cf.set("setup", "no_shift", "yes")
+        override = params.get("region_shift_override")
+        if override:
+            music_cf.set("setup", "region_shift_override",
+                         "%d, %d, %d" % tuple(override))
+        else:
+            music_cf.set("setup", "no_shift", "yes")
     os.makedirs(params["new_ics_directory"], exist_ok=True)
     output_path = os.path.join(params["new_ics_directory"], output_name)
     music_cf.set("output", "filename", output_path)
@@ -232,13 +257,17 @@ def run_level_union(params):
 def run_level_merge(params):
     """One MUSIC run per halo (identical seeds, no_shift), then merge."""
     check_periodic_wrap(params)
+    override = params.get("region_shift_override")
+    # region_point_shift names the frame the point file was traced in: the
+    # unshifted L0 for level 1, the group's own (shifted) runs afterwards.
+    point_shift = [0, 0, 0] if (not override or params["level"] == 1)         else list(override)
     run_dirs, conf_paths, halo_ids = [], [], []
     for halo_id, region in params["halo_regions"].items():
         conf_file, ic_dir = write_music_conf(
             params, region["point_file"],
             "%s-L%d-h%s" % (params["simulation_name"], params["level"],
                             halo_id),
-            [0, 0, 0], no_shift=True)
+            point_shift, no_shift=True)
         run_music_exe(params, conf_file, cwd=ic_dir)
         refinement_mask.particle_only_mask(
             conf_file, smooth_edges=True, backup=True,
