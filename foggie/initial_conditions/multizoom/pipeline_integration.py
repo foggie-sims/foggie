@@ -353,7 +353,8 @@ mv pbs_output.txt pbs_output_$PBS_JOBID.txt
 """
 
 
-def assemble_group_run(name, level, enzo_exe=None, table=None, halos=None):
+def assemble_group_run(name, level, enzo_exe=None, table=None, halos=None,
+                       phase="DM", walltime=None, nranks=None):
     """Fill the Enzo parameter file and job script into a merged IC dir.
 
     Uses the pipeline's own .enzo renderer, then corrects
@@ -361,10 +362,12 @@ def assemble_group_run(name, level, enzo_exe=None, table=None, halos=None):
     single-pyramid layout (level+1 grids), while a merged multizoom directory
     holds one base grid plus one patch per halo per level.
     """
-    import re as _re
+    import re
+    _re = re
     box = group_box(name, table, halos)
     gdir = group_dir(box, name)
-    ics_dir = os.path.join(gdir, "%s-L%d" % (box.sim_name, level))
+    suffix = "" if phase == "DM" else "-gas"
+    ics_dir = os.path.join(gdir, "%s-L%d%s" % (box.sim_name, level, suffix))
     pf = os.path.join(ics_dir, "parameter_file.txt")
     grid_parameters = pbuild.read_grid_parameters(pf)
     n_grids = None
@@ -376,11 +379,12 @@ def assemble_group_run(name, level, enzo_exe=None, table=None, halos=None):
     if n_grids is None:
         raise RuntimeError("NumberOfInitialGrids not found in %s" % pf)
 
-    text = pbuild.render_enzo_param(box, level, "DM", grid_parameters)
+    text = pbuild.render_enzo_param(box, level, phase, grid_parameters)
     text = _re.sub(r"CosmologySimulationNumberOfInitialGrids\s*=\s*\d+",
                    "CosmologySimulationNumberOfInitialGrids  = %d" % n_grids,
                    text)
-    enzo_fn = os.path.join(ics_dir, "%s-L%d.enzo" % (box.sim_name, level))
+    enzo_fn = os.path.join(ics_dir, "%s-L%d%s.enzo"
+                           % (box.sim_name, level, suffix))
     with open(enzo_fn, "w") as fp:
         fp.write(text)
 
@@ -388,9 +392,26 @@ def assemble_group_run(name, level, enzo_exe=None, table=None, halos=None):
     if not enzo_exe or not os.path.exists(enzo_exe):
         raise RuntimeError("set MULTIZOOM_ENZO_EXE (or --enzo-exe) to the "
                            "patched enzo.exe; merged ICs need it")
+    # The gas stage runs the pipeline's own two-leg script (unshielded above
+    # the transition redshift, shielded below), so a multizoom gas run is the
+    # same physics as the standalone runs it is compared against.
+    if phase == "gas":
+        script = pbuild.render_runscript(box, name, level, "gas")
+        script = script.replace(box.enzo_exe, enzo_exe)
+        script = script.replace("halo%s-L%d-gas" % (name, level),
+                                "mz-%s-L%d-gas" % (name, level))
+        if walltime:
+            script = re.sub(r"#PBS -l walltime=\S+",
+                            "#PBS -l walltime=%s" % walltime, script)
+        if nranks:
+            script = re.sub(r"select=1:ncpus=\d+:mpiprocs=\d+",
+                            "select=1:ncpus=%d:mpiprocs=%d" % (nranks, nranks),
+                            script)
+    else:
+        script = RUNSCRIPT.format(name=name, level=level,
+                                  sim_name=box.sim_name, enzo_exe=enzo_exe)
     with open(os.path.join(ics_dir, "RunScript.sh"), "w") as fp:
-        fp.write(RUNSCRIPT.format(name=name, level=level,
-                                  sim_name=box.sim_name, enzo_exe=enzo_exe))
+        fp.write(script)
     import shutil, stat
     simrun_src = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               "templates", "simrun.pl")
@@ -423,6 +444,11 @@ def main(argv=None):
         p.add_argument("--dry-run", action="store_true")
         p.add_argument("--registry", default=None, help=registry_help)
         p.add_argument("--enzo-exe", default=None)
+        p.add_argument("--phase", choices=("DM", "gas"), default="DM")
+        p.add_argument("--walltime", default=None,
+                       help="override the PBS walltime (gas assembly)")
+        p.add_argument("--nranks", type=int, default=None,
+                       help="override the rank count (gas assembly)")
     args = parser.parse_args(argv)
     halos = parse_halo_ids(getattr(args, "halos", None))
 
@@ -443,7 +469,9 @@ def main(argv=None):
                            args.mode, dry_run=True)
         return
     if args.cmd == "assemble":
-        assemble_group_run(args.group, args.level, args.enzo_exe, table, halos)
+        assemble_group_run(args.group, args.level, args.enzo_exe, table, halos,
+                           phase=args.phase, walltime=args.walltime,
+                           nranks=args.nranks)
         return
     build_group(args.group, args.level, args.mode, table, args.dry_run, halos)
 
