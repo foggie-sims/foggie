@@ -24,7 +24,8 @@ multizoom/enzo_patches/ (multiple same-level nested grids).
 The physics approximation: base-grid ParticleDisplacements/Velocities
 differ slightly between runs (each run's multigrid solve feeds its own
 patch back into the coarse solution).  GridDensity.0, when present, must
-be bit-identical (kspace_TF transfer, shared noise); the displacement
+agree outside the refinement windows (kspace_TF transfer, shared noise);
+inside each window the values come from that window's own run, and the
 fields are taken from --base-donor and the cross-run differences are
 measured and reported so the approximation is quantified, not assumed.
 """
@@ -349,7 +350,9 @@ def _dataset_diff_stats(path_a, path_b, name, chunk_slices=64, exclude=None):
 def check_base_grids(runs, fields, base_donor=0, windows=None, tol=1e-6):
     """Verify/measure base-grid consistency across runs.
 
-    GridDensity.0 (present only with baryons) must be bit-identical.
+    Agreement is required OUTSIDE every run's own refinement window, where
+    a shared realization must match; inside a window MUSIC legitimately
+    modifies the base grid and the values are taken from that run.
     Displacement/velocity base fields are measured against the donor and
     the differences reported (the irreducible merge approximation).
     RefinementMask.0 legitimately differs (it tags each run's own region).

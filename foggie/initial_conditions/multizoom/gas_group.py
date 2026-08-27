@@ -5,8 +5,8 @@ same level with baryons switched on (pipeline.build.render_gas_music_config).
 A merge-mode group already has one such config per halo, so the same recipe
 applies per halo and the resulting gas IC sets merge exactly as the DM ones
 do -- the merge tool handles GridDensity/GridVelocities generically and, with
-baryons present, additionally hard-fails unless GridDensity.0 is bit-identical
-across the runs, which is the strongest available check that they share one
+baryons present GridDensity.0 is additionally checked outside the refinement
+windows, which is the strongest available check that they share one
 realization.
 
 Usage::
