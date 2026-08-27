@@ -193,6 +193,9 @@ def render_group_config(box, name, halo_ids, level, table=None, mode="union"):
     ]
     if shift_override:
         lines += ["region_shift_override = %s" % shift_override]
+    music_ld = os.environ.get("MULTIZOOM_MUSIC_LD_PATH", "").strip()
+    if music_ld:
+        lines += ["music_ld_library_path = %s" % music_ld]
     lines += [
         "",
         "[region]",
