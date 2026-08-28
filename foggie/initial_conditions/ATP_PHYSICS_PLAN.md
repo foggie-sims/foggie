@@ -32,6 +32,10 @@ radius-graded refinement.
 
 ## Immediate action: nothing is implemented yet
 
+> **SUPERSEDED 2026-08-27** — the review happened, the team decided to proceed, and
+> multizoom was invented in the course of that work. See "Status addendum" below for
+> what is actually built. This section is kept as the record of the decision point.
+
 **No code is written until the team has reviewed this plan.** The only work to do now is to bank
 it for review:
 
@@ -41,6 +45,118 @@ it for review:
 
 No files in any `enzo-*` tree are touched. No branch is cut in the Enzo repo. No PR is opened.
 Everything below §"Base fork" describes work to begin **after** review, not now.
+
+---
+
+## Status addendum — 2026-08-27
+
+**This supersedes "Immediate action: nothing is implemented yet" above.** The team reviewed the
+plan, decided to proceed, and in the course of that work **multizoom was invented** — a capability
+that did not exist when this plan was written and that changes how §5.2.3 is delivered. It is
+recorded as Component D below.
+
+### Where the components actually stand
+
+| | plan said (2026-08-01) | actual (2026-08-27) |
+|---|---|---|
+| A chemical evolution | machinery exists, half unreachable | **further along than recorded** — see D1 |
+| B small star particles | greenfield | unchanged, not started |
+| C multi-refine | one blocking bug | **C0-C4 still not started**; the multizoom patches are a *different* six |
+| D multizoom | did not exist | built, measured, merged |
+
+### Branch consolidation
+
+Our production line had **diverged from `enzo-foggie/main`** — 48 commits ours, 46 theirs, sharing
+only `f6255482`. Consolidated on 2026-08-27 into **`atp-dwarfs-dev`**: `fcf-on-cassi` (Cassi
+mechanical feedback, cic_deposit, PPM NaN) + the six performance-audit picks + upstream `main` +
+the six multizoom patches. One conflict (`star_feedback6.F`), resolved by dropping the SN-energy
+validation that main had relocated into `Grid_StarParticleHandler.C` and keeping the T1.6 work.
+On the FOGGIE side, `ics_refactor` now carries the multizoom package (purely additive).
+
+### Discrepancies to carry forward
+
+**D1. §5.2.2 is further along than this plan records.** All four per-process metal fields exist in
+the consolidated tree — `MetalSNIIDensity`, `MetalSNIaDensity`, `MetalAGBDensity`,
+`MetalNSMDensity` — and upstream **PR #68** added chem yield-table interpolation routines and the
+table-reading infrastructure while we were on a divergent branch. Today's merge is the first time
+our line has had them. **The "half unreachable" audit in §"What already exists" predates this and
+should be re-run against the merged tree before any A-series work is scoped.**
+
+**D2. The method-20 ceiling is worse than "not enforced".** This plan says the per-box maximum is
+computed and ignored. Measured 2026-08-26 on halo46615 + companion: setting `MaximumLevel = 4` on
+a halo already at level 7 changed nothing at 7 but **increased levels 5-6** — a non-zero ceiling
+opens the flagging gate and the un-reset latch carries it, so a cap *adds* refinement. **C2 is a
+correctness fix, not an enhancement.**
+
+**D3. The latch's blast radius is epoch-dependent.** In that same test the latch was only a ~3%
+surface effect, because method 20 is gated off below `MustRefineParticlesRefineToLevel` — that is,
+it does not fire where grids are large enough for the latch to be catastrophic. The bug is real,
+but **C0's assertion must be built so that it fires regardless of where that gate sits**, or it
+will pass for the wrong reason.
+
+**D4. §5.2.3's "bound-particle tracers" have an unstated prerequisite.** DM->gas particle IDs are
+**not portable**: for ~16,800 shared IDs between halo48014's DM and gas runs the position each ID
+points to differs by a **median of 10.9 Mpc/h**, because IDs are assigned per partitioned grid and
+offset in hierarchy order, so the mapping depends on the MPI decomposition at initialization (the
+fleet runs DM at 64 ranks and gas at 128). Matching by z=99 position works (0.049 vs 0.92 base
+cells for first vs second neighbour, 80/80 unique). **Any tracer scheme reusing IDs across phases
+needs that translation bridge first.** This affects existing FOGGIE analysis, not just multizoom.
+
+**D5. Restart duplication threatens live-track work now, not later.** C4 was scheduled as a
+routine repair, but `WriteParameterFile.C:694-733` writing evolving tracks as static means any
+restart duplicates every track and leaves frozen copies. The fleet's runs restart constantly
+between legs, so **a live-track demonstration is only trustworthy within a single job leg until
+C4 lands.**
+
+**D6. Confirmed as written:** `Grid_SetFlaggingFieldMultiRefineRegions.C` is still absent from
+`Make.config.objects` with no callers (verified 2026-08-27), so it remains a source of logic to
+lift for C2/C5, not a component to enable.
+
+---
+
+## Component D — Multizoom (N zoom regions in one domain)
+
+Not in the ATP proposal by name, but it is now the delivery vehicle for its §4.2 ambition of
+**250-500 dwarfs** rather than one. Enzo and MUSIC were both built around one zoom region per
+domain; this makes N work.
+
+**Why it matters more than cost.** Production gas runs lose **36-47% of rank-time** purely to deep
+levels holding fewer grids than MPI ranks — level 7 alone is 43% of wallclock at ~30 grids on 128
+ranks. A single deep zoom cannot fill the machine; N zooms can. That is the measured mechanism
+behind the 50-60% communication-wait figure from the production audits. DM never starves (1.9%),
+which is why DM multizoom gains come from sharing the root grid instead.
+
+**Measured, not estimated** (six halos, DM L1-L3 to z=0): **0.40x** the cost of six standalone
+runs, with better load balance at every level. Cost separates into a fixed root grid
+(17.8/18.0/19.6 core-h, N-independent) and a marginal halo (8.6/15.6/70.6 vs standalone
+55.8/73.6/129.2). The **shared-timestep tax does not grow with N** — 1.4x at two halos, 1.49/1.50/
+1.20x at six — because each level's dt is set by the single worst grid. Design consequence:
+**group by excluding outliers, not by restricting mass diversity, and never mix target refinement
+levels in one group.**
+
+**Relationship to Component C.** They are complementary, not alternatives: C makes *many boxes*
+behave correctly inside one zoom; D makes *many zooms* share one domain. Both are needed for the
+proposal's dwarf counts, and D's per-halo ceilings are blocked on C2.
+
+- **D-a. Patches 1-6 — done**, merged into `atp-dwarfs-dev`. Two are real bug fixes, not multizoom
+  scaffolding: duplicate coarse particles under later-scanned static regions (latent in single
+  zooms too), and must-refine creation on a grid level that no merged set has.
+- **D-b. The gas verdict — running.** Does filling idle ranks with a second zoom convert
+  starvation into throughput? Interim at z=7->5 was 2.2x faster, but from root sharing rather than
+  occupancy; the decisive window is z~3-2.
+- **D-c. Tenpack scaling test — running.** Ten halos spanning the ELVES-to-SAGA mass range, to
+  find where the timestep tax overtakes the occupancy gain.
+- **D-d. Per-halo ceilings — blocked on C2.**
+- **D-e. Particle-tracked forced refinement** (AUDIT_AND_PLAN.md Part III, Milestone 5): boxes
+  centred at runtime on per-halo particle-ID sets instead of precomputed tracks, removing the
+  chicken-and-egg for a new group. Designed, not built; needs C1-C2 and the D4 bridge.
+
+### Sequencing change
+
+Multizoom slots into the existing order without disturbing it, because D-a is already merged and
+D-b/D-c are measurements rather than code. The one hard edge is that **C1-C2 now gate D-d and
+D-e**, which raises their priority: the multi-refine repairs are no longer just a §5.2.3
+deliverable, they are what unblocks per-halo control in the multizoom production path.
 
 ---
 
