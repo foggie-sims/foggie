@@ -102,7 +102,7 @@ def output_redshifts(box, phase="DM", level=None):
         return fp.read().rstrip("\n")
 
 
-def enzo_keywords(box, level, phase="DM", grid_parameters=""):
+def enzo_keywords(box, level, phase="DM", grid_parameters="", gas_nref=None):
     """Keyword table for the .enzo templates."""
     kw = {
         "__RESTART_DUMP_SECONDS__": str(restart_dump_seconds(box, phase)),
@@ -120,7 +120,14 @@ def enzo_keywords(box, level, phase="DM", grid_parameters=""):
         # Derived from this halo's zoom depth, not the box constant: see
         # Box.gas_refine_level.  A halo at L3 needs nref8 where an L2 halo in
         # the same box needs nref7, and both must be able to coexist.
-        kw["__MAX_REFINE_LEVEL__"] = str(box.gas_refine_level(level))
+        # A per-halo gas_nref in the registry wins over the box rule. That rule
+        # (nref = level + gas_refine_offset) keeps the cell-to-particle-spacing
+        # ratio fixed, which is right for production; a halo deliberately run
+        # deeper or shallower than its DM warrants -- the L2-DM/nref9 resolution
+        # tests, say -- states so in its registry row rather than by hand-editing
+        # the generated .enzo, which races the build's own job submission.
+        kw["__MAX_REFINE_LEVEL__"] = str(int(gas_nref) if gas_nref
+                                         else box.gas_refine_level(level))
         # First leg only.  RunScript.sh rewrites this to 0 at the handoff, so
         # the two must come from the same place or the run either stops twice
         # or never stops at all.
@@ -145,13 +152,14 @@ def replace_keywords(text, mapping):
     return text
 
 
-def render_enzo_param(box, level, phase="DM", grid_parameters=""):
+def render_enzo_param(box, level, phase="DM", grid_parameters="", gas_nref=None):
     """Render the Enzo parameter file for one stage."""
     name = "gas-LX.enzo" if phase == "gas" else "DM-LX.enzo"
     template = os.path.join(box.template_dir_path(), name)
     with open(template) as fp:
         text = fp.read()
-    return replace_keywords(text, enzo_keywords(box, level, phase, grid_parameters))
+    return replace_keywords(text, enzo_keywords(box, level, phase, grid_parameters,
+                                                gas_nref))
 
 
 def read_grid_parameters(parameter_file_txt):
@@ -651,7 +659,7 @@ def check_region_points(halo_dir, level, dry_run=False):
 
 
 def build_stage(box, halo_id, level, phase="DM", dry_run=False, adopt=False,
-                submit=True, hook=True, rvir_min=None):
+                submit=True, hook=True, rvir_min=None, gas_nref=None):
     """Generate ICs and the run script for one stage, then submit it.
 
     Returns the PBS job id, or None for a dry run.
@@ -698,7 +706,8 @@ def build_stage(box, halo_id, level, phase="DM", dry_run=False, adopt=False,
         if not grid_parameters.strip():
             raise RuntimeError("No CosmologySimulationGrid* lines in %s" % parameter_file_txt)
     write_file(os.path.join(stage_dir, box.param_filename(level, phase)),
-               render_enzo_param(box, level, phase, grid_parameters), dry_run)
+               render_enzo_param(box, level, phase, grid_parameters, gas_nref),
+               dry_run)
 
     # --- run script ---------------------------------------------------------
     hook_line = pipeline_hook_line(halo_id, halo_dir) if hook else "# pipeline hook disabled"

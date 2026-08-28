@@ -859,7 +859,10 @@ def cmd_build(args):
                     box, args.halo, args.level, args.phase,
                     dry_run=args.dry_run, adopt=args.adopt,
                     submit=not args.no_submit, hook=not args.no_hook,
-                    rvir_min=row["rvir_min"] if "rvir_min" in row.colnames else None)
+                    rvir_min=row["rvir_min"] if "rvir_min" in row.colnames else None,
+                    gas_nref=(int(row["gas_nref"])
+                              if "gas_nref" in row.colnames and int(row["gas_nref"]) > 0
+                              else None))
     except ledger.UnmanagedHaloError as exc:
         print("REFUSED: %s" % exc)
         return 1

@@ -20,7 +20,7 @@ $parameter_file = (glob("*.enzo"))[0];
 # Fallback only: RunScript.sh always passes -exe, rendered from the box's
 # enzo_exe in pipeline/config.py.  Kept in sync with it so a hand-run
 # simrun.pl in a stage directory does not silently pick a different binary.
-$enzo_executable = "/home1/jtumlins/nobackup/enzo-foggie-feedback-fix/src/enzo/enzo.exe";
+$enzo_executable = "/home1/jtumlins/nobackup/enzo-foggie-feedback-fix/src/enzo/enzo-perf-on-fcf.exe";
 $walltime = 360000;
 
 while ($arg = shift @ARGV) {

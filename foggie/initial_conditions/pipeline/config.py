@@ -115,6 +115,21 @@ class Box:
     # cadence they were built with.  Only newly built gas stages are affected.
     dm_output_list: str = "outputs_15.txt"
     gas_output_list: str = "outputs_16_gas.txt"
+    # DEPLOYED 2026-08-27: enzo-perf-on-fcf.exe, built from branch perf-on-fcf,
+    # which is a STRICT SUPERSET of fcf-on-cassi (0 commits missing) plus six
+    # audit picks: T0.3 SubgridSizeAutoAdjust floor parameter, T1.9 O(N) sibling
+    # dedup, T1.5 cooling/prologue gate, T1.2+T1.3, T1.6, T1.13. Benched in our
+    # own regime before deploying: +11.7% on the forced anchor (3 baseline + 3
+    # perf runs, noise 3.6%) and +7.4% on the natural anchor, with the physics
+    # differences inside the identical-code noise floor. T0.3 defaults to the old
+    # floor of 2000, so refinement is unchanged until that parameter is swept.
+    # See perf_bench/BENCH_PHASE2.md.
+    #
+    # Point this at the FILENAME of a new binary rather than overwriting
+    # enzo.exe: every running job holds its own copy of simrun.pl pointing at
+    # the old path and re-submits itself between legs, so overwriting would
+    # switch binaries mid-run for every active job.
+    #
     # enzo-foggie-feedback-fix (branch fcf-on-cassi) carries the cic_deposit
     # out-of-bounds fix -- a subgrid deposited onto a coarser parent ran one
     # k-plane past the end of the field array when cloudsize < cellsize, which
@@ -122,7 +137,7 @@ class Box:
     # RebuildHierarchy at level 5 on the L3 stages -- plus the mechanical
     # feedback and PPM NaN-laundering fixes on top of it.  Do not point this
     # back at a tree without both.  Keep templates/simrun.pl's fallback in sync.
-    enzo_exe: str = "/home1/jtumlins/nobackup/enzo-foggie-feedback-fix/src/enzo/enzo.exe"
+    enzo_exe: str = "/home1/jtumlins/nobackup/enzo-foggie-feedback-fix/src/enzo/enzo-perf-on-fcf.exe"
     music_exe_dir: str = None       # defaults to FOGGIE_REPO/initial_conditions/music
     email: str = "tumlinson@stsci.edu"
     group_list: str = "s3128"
