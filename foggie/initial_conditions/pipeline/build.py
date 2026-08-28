@@ -771,12 +771,70 @@ def sync_runscript_exe(box, runscript, dry_run=False):
     return True
 
 
-def submit_enzo_run(box, halo_id, level, phase="DM", dry_run=False):
+_WORKDIR_RE = re.compile(r"PBS_O_WORKDIR=([^,]*)")
+
+
+def _norm(path):
+    """Canonical form for comparing two spellings of one directory."""
+    return os.path.realpath(path).rstrip("/")
+
+
+def active_jobs_by_workdir(_cache={}):
+    """{canonical stage_dir: [jobid, ...]} for every queued/running/held job.
+
+    Keyed on PBS_O_WORKDIR rather than job name.  Name is the wrong key twice
+    over: distinct runs share one name (the four Phase-3 bench jobs are all
+    `foggie_bench`, differing only in SubgridSizeAutoAdjustMinimum, so a
+    name-matcher reads three of them as duplicates and would kill most of a
+    sweep), and one stage can legitimately be resubmitted under a new name.
+    The output directory is what actually collides: two Enzo jobs writing one
+    tree is the corruption this guards against.
+
+    Cached for the life of the process -- a single `advance` submits many
+    stages and the queue does not change underneath it fast enough to matter.
+    """
+    if _cache:
+        return _cache
+    try:
+        ids = subprocess.check_output(
+            ["qselect", "-u", os.environ.get("USER", ""), "-s", "QRH"],
+            stderr=subprocess.DEVNULL).decode().split()
+        if ids:
+            raw = subprocess.check_output(["qstat", "-f"] + ids,
+                                          stderr=subprocess.DEVNULL).decode()
+            # Two gotchas, both found by testing this against the live queue
+            # rather than assuming: NAS PBS heads each block with "Job:", not
+            # the stock "Job Id:", so splitting on the documented token yields
+            # zero blocks and a silently empty map; and qstat -f wraps long
+            # attributes onto continuation lines, so PBS_O_WORKDIR must be read
+            # from a whitespace-stripped block, not line by line.
+            for block in re.split(r"(?m)^Job(?: Id)?:", raw)[1:]:
+                m = _WORKDIR_RE.search(re.sub(r"[\n\t ]", "", block))
+                if m:
+                    _cache.setdefault(_norm(m.group(1)), []).append(
+                        block.split("\n")[0].strip())
+    except (OSError, subprocess.CalledProcessError) as exc:
+        # A guard that cannot query the queue must not block real work; say so
+        # loudly and let the submit proceed.
+        print("  WARNING: could not query PBS to check for duplicate jobs (%s);"
+              " submitting without the duplicate guard" % exc)
+    return _cache
+
+
+def submit_enzo_run(box, halo_id, level, phase="DM", dry_run=False, force=False):
     """Submit the Enzo run for a stage whose ICs already exist.
 
     Separate from build_stage so `advance` can submit a BUILT stage -- one whose
     ICs were generated but whose run was never started -- without regenerating
     the initial conditions.
+
+    Refuses to submit when another job is already queued or running in this
+    stage directory, unless `force`.  Two Enzo jobs sharing an output tree
+    interleave their writes to OutputLog and the RD/DD dumps, which corrupts
+    the science silently rather than failing loudly.  This has happened twice:
+    once on 21246/56672 L3-gas, and again on four of the ten new L2/nref9
+    halos (75522, 15494, 71575, 51771), each duplicate landing ~30 minutes
+    after its twin in the same directory.
     """
     # NOTE: sync_runscript_exe below is what keeps the binary a single point of
     # control.  See its docstring for why rendering alone is not enough.
@@ -798,12 +856,27 @@ def submit_enzo_run(box, halo_id, level, phase="DM", dry_run=False):
     if os.path.exists(runscript):
         sync_runscript_exe(box, runscript, dry_run=dry_run)
 
+    existing = active_jobs_by_workdir().get(_norm(stage_dir), [])
+    if existing and not force:
+        print("  SKIP halo %s %s: already queued/running as %s in %s\n"
+              "    (pass force=True / --force to submit anyway)"
+              % (halo_id, ledger.stage_key(level, phase),
+                 ", ".join(existing), stage_dir))
+        return None
+    if existing and force:
+        print("  WARNING: forcing a second job into %s, which already has %s;"
+              " two Enzo jobs in one output tree will corrupt it"
+              % (stage_dir, ", ".join(existing)))
+
     if dry_run:
         print("    [dry-run] qsub -koed RunScript.sh   (in %s)" % stage_dir)
         return None
 
     jobid = subprocess.check_output(["qsub", "-koed", "RunScript.sh"],
                                     cwd=stage_dir).decode().strip()
+    # A fresh submit joins the cache so a later stage in this same process
+    # cannot be talked into submitting into the same directory again.
+    active_jobs_by_workdir().setdefault(_norm(stage_dir), []).append(jobid)
     ledger.append_record(halo_dir, {
         "stage": ledger.stage_key(level, phase),
         "action": "enzo",
