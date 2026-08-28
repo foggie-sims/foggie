@@ -88,11 +88,44 @@ a halo already at level 7 changed nothing at 7 but **increased levels 5-6** — 
 opens the flagging gate and the un-reset latch carries it, so a cap *adds* refinement. **C2 is a
 correctness fix, not an enhancement.**
 
-**D3. The latch's blast radius is epoch-dependent.** In that same test the latch was only a ~3%
-surface effect, because method 20 is gated off below `MustRefineParticlesRefineToLevel` — that is,
-it does not fire where grids are large enough for the latch to be catastrophic. The bug is real,
-but **C0's assertion must be built so that it fires regardless of where that gate sits**, or it
-will pass for the wrong reason.
+**D3. The latch is bounded, and this plan overstates it.** The "What already exists" section says
+"the whole grid refines". That holds only for a grid that STRADDLES a region boundary, and it does
+not generalise: `grid::FlagCellsToBeRefinedByMultiRefineRegion` is a per-grid method whose
+`LocalMaximumRefinementLevel` / `LocalMinimumRefinementLevel` are declared with initialisers inside
+the function (lines 43-44), so they are re-initialised on every call and **the latch does not
+persist across grids**. A grid wholly inside a region is unaffected; a grid wholly outside keeps
+both at 0 and flags nothing. Only cells following the first in-region cell in i/j/k order, on a
+boundary-straddling grid, inherit the level.
+
+That is a surface, not a volume -- which is exactly what the multizoom work measured on
+halo46615 + companion: a ~3% surface effect, with forced refinement otherwise working unpatched
+(level-6 cells 3.24M -> 40.3M, added coverage matching two 200 kpc/h boxes to 3%). The
+`MustRefineParticlesRefineToLevel` gate at `Grid_SetFlaggingField.C:61` suppresses it further at
+coarse levels, but that is second-order on a bug that is already bounded.
+
+**Consequence for sequencing: C1 is a real bug but LOW severity and not blocking.** It costs a
+shell of unnecessary refinement around region boundaries, not correctness of the science, which is
+why multizoom runs correctly today on uniform floors. **C2 is the priority**, because the
+unenforced ceiling is what blocks per-halo control (D-d) and particle-tracked refinement (D-e).
+C1 is a three-line change that can ride along with it.
+
+**D3b. C0 as written in Component C cannot fail.** It asks that cells outside every region "must
+not exceed the outer level", but `MultiRefineRegionMaximumOuterLevel` is only read and defaulted
+(`Grid_FlagCellsToBeRefinedByMultiRefineRegion.C:51-52`) and never used to unflag anything -- no
+maximum is enforced anywhere in that routine. Setting it low and asserting on it would fail for
+C2's reason, not C1's, conflating the two bugs the sequence exists to separate. **Recommended
+instead: a differential test** -- run the same short problem twice, identical but for whether
+`CellFlaggingMethod` includes 20, and assert the grid structure outside every region is unchanged.
+That isolates method 20, needs no absolute level to compare against, cannot be satisfied by
+over-refinement, and separates C1 from C2. Pair it with a small static region carrying a high
+minimum level in an otherwise empty corner, so the latch has something to latch onto wherever the
+halo sits.
+
+**D3c. The tenpack is the empirical check.** None of the above is a substitute for the ten-halo
+multizoom run now in flight: at production scale it exercises 45 disjoint region pairs, real
+boundary-straddling grids, and the restart path, so it will surface any of these defects that
+actually matter before a unit test is written against them.
+
 
 **D4. §5.2.3's "bound-particle tracers" have an unstated prerequisite.** DM->gas particle IDs are
 **not portable**: for ~16,800 shared IDs between halo48014's DM and gas runs the position each ID
