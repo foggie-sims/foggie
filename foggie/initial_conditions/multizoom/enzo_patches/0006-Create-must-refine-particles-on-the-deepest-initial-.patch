@@ -1,0 +1,163 @@
+From 1de85d5c0fcbb3271283a8a2d10e70e767c90cfa Mon Sep 17 00:00:00 2001
+From: Jason Tumlinson <jasontumlinson75@icloud.com>
+Date: Wed, 26 Aug 2026 21:14:51 -0700
+Subject: [PATCH 6/6] Create must-refine particles on the deepest initial grids,
+ not grid NumberOfInitialGrids-1
+
+Grid_CosmologyInitializeParticles converted RefinementMask cells to
+must-refine particles only where level == NumberOfInitialGrids-1, the
+sixth place the single-pyramid layout (one grid per level) was baked
+in: with a merged multizoom IC set (one base grid + one patch per halo
+per level) that condition names a level no grid has, and no MRPs were
+created at all -- observed as a six-halo run initializing with only
+dark-matter particles. The initializers now record the deepest initial
+grid level in CosmologySimulationMaximumInitialLevel and the
+conversion tests against it, falling back to the old expression when
+the global was never set.
+---
+ src/enzo/CosmologySimulationInitialize.C       |  9 +++++++++
+ src/enzo/Grid_CosmologyInitializeParticles.C   |  9 ++++++++-
+ src/enzo/NestedCosmologySimulationInitialize.C |  9 +++++++++
+ src/enzo/SetDefaultGlobalValues.C              |  1 +
+ src/enzo/global_data.h                         |  1 +
+ src/enzo/rebuild.log                           | 18 ++++++++++++++++++
+ src/enzo/rebuild2.log                          | 18 ++++++++++++++++++
+ 7 files changed, 64 insertions(+), 1 deletion(-)
+ create mode 100644 src/enzo/rebuild.log
+ create mode 100644 src/enzo/rebuild2.log
+
+diff --git a/src/enzo/CosmologySimulationInitialize.C b/src/enzo/CosmologySimulationInitialize.C
+index 2c6f8e27..2e9c0977 100644
+--- a/src/enzo/CosmologySimulationInitialize.C
++++ b/src/enzo/CosmologySimulationInitialize.C
+@@ -448,6 +448,15 @@ int CosmologySimulationInitialize(FILE *fptr, FILE *Outfptr,
+  
+   HierarchyEntry *GridsList[MAX_INITIAL_GRIDS];
+   GridsList[0] = &TopGrid;
++  // Record the deepest initial grid level for the must-refine mask
++  // conversion; with several nested grids per level it is no longer
++  // NumberOfInitialGrids-1.
++
++  CosmologySimulationMaximumInitialLevel = 0;
++  for (gridnum = 1; gridnum < CosmologySimulationNumberOfInitialGrids; gridnum++)
++    if (CosmologySimulationGridLevel[gridnum] > CosmologySimulationMaximumInitialLevel)
++      CosmologySimulationMaximumInitialLevel = CosmologySimulationGridLevel[gridnum];
++
+   for (gridnum = 1; gridnum < CosmologySimulationNumberOfInitialGrids;
+        gridnum++) {
+  
+diff --git a/src/enzo/Grid_CosmologyInitializeParticles.C b/src/enzo/Grid_CosmologyInitializeParticles.C
+index 53e365db..2629de7b 100644
+--- a/src/enzo/Grid_CosmologyInitializeParticles.C
++++ b/src/enzo/Grid_CosmologyInitializeParticles.C
+@@ -321,7 +321,14 @@ int grid::CosmologyInitializeParticles(
+ 	  if (mask[index]) {
+ 
+ 	    if (MustRefineParticlesCreateParticles >= 2){
+-	      if (types[index] == 0 && CosmologySimulationNumberOfInitialGrids - 1 == level){
++	      // The deepest initial grids carry the must-refine mask.  With
++	      // several nested grids per level the finest level is no longer
++	      // NumberOfInitialGrids-1, so the initializer records it.
++	      int FinestInitialLevel = (CosmologySimulationMaximumInitialLevel
++					!= INT_UNDEFINED) ?
++		CosmologySimulationMaximumInitialLevel :
++		CosmologySimulationNumberOfInitialGrids - 1;
++	      if (types[index] == 0 && FinestInitialLevel == level){
+ 		ParticleType[count] = PARTICLE_TYPE_MUST_REFINE;
+ 		num_flip++;
+ 	      } else {
+diff --git a/src/enzo/NestedCosmologySimulationInitialize.C b/src/enzo/NestedCosmologySimulationInitialize.C
+index 8fce7611..60a03171 100644
+--- a/src/enzo/NestedCosmologySimulationInitialize.C
++++ b/src/enzo/NestedCosmologySimulationInitialize.C
+@@ -388,6 +388,15 @@ int NestedCosmologySimulationInitialize(FILE *fptr, FILE *Outfptr,
+       printf("magnetic field: dim %"ISYM", %"FSYM" %"ESYM" \n", dim, MagneticUnits, 
+ 	     CosmologySimulationInitialUniformBField[dim]);
+   }
++  // Record the deepest initial grid level for the must-refine mask
++  // conversion; with several nested grids per level it is no longer
++  // NumberOfInitialGrids-1.
++
++  CosmologySimulationMaximumInitialLevel = 0;
++  for (gridnum = 1; gridnum < CosmologySimulationNumberOfInitialGrids; gridnum++)
++    if (CosmologySimulationGridLevel[gridnum] > CosmologySimulationMaximumInitialLevel)
++      CosmologySimulationMaximumInitialLevel = CosmologySimulationGridLevel[gridnum];
++
+   // Generate the grids and set-up the hierarchy
+  
+   HierarchyEntry *GridsList[MAX_INITIAL_GRIDS];
+diff --git a/src/enzo/SetDefaultGlobalValues.C b/src/enzo/SetDefaultGlobalValues.C
+index c5f5ed8a..298ff283 100644
+--- a/src/enzo/SetDefaultGlobalValues.C
++++ b/src/enzo/SetDefaultGlobalValues.C
+@@ -353,6 +353,7 @@ int SetDefaultGlobalValues(TopGridData &MetaData)
+   ParallelParticleIO          = FALSE;
+   Unigrid                     = FALSE;
+   UnigridTranspose            = 2;
++  CosmologySimulationMaximumInitialLevel = INT_UNDEFINED;
+   NumberOfRootGridTilesPerDimensionPerProcessor = 1;
+   PartitionNestedGrids        = FALSE;
+   ExtractFieldsOnly           = TRUE;
+diff --git a/src/enzo/global_data.h b/src/enzo/global_data.h
+index f187763b..80bd08f6 100644
+--- a/src/enzo/global_data.h
++++ b/src/enzo/global_data.h
+@@ -608,6 +608,7 @@ EXTERN int First_Pass;
+ EXTERN int UnigridTranspose;
+ EXTERN int NumberOfRootGridTilesPerDimensionPerProcessor;
+ EXTERN int CosmologySimulationNumberOfInitialGrids;
++EXTERN int CosmologySimulationMaximumInitialLevel;  // deepest initial grid level; with several nested grids per level this is no longer NumberOfInitialGrids-1
+ EXTERN int UserDefinedRootGridLayout[3];
+ 
+ /* Parameters that control density dex output */
+diff --git a/src/enzo/rebuild.log b/src/enzo/rebuild.log
+new file mode 100644
+index 00000000..b9dfbbfe
+--- /dev/null
++++ b/src/enzo/rebuild.log
+@@ -0,0 +1,18 @@
++MACHINE_NOTES for NASA Aitken Milan nodes with MPICH4.0.3 : The following modules are needed to compile: module use -a /nasa/modulefiles/testing module load comp-intel/2020.4.304 hdf5/1.8.18_serial
++Updating DEPEND
++Compiling CosmologySimulationInitialize.C
++Compiling Grid_CosmologyInitializeParticles.C
++Compiling NestedCosmologySimulationInitialize.C
++Compiling SetDefaultGlobalValues.C
++Compiling auto_show_version.C
++Compiling auto_show_flags.C
++Compiling auto_show_config.C
++make: [Makefile:353: dep] Error 127 (ignored)
++make: [Makefile:354: dep] Error 127 (ignored)
++make: [Makefile:355: dep] Error 127 (ignored)
++make: [Makefile:356: dep] Error 127 (ignored)
++make: [Makefile:357: dep] Error 127 (ignored)
++make: [Makefile:358: dep] Error 127 (ignored)
++make: [Makefile:359: dep] Error 127 (ignored)
++Linking enzo executable. Type  cat out.compile  in case it fails.
++make: *** [Makefile:135: enzo.exe] Error 1
+diff --git a/src/enzo/rebuild2.log b/src/enzo/rebuild2.log
+new file mode 100644
+index 00000000..d3160740
+--- /dev/null
++++ b/src/enzo/rebuild2.log
+@@ -0,0 +1,18 @@
++MACHINE_NOTES for NASA Aitken Milan nodes with MPICH4.0.3 : The following modules are needed to compile: module use -a /nasa/modulefiles/testing module load comp-intel/2020.4.304 hdf5/1.8.18_serial
++Updating DEPEND
++Compiling enzo.C
++Compiling auto_show_version.C
++Compiling auto_show_flags.C
++Compiling auto_show_config.C
++make: [Makefile:353: dep] Error 127 (ignored)
++make: [Makefile:354: dep] Error 127 (ignored)
++make: [Makefile:355: dep] Error 127 (ignored)
++make: [Makefile:356: dep] Error 127 (ignored)
++make: [Makefile:357: dep] Error 127 (ignored)
++make: [Makefile:358: dep] Error 127 (ignored)
++make: [Makefile:359: dep] Error 127 (ignored)
++Linking enzo executable. Type  cat out.compile  in case it fails.
++Success!
++Compiled enzo from 
++Git Branch   multizoom
++Git Revision 6bbc375cb0ae7db54223e9cd7c27edcbb5a4f103
+-- 
+2.43.7
+
