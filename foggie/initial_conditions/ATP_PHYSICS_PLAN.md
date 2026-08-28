@@ -121,10 +121,54 @@ over-refinement, and separates C1 from C2. Pair it with a small static region ca
 minimum level in an otherwise empty corner, so the latch has something to latch onto wherever the
 halo sits.
 
-**D3c. The tenpack is the empirical check.** None of the above is a substitute for the ten-halo
-multizoom run now in flight: at production scale it exercises 45 disjoint region pairs, real
-boundary-straddling grids, and the restart path, so it will surface any of these defects that
-actually matter before a unit test is written against them.
+**D3c. RETRACTED — the tenpack does not test multirefine.** This entry previously claimed the
+ten-halo run was "the empirical check" for the method-20 defects, exercising "45 disjoint region
+pairs". That is wrong, and wrong in a way that mattered: it credited work in flight with
+validating code it never enters. Verified 2026-08-27 across every multizoom deck — sixpack
+(L1/L2/L3), tenpack, pairA, gaspair, and the N=1 regression decks — **all run
+`CellFlaggingMethod = 4 8` with `MustRefineParticles`, and contain zero `MultiRefineRegion`
+parameters.** Nor does `halo21140-L3-gas` (`CFM = 2 4 8`), whose two-region track was built but
+never wired into a deck.
+
+Method 20 has been exercised exactly once, and not by any of the above: a dedicated **two-box
+restart experiment on halo46615 + companion 47330 at z=0.5**, which is the sole source of both
+measurements this plan relies on — the ~3% surface effect in D3 and the inert-and-harmful ceiling
+in D2. So C1/C2 are not unmeasured. They are **measured once, in a targeted restart, and never
+under production load**: never on live evolving tracks, never across multiple job legs, never at
+N > 2 boxes.
+
+The consequence for sequencing is that the sixpack's success is **no evidence at all** about
+C1/C2 — different code path, never entered — and the evidence that does exist comes from a single
+short experiment. Extending it needs a run whose only job is to exercise method 20 on live
+disjoint tracks over several legs; the halo21140/21151 pair is the intended vehicle and is already
+most of the way built.
+
+**D7. Multizoom and multirefine are different mechanisms, and this plan conflates them.**
+The distinction is structural, not a matter of degree, and `global_data.h` settles it:
+
+```
+MustRefineRegionLeftEdge[MAX_DIMENSION]                       <- ONE box, no region index
+EvolveMustRefineRegionLeftEdge[MAX_REFINE_REGIONS][3]         <- the SAME box, TIME bins
+MultiRefineRegionLeftEdge[MAX_STATIC_REGIONS+MAX_TRACKS][3]   <- N boxes
+MultiRefineRegionMinimumLevel[] / MaximumLevel[]              <- per-region floor and ceiling
+```
+
+- **Multizoom** (Component D): N MustRefineParticles *zoom regions* in one domain. IC-side,
+  `CellFlaggingMethod 4`, N tagged particle sets. Not in the ATP proposal — invented during this
+  campaign. **Working**; the sixpack is real evidence.
+- **Multirefine** (Component C): N *forced boxes* via method 20, independent of how many zoom
+  regions exist. In the ATP proposal from the start (§5.2.3). **Unexercised.**
+
+Today's forced production runs (`halo15659-L9c-L7f`, `halo80181-L9c-L7f`) use
+`ReadEvolveRefineFile` with a `halo_track` file: **one** moving box, evolving through time bins.
+Not method 20.
+
+**The composition gap this exposes.** A ten-halo multizoom run today can force-refine **exactly
+one** of its ten halos, because the evolving-track mechanism holds a single box. Giving each halo
+its own forced box *requires* method 20. So the ATP production target — N halos, each with an
+nref8f forced box, sharing one domain — is multizoom **plus** multirefine, and multirefine is the
+unfinished half. Component C is therefore on the critical path to Component D reaching
+production, not a parallel track that can lag it.
 
 
 **D4. §5.2.3's "bound-particle tracers" have an unstated prerequisite.** DM->gas particle IDs are
@@ -167,9 +211,12 @@ runs, with better load balance at every level. Cost separates into a fixed root 
 **group by excluding outliers, not by restricting mass diversity, and never mix target refinement
 levels in one group.**
 
-**Relationship to Component C.** They are complementary, not alternatives: C makes *many boxes*
-behave correctly inside one zoom; D makes *many zooms* share one domain. Both are needed for the
-proposal's dwarf counts, and D's per-halo ceilings are blocked on C2.
+**Relationship to Component C.** They are complementary, not alternatives, and they are *different
+code paths* — see D7, which corrects an earlier conflation of the two. C makes *many forced boxes*
+behave correctly (method 20); D makes *many zoom regions* share one domain (MustRefineParticles).
+D works today and C is unexercised, so it is tempting to sequence C late. That is backwards:
+**a multizoom run using today's single-box mechanism can force-refine only one of its N halos**,
+so forced production at N halos is blocked on C. Both are needed for the proposal's dwarf counts.
 
 - **D-a. Patches 1-6 — done**, merged into `atp-dwarfs-dev`. Two are real bug fixes, not multizoom
   scaffolding: duplicate coarse particles under later-scanned static regions (latent in single
@@ -177,9 +224,14 @@ proposal's dwarf counts, and D's per-halo ceilings are blocked on C2.
 - **D-b. The gas verdict — running.** Does filling idle ranks with a second zoom convert
   starvation into throughput? Interim at z=7->5 was 2.2x faster, but from root sharing rather than
   occupancy; the decisive window is z~3-2.
-- **D-c. Tenpack scaling test — running.** Ten halos spanning the ELVES-to-SAGA mass range, to
-  find where the timestep tax overtakes the occupancy gain.
-- **D-d. Per-halo ceilings — blocked on C2.**
+- **D-c. Tenpack scaling test — running** (IC build stage as of 2026-08-27, not yet evolving).
+  Ten halos spanning the ELVES-to-SAGA mass range, to find where the timestep tax overtakes the
+  occupancy gain. Scope note per D3c: it runs `CFM = 4 8` and so tests **multizoom only** — it
+  says nothing about method 20.
+- **D-d. Per-halo ceilings — blocked on C2.** Note the blocking is specific: with every region at
+  the same target level, per-region ceiling equals global `MaximumRefinementLevel` and the
+  unenforced ceiling is a **no-op**, so the homogeneous N-halo forced run is not blocked on C2.
+  It is *heterogeneous* resolution — halo A at nref9 beside halo B at nref7 — that C2 gates.
 - **D-e. Particle-tracked forced refinement** (AUDIT_AND_PLAN.md Part III, Milestone 5): boxes
   centred at runtime on per-halo particle-ID sets instead of precomputed tracks, removing the
   chicken-and-egg for a new group. Designed, not built; needs C1-C2 and the D4 bridge.
@@ -260,7 +312,13 @@ This is a real partial delivery of "small star particles". What remains from §5
 *hybrid* scheme: individual stars above ≈ 8 M☉ as single particles, which is a different thing
 from a smaller aggregate mass and is where Component B's work actually lies.
 
-### Multi-refine — exists, with one bug that makes it unusable
+### Multi-refine — exists, usable for uniform floors, with two bugs above that
+
+> **Heading corrected 2026-08-27.** This read "with one bug that makes it unusable". Both halves
+> were wrong: there are two defects (C1 latch, C2 ceiling), and neither makes the mechanism
+> unusable for the uniform-floor case that production needs first. See **D3** for the latch's
+> real (bounded, ~3%) scope, **D2** for the ceiling, and **D7** for why this is a different
+> mechanism from multizoom (Component D) rather than a variant of it.
 
 `CellFlaggingMethod = 20` (`MultiRefineRegion`, Anna Wright, Dec 2023) already provides up to
 `MAX_TRACKS = 20` independently moving boxes read from one track file, each with its own minimum
