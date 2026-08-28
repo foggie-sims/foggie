@@ -1,0 +1,494 @@
+% ============================================================================
+%  Multizoom dwarf galaxy simulations in a 25 Mpc box
+%  Draft manuscript -- AASTeX 6.3.1, ApJ format
+%
+%  STATUS MARKERS used throughout:
+%     \todo{...}      writing not yet done
+%     \pending{...}   waiting on a run or measurement still in flight
+%     \check{...}     number is in hand but should be re-derived at freeze
+%
+%  Numbers marked \measured are taken from analysis already run; their source
+%  file is given in the margin comment so every value is traceable.
+% ============================================================================
+\documentclass[twocolumn,linenumbers]{aastex631}
+
+\usepackage{amsmath}
+\usepackage{xcolor}
+
+\newcommand{\todo}[1]{\textcolor{red}{\textbf{[TODO: #1]}}}
+\newcommand{\pending}[1]{\textcolor{blue}{\textbf{[PENDING: #1]}}}
+\newcommand{\check}[1]{\textcolor{orange}{\textbf{[CHECK: #1]}}}
+\newcommand{\measured}[1]{#1}
+
+\newcommand{\Msun}{\ensuremath{M_\odot}}
+\newcommand{\Mvir}{\ensuremath{M_{200\mathrm{c}}}}
+\newcommand{\Rvir}{\ensuremath{R_{200\mathrm{c}}}}
+\newcommand{\Mstar}{\ensuremath{M_\star}}
+\newcommand{\kpch}{\ensuremath{\mathrm{kpc}\,h^{-1}}}
+\newcommand{\Mpch}{\ensuremath{\mathrm{Mpc}\,h^{-1}}}
+\newcommand{\enzo}{\textsc{enzo}}
+\newcommand{\music}{\textsc{music}}
+\newcommand{\grackle}{\textsc{grackle}}
+\newcommand{\ahf}{\textsc{ahf}}
+
+\shorttitle{Multizoom dwarf simulations}
+\shortauthors{Tumlinson et al.}
+
+\begin{document}
+
+\title{Many Zooms, One Box: An Efficient Method for Simulating Populations of
+Dwarf Galaxies, and First Results from a 25~Mpc Campaign}
+
+\author{J.~Tumlinson}
+\affiliation{Space Telescope Science Institute, 3700 San Martin Drive,
+Baltimore, MD 21218, USA}
+\todo{full author list, affiliations, ORCIDs}
+
+\begin{abstract}
+\todo{Write last. Target structure, one sentence each:}
+(1) Dwarf galaxies below the SAGA mass range are where quenching physics is
+least constrained and where zoom simulations are most expensive per object.
+(2) We present \emph{multizoom}, a method that evolves $N$ independent
+Lagrangian zoom regions inside a single \enzo{} domain, motivated by the
+measurement that deep levels in a single-zoom run leave
+\measured{36--47\%} of rank-time idle because they hold fewer grids than MPI
+ranks.
+(3) Six halos evolved together cost \measured{0.40$\times$} six standalone
+runs, and the cost separates cleanly into an $N$-independent root grid plus a
+marginal per-halo term.
+(4) We validate the method against standalone counterparts: halo masses agree
+to a median ratio of \measured{0.997}, assembly histories track from $z=10$ to
+$z=0$, and substructure and density profiles are indistinguishable.
+(5) We apply it to a fleet of \check{28} dwarf halos spanning the
+ELVES--SAGA transition and report star formation histories, scaling relations,
+and the quenched fraction as a function of mass.
+(6) \pending{headline science result once the gas runs complete}
+\end{abstract}
+
+\keywords{Galaxy formation (595) --- Dwarf galaxies (416) ---
+Hydrodynamical simulations (767) --- N-body simulations (1083)}
+
+% ============================================================================
+\section{Introduction}
+\label{sec:intro}
+% ============================================================================
+
+\todo{Full introduction. Argument skeleton:}
+
+\begin{enumerate}
+\item \textbf{The problem.} Quenching in dwarfs. Above
+$\Mstar \sim 10^{9}\,\Msun$ field dwarfs are almost all star-forming; below
+$\sim 10^{6}\,\Msun$ nearly all are quenched. The transition is where the
+physics lives, and it is exactly where samples are thin. Cite ELVES
+\citep[][and the Kado-Fong SAGA background analysis]{Carlsten2022},
+SAGA \citep{Geha2017,Mao2021}, and the SAGA background papers.
+
+\item \textbf{Why simulations struggle here.} Resolving the ISM of a
+$10^{8}$--$10^{10}\,\Msun$ halo requires zoom refinement, and one zoom
+produces one galaxy. Statistical statements about quenched fractions need
+tens to hundreds. Cite FIRE \citep{Hopkins2018,Wetzel2016}, EDGE
+\citep{Agertz2020}, Auriga, and the existing dwarf zoom suites.
+
+\item \textbf{The cost structure nobody exploits.} A deep zoom is not
+compute-bound in the usual sense --- it is \emph{granularity}-bound. We show
+(\S\ref{sec:multizoom}) that the deep levels of a production dwarf zoom hold
+fewer grids than MPI ranks, so most of the machine idles.
+
+\item \textbf{This work.} We introduce multizoom, validate it, and apply it.
+
+\item \textbf{Roadmap.} \S\ref{sec:sims} simulations; \S\ref{sec:multizoom}
+the method; \S\ref{sec:validation} validation; \S\ref{sec:resolution}
+resolution; \S\ref{sec:results} first results; \S\ref{sec:summary} summary.
+\end{enumerate}
+
+% ============================================================================
+\section{Simulations}
+\label{sec:sims}
+% ============================================================================
+
+\subsection{Code and physics}
+\label{sec:code}
+
+\enzo{} \citep{Bryan2014}, adaptive mesh refinement, with \grackle{}
+\citep{Smith2017} for non-equilibrium cooling and chemistry.
+
+\todo{Describe, with parameter values from \texttt{templates/gas-LX.enzo}:}
+\begin{itemize}
+\item Cosmology: $h=0.7$, $\Omega_m = 0.291$, $\Omega_\Lambda = 0.709$.
+      \check{quote $\Omega_b$, $\sigma_8$, $n_s$ from the \music{} configs}
+\item Star formation: H$_2$-regulated prescription. \textbf{Important
+      systematic:} the prescription is bistable in this regime --- ignition
+      occurs at $z\sim6$ at nref9 and $z\sim3.95$ at nref7
+      (\S\ref{sec:resolution}).
+\item Feedback: mechanical supernova feedback \citep[][Cassi's
+      implementation]{Lochhaas2023}, \texttt{StarParticleFeedback = 64},
+      with tabulated yields, stochastic SNe, and pre-SN feedback.
+\item Radiation: a local stellar radiation module is compiled in but
+      \emph{disabled} throughout this campaign, so that all runs remain
+      mutually comparable.
+\item Two-stage cooling: runs execute in two legs, switching on H$_2$
+      self-shielding and the shielded \grackle{} table at $z=15$.
+\end{itemize}
+
+\subsection{Parent simulation and halo selection}
+\label{sec:selection}
+
+A $25\,\mathrm{Mpc}\,h^{-1}$ box with a $512^3$ root grid.
+\todo{Describe the parent DM-only run, the $z=0$ halo catalog, and the
+isolation criteria used to build the target list.}
+
+The registry contains \check{32} halos, of which \check{28} are enabled,
+selected to span the ELVES-to-SAGA transition in halo mass.
+\todo{Table~\ref{tab:halos}: halo ID, \Mvir, \Rvir, isolation metric,
+resolution levels run, zoom radius floor.}
+
+\subsection{Zoom initial conditions}
+\label{sec:ics}
+
+Nested initial conditions with \music{} \citep{Hahn2011}, built level by
+level: the Lagrangian region of each target is traced back from a completed
+run at level $N-1$ and re-gridded at level $N$.
+
+\paragraph{Zoom radius floor.} The comoving radius enclosing the traced
+Lagrangian volume is floored at a per-halo value \texttt{rvir\_min}. This is
+not cosmetic --- \S\ref{sec:contamination} shows that the floor is the single
+control that determines whether a halo is contaminated at L3.
+
+\subsection{Resolution ladder and nomenclature}
+\label{sec:ladder}
+
+\todo{Define L1/L2/L3 zoom levels and the nref cooling ceiling, with a table
+of particle masses and cell sizes:}
+\begin{itemize}
+\item L2 fine DM particle mass \measured{$1.77\times10^{5}\,\Msun$}
+\item L3 fine DM particle mass \measured{$2.62\times10^{4}\,\Msun$},
+      coarse \measured{$1.34\times10^{7}\,\Msun$}
+\item nref7 / nref8 / nref9 maximum refinement levels and their physical
+      cell sizes at $z=0$.
+\end{itemize}
+
+\subsection{Outputs and analysis}
+\label{sec:outputs}
+
+DM-only runs write 15 redshift outputs ($z = 99, 50, 10, 9, \ldots, 0.2, 0$);
+gas runs write $\sim$100.
+Halos are identified with \ahf{} \citep{Knollmann2009} at $\Delta = 200$
+relative to the critical density.
+\todo{Describe the halocat property pipeline: Gadget export, \ahf{}, and the
+streaming property engine; state the $f_\mathrm{hires}$ purity cut.}
+
+% ============================================================================
+\section{Multizoom}
+\label{sec:multizoom}
+% ============================================================================
+
+\subsection{Motivation: deep zoom levels starve the machine}
+\label{sec:starvation}
+
+\todo{Present the measurement that motivates everything.} In a production
+single-zoom gas run, \measured{36--47\%} of rank-time is lost purely because
+deep levels hold fewer grids than there are MPI ranks. Level~7 alone accounts
+for \measured{43\%} of wallclock while holding only \measured{$\sim$30 grids
+on 128 ranks}. Dark matter runs do not suffer this (\measured{1.9\%}), which
+is why DM multizoom gains come from sharing the root grid rather than from
+occupancy.
+
+\begin{figure}
+\plotone{figures/PLACEHOLDER_rank_occupancy}
+\caption{\pending{Grids per rank and idle fraction as a function of AMR level
+for a production single-zoom run. This figure does not exist yet and must be
+generated from \texttt{performance.out}.}}
+\label{fig:starvation}
+\end{figure}
+
+\subsection{Method}
+\label{sec:mz-method}
+
+$N$ Lagrangian zoom regions are placed in a single \enzo{} domain. Each
+carries its own must-refine particle set; refinement follows those particles
+exactly as in a single zoom, so no new flagging machinery is required
+(\texttt{CellFlaggingMethod = 4 8}).
+
+\todo{Describe the IC construction: per-halo \music{} runs at a
+\emph{shared} domain shift, then a merge step that combines the nested grids
+into one hierarchy.}
+
+\paragraph{A distinction that matters.} Multizoom ($N$ zoom \emph{regions})
+is not the same mechanism as \enzo{}'s \texttt{MultiRefineRegion}
+(\texttt{CellFlaggingMethod = 20}, $N$ forced-refinement \emph{boxes}). The
+two are independent and compose: a multizoom run using the standard
+single-box moving-refinement mechanism can force-refine only one of its $N$
+halos. Everything reported here uses the former.
+
+\subsection{Cost model}
+\label{sec:cost}
+
+\todo{Present the six-halo measurement.} Cost separates into an
+$N$-independent root grid and a marginal per-halo term:
+
+\begin{deluxetable}{lccc}
+\tablecaption{Measured cost decomposition, six halos, DM only
+\label{tab:cost}}
+\tablehead{\colhead{Level} & \colhead{Root grid} & \colhead{Marginal halo} &
+           \colhead{Standalone}\\
+           \colhead{} & \colhead{(core-h)} & \colhead{(core-h)} &
+           \colhead{(core-h)}}
+\startdata
+L1 & 17.8 & 8.6  & 55.8 \\
+L2 & 18.0 & 15.6 & 73.6 \\
+L3 & 19.6 & 70.6 & 129.2 \\
+\enddata
+\tablecomments{Six halos evolved together cost \measured{0.40$\times$} six
+standalone runs.}
+\end{deluxetable}
+
+The shared-timestep tax does \emph{not} grow with $N$:
+\measured{$1.4\times$} at two halos and \measured{1.20--1.50$\times$} at six,
+because each level's timestep is set by its single worst grid regardless of
+how many halos contribute candidates.
+
+\paragraph{Design consequence.} Groups should be formed by excluding
+outliers, not by restricting mass diversity, and \emph{must not} mix target
+refinement levels: a group shares one timestep hierarchy, so the deepest
+member would set the clock for all.
+
+\pending{$N=10$ scaling point from the tenpack, which will show where the
+timestep tax finally overtakes the occupancy gain.}
+
+% ============================================================================
+\section{Validation}
+\label{sec:validation}
+% ============================================================================
+
+The central question is whether halos evolved together are the same halos.
+They cannot be bitwise identical --- a different domain perturbs roundoff from
+the first timestep and $N$-body evolution amplifies it --- so the test is
+whether \emph{structure} agrees.
+
+\subsection{Contamination control}
+\label{sec:contamination}
+
+\todo{Write up the L3 contamination arc.} Coarse particles are defined
+relative to the finest species present. Promoting a zoom from L2 to L3
+re-classifies former fine particles as coarse, so a region that is clean at
+L2 can be contaminated at L3.
+
+We escalated the zoom radius floor from 0 to 200 to
+\measured{400}~\kpch{} and traced contaminating particles back to their
+Lagrangian origin to distinguish clumped companion subhalos from diffuse
+infall. Acceptance threshold: \measured{3.5\%} coarse mass fraction within
+\Rvir{}. \check{final per-halo status table from
+\texttt{figures\_z0/DECONTAM\_STATUS.md}}
+
+\subsection{Dark matter structure}
+\label{sec:dm-audit}
+
+Six halos, L3 DM, 15 snapshots at identical redshifts, compared against their
+standalone counterparts.
+
+\begin{figure*}
+\plotone{figures/sixpack_audit}
+\caption{Assembly histories (left), the multizoom-to-standalone \Mvir{} ratio
+against redshift (centre), and $z=0$ substructure counts (right).
+Median ratio \measured{0.997} over \measured{77} progenitor pairs resolved by
+more than 1000 fine particles, with the central 68\% inside
+\measured{4\%}.}
+\label{fig:audit}
+\end{figure*}
+
+\begin{figure*}
+\plotone{figures/sixpack_projections}
+\caption{Substructure and concentration. Within a halo the two runs share
+field of view and color scale. Satellites appear at the same positions, and
+the spherically averaged density profiles are indistinguishable from
+$0.03\,\Rvir$ outward.}
+\label{fig:projections}
+\end{figure*}
+
+\todo{Write the two excursions honestly:}
+\begin{itemize}
+\item $z \le 0.2$: merger timing. halo24122 differs by
+      \measured{$-13.8\%$} in \Mvir{}, but its mass within 300~\kpch{} differs
+      by only \measured{$-11.4\%$}, and halo48014 is \measured{$+7.2\%$} in
+      \Mvir{} against \measured{$-4.6\%$} within 300~\kpch{} --- mass moving
+      between main halo and companion, not appearing or vanishing.
+\item $z = 8$--10: progenitor identification, not resolution. halo21246 falls
+      to \measured{0.46--0.65} while holding \measured{1600--4900} fine
+      particles in both runs; the proto-halo is still several comparable
+      clumps and the two runs disagree over the main branch.
+\end{itemize}
+
+\subsection{The run-to-run noise floor}
+\label{sec:noise-floor}
+
+\pending{Two standalone L3 DM runs repeated at 32 ranks instead of 64 ---
+identical ICs, physics, and binary, with only the MPI decomposition changed.
+This calibrates how much two runs of the same halo differ under a
+perturbation unrelated to multizoom, converting the numbers in
+\S\ref{sec:dm-audit} from an upper bound on the multizoom effect into a
+measurement of it. Halos 42502 (matched to 0.2\%) and 24122 (the outlier).}
+
+\subsection{Baryons}
+\label{sec:gas-audit}
+
+\pending{Sixpack L2 gas at nref7 against the six isolated nref7 runs.
+Expected to be a harsher test than dark matter: star formation is stochastic
+and the H$_2$ prescription is bistable, so a roundoff-level perturbation near
+the ignition threshold can shift ignition timing and move \Mstar{} far more
+than the 0.3\% seen in halo mass.}
+
+\subsection{Code regression}
+\label{sec:regression}
+
+The multizoom patches must be inert for a single zoom, since the same binary
+runs the standalone fleet. With $N=1$, identical nested ICs through the
+patched and unpatched binaries give byte-identical grid hierarchies and
+\emph{exactly} identical particle masses, with position and velocity
+differences at double precision epsilon
+(\measured{$\max |\Delta| \sim 10^{-16}$}).
+The patched build is therefore safe for single-zoom production but is not
+bitwise reproducible against the older one, so the binary must be recorded
+when comparing runs.
+
+% ============================================================================
+\section{Resolution}
+\label{sec:resolution}
+% ============================================================================
+
+\todo{Write up the controlled nref7 vs nref9 experiment} at fixed L2 dark
+matter, \measured{415} matched snapshot pairs across \measured{4} halos.
+
+\begin{figure}
+\plotone{figures/nref7_vs_nref9}
+\caption{Stellar mass growth at nref7 and nref9 at fixed dark matter
+resolution. Gas reservoirs are identical until $z \sim 5$; stellar masses
+diverge by \measured{10--200$\times$}.}
+\label{fig:resolution}
+\end{figure}
+
+\textbf{This is the dominant systematic in the campaign} and it governs how
+the results in \S\ref{sec:results} may be read: an nref7 sample and an nref9
+sample are not interchangeable, and any comparison --- including the
+multizoom validation --- must be made at matched resolution.
+
+% ============================================================================
+\section{First results}
+\label{sec:results}
+% ============================================================================
+
+\subsection{Star formation histories}
+\begin{figure}
+\plotone{figures/sfh_fleet_z0}
+\caption{Star formation histories of the fleet. Halos that form no stars are
+carried as flat dotted lines rather than dropped, since they may ignite at
+higher resolution.}
+\label{fig:sfh}
+\end{figure}
+\todo{}
+
+\subsection{Scaling relations}
+\begin{figure*}
+\plotone{figures/scaling_relations_pooled-targets_z0}
+\caption{Stellar-to-halo mass, mass--metallicity, star-forming main sequence,
+and baryon budget at $z=0$.}
+\label{fig:scaling}
+\end{figure*}
+\todo{}
+
+\subsection{Quenched fraction}
+\label{sec:quenched}
+
+\begin{figure}
+\plotone{figures/quenched_fraction_z0}
+\caption{Quenched fraction against stellar and halo mass, with Wilson
+binomial intervals, compared to ELVES-Field and SAGA background samples.}
+\label{fig:quenched}
+\end{figure}
+
+\paragraph{Definition.} A galaxy is quenched if
+$\mathrm{SFR}(100\,\mathrm{Myr}) = 0$. We deliberately do \emph{not} use
+specific star formation rate: dividing by \Mstar{} mislabels massive
+star-forming galaxies, and a zero-star-particle halo has no defined sSFR at
+all. Halos with no star particles are counted as quenched.
+
+\check{Current sample: 6 of 13 quenched, with a sharp shutoff near
+$\Mvir \approx 3\times10^{9}\,\Msun$. Re-derive at freeze --- the sample is
+growing.}
+
+\todo{Comparison to ELVES-Field (4 of 15 quenched at
+$10^6$--$10^7\,\Msun$) and to the SAGA background analysis, which measures
+quenched fractions only above $\sim 4\times10^{8}\,\Msun$ --- a mass the
+current fleet does not reach, which is itself worth stating.}
+
+\subsection{Environment is not the driver}
+\begin{figure}
+\plotone{figures/environment_quenching_z0}
+\caption{Quenched status against three environment metrics. The fleet was
+selected to be isolated; quenched halos are, if anything, \emph{more}
+isolated than star-forming ones.}
+\label{fig:environment}
+\end{figure}
+\todo{State the caveat plainly: quenched and low-mass are the same halos in
+this sample, so mass and environment are not independent here.}
+
+% ============================================================================
+\section{Discussion}
+\label{sec:discussion}
+% ============================================================================
+\todo{}
+\begin{itemize}
+\item What multizoom does and does not buy. It is an efficiency method, not a
+      physics change; the validation bounds how much structure it perturbs.
+\item Where the method breaks down: mixed target levels, and the
+      $N$-dependence of the timestep tax at large $N$.
+\item Path to the proposal's 250--500 dwarf ambition.
+\item Limitations: single feedback prescription, no local radiation, one
+      cosmology, resolution systematic of \S\ref{sec:resolution}.
+\end{itemize}
+
+% ============================================================================
+\section{Summary}
+\label{sec:summary}
+% ============================================================================
+\todo{Numbered findings, mirroring the abstract.}
+
+\begin{acknowledgments}
+\todo{NASA ATP grant number, NAS/Aitken allocation, Enzo and yt communities.}
+This work used resources of the NASA Advanced Supercomputing (NAS) Division
+at Ames Research Center.
+\end{acknowledgments}
+
+\software{\enzo{} \citep{Bryan2014},
+          \grackle{} \citep{Smith2017},
+          \music{} \citep{Hahn2011},
+          \ahf{} \citep{Knollmann2009},
+          yt \citep{Turk2011},
+          astropy \citep{Astropy2013},
+          numpy \citep{Harris2020},
+          matplotlib \citep{Hunter2007}}
+
+% ============================================================================
+\appendix
+
+\section{Performance optimization}
+\label{app:perf}
+\todo{Summarize the optimization campaign: the subgrid-size floor, the
+measured per-level budget, and what was tried and rejected.}
+
+\paragraph{On reporting negative results.} A parameter sweep over the subgrid
+size floor produced a suggestive \measured{$-10.7\%$} at the smallest value,
+at \measured{2$\sigma$} in a paired per-cycle comparison --- but the four
+configurations ran on four different physical nodes, and node-to-node
+variation on this machine is of the same order as the effect. We report it as
+unresolved rather than as a result. \pending{same-node A/B}
+
+\section{Data management and reproducibility}
+\label{app:data}
+\todo{The halo registry as the single source of truth; the staged pipeline;
+provenance of every run through its build ledger.}
+
+% ============================================================================
+\bibliography{refs}
+\bibliographystyle{aasjournal}
+
+\end{document}
