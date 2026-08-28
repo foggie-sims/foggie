@@ -1,6 +1,0 @@
-# The repository root ignores *.png, which is right for analysis output but
-# wrong here: Overleaf builds the manuscript from what is committed, so the
-# figures it references have to be in the repository. Re-include them for this
-# directory only.
-!*.png
-!*.pdf
