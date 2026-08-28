@@ -121,6 +121,27 @@ over-refinement, and separates C1 from C2. Pair it with a small static region ca
 minimum level in an otherwise empty corner, so the latch has something to latch onto wherever the
 halo sits.
 
+**That differential already exists — build on it, do not rebuild it.** Found 2026-08-27 at
+`foggie-multizoom/runs/multirefine_test/`, a three-arm experiment on halo46615 (1.3e10) plus
+companion 47330 (2.6e9), 425 ckpc/h apart and both wholly in the fine species, restarted at
+z=0.5 for 5 cycles (`run_multirefine_test.sh`). Config lives in the RD0012 restart files, not
+in a `.enzo` deck, which is why a deck-level grep for method 20 does not find it:
+
+| arm | `CellFlaggingMethod` | regions | tests |
+|-----|----------------------|---------|-------|
+| `ctrl` | `4 8` | none | the differential's control arm |
+| `test` | `4 8 20` | 2 boxes, `MinimumLevel = 6` | the floor |
+| `cap`  | `4 8 20` | 2 boxes, `MinimumLevel = 0` | the ceiling |
+
+`ctrl` vs `test` is exactly the recommended differential. This is also the sole source of D2's
+and D3's measurements. Note `MultiRefineRegionMaximumOuterLevel = -99999` (undefined) in all
+three arms, which is the direct confirmation of this entry's point: the outer level C0 asserts
+on was never even set, let alone enforced.
+
+What it does NOT cover, and what an extension should add: live evolving tracks (all three arms
+use static boxes), multiple job legs (5 cycles inside one leg, so D5's restart duplication is
+untouched), and N > 2 regions.
+
 **D3c. RETRACTED — the tenpack does not test multirefine.** This entry previously claimed the
 ten-halo run was "the empirical check" for the method-20 defects, exercising "45 disjoint region
 pairs". That is wrong, and wrong in a way that mattered: it credited work in flight with
