@@ -284,8 +284,67 @@ def _read_catalog(path):
     return ascii_io.read(path, header_start=0, data_start=1)
 
 
+ROCKSTAR_1024 = ("/nobackupnfs1/jtumlins/25Mpc_new_cosmology/halo_catalogs/"
+                 "1024/rockstar_0006")
+_RS1024_CACHE = {}
+
+
+def _rockstar_1024(rs_id):
+    """(centre Mpc/h, Rvir kpc/h) for one halo in the 1024 rockstar catalog.
+
+    Columns are `id num_p mvir mbound_vir rvir vmax rvmax vrms x y z ...`, so
+    id is 0, rvir is 4 and the position is 8:11 -- in Mpc/h, matching the 512
+    catalog's X/Y/Z, which is what lets the two be used interchangeably here.
+    """
+    import glob
+    import numpy as np
+    if not _RS1024_CACHE:
+        rows = []
+        for f in sorted(glob.glob(os.path.join(ROCKSTAR_1024, "halos_0.*.ascii"))):
+            a = np.loadtxt(f, comments="#", ndmin=2)
+            if a.size:
+                rows.append(a)
+        if not rows:
+            raise RuntimeError("no rockstar files under %s" % ROCKSTAR_1024)
+        for r in np.vstack(rows):
+            _RS1024_CACHE[int(r[0])] = ([float(r[8]), float(r[9]), float(r[10])],
+                                        float(r[4]))
+    if int(rs_id) not in _RS1024_CACHE:
+        raise RuntimeError("rockstar id %s not in the 1024 catalog at %s"
+                           % (rs_id, ROCKSTAR_1024))
+    return _RS1024_CACHE[int(rs_id)]
+
+
+def _registry_provenance(halo_id):
+    """(catalog, id_1024) for one halo; (512, None) when unrecorded.
+
+    Which catalog a halo came from is a property of the halo, not of the
+    caller, so it is resolved here. One lookup site means no caller can reach
+    for the wrong catalog.
+    """
+    t = _config.read_registry()
+    if "catalog" not in t.colnames:
+        return 512, None
+    for r in t:
+        if int(r["halo_id"]) == int(halo_id):
+            rs = int(r["id_1024"]) if "id_1024" in t.colnames else -1
+            return int(r["catalog"]), (rs if rs > 0 else None)
+    return 512, None
+
+
 def halo_center_and_radius(box, halo_id, rvir_min=None):
     """Base (L0) halo center in code units and the zoom radius in kpc.
+
+    THE CATALOG IS CHOSEN BY PROVENANCE, NOT BY DEFAULT. Most halos were
+    selected from the 512 parent catalog and are looked up there by ID. A few
+    come from the 1024 rockstar catalog because they have no genuine 512
+    counterpart: below ~50 particles (logM 8.75) the 512 catalog's population
+    is largely spurious, so a real low-mass 1024 halo usually has nothing
+    within 0.5-2.4 Mpc/h of it there. Those rows carry catalog=1024 and
+    id_1024, and their position comes from rockstar.
+
+    enzo-mrp-music only needs a position -- taking it from the wrong catalog
+    would silently centre the zoom on a different object, or on noise.
 
     The radius is Rvir from the catalog, raised to a floor if one applies.  The
     floor can come from the box (script256.py used 200 kpc, script512.py used
@@ -296,12 +355,18 @@ def halo_center_and_radius(box, halo_id, rvir_min=None):
     in its L1.sh -- an argument no version of script512.py ever defined.  That
     intent now lives in the registry instead of in a broken command line.
     """
-    halos = _read_catalog(box.catalog_path())
-    match = halos[halos["ID"] == int(halo_id)]
-    if len(match) != 1:
-        raise RuntimeError("halo %s not found in %s" % (halo_id, box.catalog_path()))
-    center = [float(match[c][0]) / box.boxsize_mpc for c in ("X", "Y", "Z")]
-    rvir = float(match["Rvir"][0])
+    catalog, rs_id = _registry_provenance(halo_id)
+    if catalog == 1024 and rs_id is not None:
+        pos_mpch, rvir = _rockstar_1024(rs_id)
+        center = [c / box.boxsize_mpc for c in pos_mpch]
+    else:
+        halos = _read_catalog(box.catalog_path())
+        match = halos[halos["ID"] == int(halo_id)]
+        if len(match) != 1:
+            raise RuntimeError("halo %s not found in %s"
+                               % (halo_id, box.catalog_path()))
+        center = [float(match[c][0]) / box.boxsize_mpc for c in ("X", "Y", "Z")]
+        rvir = float(match["Rvir"][0])
     floor = rvir_min if rvir_min else box.rvir_floor_kpc
     if floor:
         rvir = max(rvir, float(floor))

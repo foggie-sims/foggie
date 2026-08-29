@@ -288,6 +288,73 @@ rather than one.
 4. **Forced boxes on each**, FOGGIE-style.
 5. **Grouped by multizoom.**
 
+### Intermediate milestone (JT, 2026-08-29): the packed ultra-faint IC set
+
+**"We will fix multirefine when we get there."** Method 20 is explicitly
+deferred; it is not allowed to gate the steps that do not need it. The
+intermediate deliverable is therefore stated separately, and it is reachable
+with the code exactly as it stands today:
+
+> **One multizoom-packed IC set carrying the ultra-faint mass range, advanced
+> to L4 in DM and to nref9 in gas.**
+
+This is well-posed without method 20 because nref9 is *natural* AMR, not forced
+refinement. Every halo in the pack refines on its own overdensity; nothing needs
+a per-halo forced box, so nothing needs a per-halo `MultiRefineRegion`. Steps 4
+and 5 of the sequence -- the forced boxes -- are what wait on C2. Read the
+milestone as **steps 1-3 of the sequence, executed once, for the whole
+ultra-faint set at once, in a single domain.**
+
+What it buys, before any method-20 work exists:
+
+- **The pack itself**, which is the vehicle every later forced run rides on. If
+  the packed ladder cannot reach L4 the forced goal is moot, so this is the
+  right thing to fail at early.
+- **The gas physics at ultra-faint mass at production resolution**, at nref9,
+  for N halos at the cost of roughly one. The H2 prescription's behavior at
+  logM < 9.5 is the open science question and it does not require forcing to
+  ask.
+- **The L4 particle-mass regime** (2.8e3 Msun) across a mass range rather than
+  at one halo.
+
+### Candidate pack and its pre-flight (2026-08-29)
+
+Eleven registry halos span the ultra-faint range, logM 8.11-9.31:
+
+    543386  491413  537545  486694  57194  80181
+    48014   56672   52675   21246   21140
+
+The cheap screen (`halocat/scripts/preflight_multizoom_pack.py`: z=0 catalog
+spheres at a uniform rvir_min = 400 kpc/h, plus a 1.3 Mpc/h Lagrangian drift
+margin) says:
+
+- **54 of 55 pairs clear comfortably**; the tightest of them, 491413/486694,
+  has 0.65 Mpc/h to spare on top of both region radii and both drift margins.
+- **543386 / 537545 do not clear the screen** -- 2.05 Mpc/h apart, which the
+  spheres alone survive but the drift margin does not. They are adjudicated by
+  the exact z=99 trace (`trace_pack_regions.py`, PBS 25059205); if they truly
+  collide the remedy is the documented one -- fold that pair into a single
+  union sub-run -- or drop one, at the cost of a gap in the 0.2-dex ladder.
+- **Patch budget 45 initial grids** (11 halos x 4 zoom levels + root) against
+  Enzo's ceiling of 64. L4 caps a pack at 15 halos; eleven fits.
+- **IC storage is not a constraint and was never the interesting number.** The
+  L4 root grid is 3.0 GB and the pack writes it once; the nested patches are
+  ~0.1 GB per halo per level. Eleven standalone L4 builds would duplicate that
+  root grid eleven times over.
+
+Do **not** pre-flight from the per-halo `initial_particle_positions-*.dat`
+files. Each standalone ladder rewrites its own in ITS OWN shifted frame,
+centred on 0.5, so every cloud appears to sit on top of every other one -- the
+regions look 100% mutually overlapping and the answer is meaningless.
+
+A latent bug found while doing this and fixed the same day: the catalog
+provenance lookup in `pipeline/build.py` used a bare `import config`, which
+resolves only when the pipeline is run as a script. Imported package-style --
+which is exactly how `multizoom/pipeline_integration.py` reaches it -- the
+import failed, was swallowed by a bare `except`, and the halo defaulted to the
+512 catalog. The ultra-faint pack is the **first multizoom group with
+1024-catalog members**, so it would have been the first group to hit it.
+
 ### The dependency this creates: Component C becomes a science blocker
 
 Steps 4 and 5 together **require multirefine, `CellFlaggingMethod = 20`**.
