@@ -355,6 +355,39 @@ import failed, was swallowed by a bare `except`, and the halo defaulted to the
 512 catalog. The ultra-faint pack is the **first multizoom group with
 1024-catalog members**, so it would have been the first group to hit it.
 
+### Built: L1 ICs, 2026-08-29
+
+The exact trace settled the open pair and the pack went in whole. `PASS: 0 of
+55 pairs collide`; tightest is 537545/543386 at **0.464 Mpc/h against a
+0.0122 Mpc/h requirement -- 38x clearance.** The cheap screen's flag on that
+pair was conservative, which is the correct direction for a screen to fail.
+
+L1 merged in 47 minutes: **12 initial grids** (root + 11 halo patches), common
+shift `397, 305, 452`. Nested patches run 12x18x20 to 44x42x30, totalling
+174,872 cells against a 512^3 root -- the eleven zooms add **0.13%** to the root
+grid at L1. Extrapolating the same regions through L4 puts the nested total
+near the root grid's own cell count, so the pack is not storage- or
+memory-limited at any level of the ladder.
+
+`trim_lagrangian_outliers` earned its place: halo80181's raw cloud had **one
+stray particle out of 460** that inflated its hull from 0.019 to 0.129 in y --
+a factor of 4.7, and 24x in volume. Trimmed, its patch is 26x32x30, ordinary
+among the eleven. The pre-flight above was run untrimmed and so overstates
+every region; its PASS is a lower bound on the real clearance.
+
+Two traps, both fixed:
+
+- `FOGGIE_REPO` is the **package** directory, not the checkout -- `catalog_path()`
+  joins it with `initial_conditions/...`, and in the multizoom worktree those
+  are the same path. The first build died in 21 s on a missing catalog.
+- **PBS reported `Exit_status = 0` for that failed build**, because the build
+  script's last line is `echo "exit=$?"`. The `exit=` line in the log is the
+  real signal; the PBS status is not.
+
+The ladder is driven by `runs/multizoom_ultrafaint/advance_ultrafaint.sh`, a
+variant of `advance_group.sh` pointed at the production checkout because only
+that copy resolves 1024-catalog halos by provenance.
+
 ### The dependency this creates: Component C becomes a science blocker
 
 Steps 4 and 5 together **require multirefine, `CellFlaggingMethod = 20`**.
