@@ -242,10 +242,19 @@ def append_mrp_block(ic_dir, level):
 
 
 def run_level_union(params):
-    """One MUSIC run over the union region; per-halo mask deposit."""
+    """One MUSIC run over the union region; per-halo mask deposit.
+
+    `union_output_name` overrides the output directory name.  A union run
+    normally IS the whole IC set, so it takes the plain <sim>-L<n> name.  When
+    a union covers only a SUBSET of a merge group -- the remedy when two
+    halos' patches are closer than the merge clearance -- it is one input
+    among several and needs its own name, or it collides with the merged
+    output it is destined for.
+    """
     conf_file, ic_dir = write_music_conf(
         params, params["union_point_file"],
-        "%s-L%d" % (params["simulation_name"], params["level"]),
+        params.get("union_output_name")
+        or "%s-L%d" % (params["simulation_name"], params["level"]),
         params["region_shift"])
     run_music_exe(params, conf_file, cwd=ic_dir + ".music")
     refinement_mask.particle_only_mask(
