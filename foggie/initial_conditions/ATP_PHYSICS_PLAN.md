@@ -266,6 +266,78 @@ deliverable, they are what unblocks per-halo control in the multizoom production
 
 ---
 
+---
+
+## Component E — Science-grade forced ultra-faints via multizoom
+
+**Stated by JT, 2026-08-29.** A goal alongside the fleet, not a replacement for
+it: take the ultra-faints to science-grade forced-refinement runs, in order to
+study **H2 star formation and feedback in the smallest halos** with FOGGIE-style
+forced boxes, delivered by **multizoom** so that a domain carries N ultra-faints
+rather than one.
+
+### Sequence
+
+1. **Entire fleet to complete L3 DM.** In progress; most halos are there or
+   close, and the ten-halo L3 set for the tenpack comparison is complete.
+2. **A selection up to L4.** L4 is demonstrated: halo80181 built and ran it on
+   2026-08-29 -- 251,071 particles traced, five nested grids, MUSIC at
+   levelmax 13, 77 GB of ICs, ~96 GB written by z = 3.8. Build on a compute
+   node; the login node aborts without a diagnostic.
+3. **Up the gas refinement ladder** on that selection.
+4. **Forced boxes on each**, FOGGIE-style.
+5. **Grouped by multizoom.**
+
+### The dependency this creates: Component C becomes a science blocker
+
+Steps 4 and 5 together **require multirefine, `CellFlaggingMethod = 20`**.
+Per D7, multizoom and multirefine are different code paths, and today's forced
+runs use `ReadEvolveRefineFile` with a single moving `halo_track` box --
+`MustRefineRegionLeftEdge[MAX_DIMENSION]`, one box, no region index. So **a
+multizoom run can force-refine exactly one of its N halos.** Giving every
+ultra-faint in a group its own forced box has no path that avoids method 20.
+
+Component C therefore moves from "efficiency work that can lag" to **on the
+critical path for a stated science goal**. Its state is unchanged and unhappy:
+
+- **C1**, the per-grid latch: bounded, a ~3% surface effect on
+  boundary-straddling grids, low severity (D3).
+- **C2**, the ceiling that is never enforced: the blocker for per-halo control
+  (D-d), and now for this.
+- Method 20 has been exercised **once** -- the halo46615+47330 two-box restart
+  at z = 0.5 (D3b) -- never on live evolving tracks, never across job legs,
+  never at N > 2. Every one of those is required here.
+
+### Second dependency: track construction
+
+A forced box follows a track file, and **a track built from an incomplete
+parent run freezes and loses the galaxy**. halo80181's track carries evolving
+rows only to z = 0.208 and is padded thereafter; its halo left the 143 kpc box
+by 357 kpc and spent the final 2.6 Gyr outside its own forced region
+(\S\ref{sec:trackcaveat} of the paper draft). Tracks must be built from
+completed parents. At N ultra-faints per domain this failure is N-fold and
+correspondingly easier to miss -- a per-halo track/halo offset check belongs in
+the group QC before any group forced run is trusted.
+
+### Why the ultra-faints specifically
+
+They are where the H2 prescription is least constrained and most
+resolution-sensitive. halo80181 forms 2.31e4 Msun of stars forced against
+1.25e3 unforced, a factor of 18, and its star particles run 5.7-101 Msun with a
+median of 19 -- approaching individual-star masses, where the assumption that a
+star particle is a well-sampled simple stellar population fails outright. Three
+fleet halos form no stars at all without forcing; whether they light up with it
+is the experiment now running.
+
+### Order of work implied
+
+- C2 first, then C1 (they ride together).
+- A method-20 test on live evolving tracks across multiple job legs at N > 2 --
+  the halo21140/21151 disjoint pair already has a track built for exactly this
+  and has never been wired into a deck (D3b).
+- Then a small forced multizoom group, before committing the ultra-faint set.
+
+
 ## What already exists
 
 The single most important finding: **two of the three components are substantially built.** The
