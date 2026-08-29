@@ -251,11 +251,17 @@ def run_level_union(params):
     among several and needs its own name, or it collides with the merged
     output it is destined for.
     """
+    sub_run = bool(params.get("union_output_name"))
     conf_file, ic_dir = write_music_conf(
         params, params["union_point_file"],
         params.get("union_output_name")
         or "%s-L%d" % (params["simulation_name"], params["level"]),
-        params["region_shift"])
+        params["region_shift"],
+        # A standalone union IS the whole IC set, so MUSIC may pick whatever
+        # domain shift centres the region.  A union used as one input to a
+        # merge must instead sit in the SAME frame as its siblings, or
+        # merge_runs rejects the set: every run has to share one shift.
+        no_shift=sub_run)
     run_music_exe(params, conf_file, cwd=ic_dir + ".music")
     refinement_mask.particle_only_mask(
         conf_file, smooth_edges=True, backup=True,

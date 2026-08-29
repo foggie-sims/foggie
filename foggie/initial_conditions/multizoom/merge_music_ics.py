@@ -621,12 +621,22 @@ def main(argv=None):
     manifest = merge_runs(args.runs, args.out, base_donor=args.base_donor,
                           min_gap_fine_cells=args.min_gap_cells)
     print("Merged %d grids into %s" % (len(manifest["grids"]), args.out))
-    for field, entry in manifest["base_grid_report"].items():
-        if not entry.get("identical", False):
-            print("Base-grid %s differences vs donor:" % field)
-            for name, stats in entry["diff_vs_donor"].items():
-                print("  %s: max |d| = %.3g, rms = %.3g"
-                      % (name, stats["max_abs"], stats["rms"]))
+    # The report keys are those check_base_grids actually writes. An earlier
+    # version of this loop looked for "identical" and "diff_vs_donor", neither
+    # of which exists, so ANY non-bit-identical merge -- which is the normal
+    # case, since MUSIC's per-run Poisson/2LPT solve leaves residuals --
+    # crashed here with a KeyError AFTER the merge had been written. The merge
+    # was fine; only the summary died, and it took the exit code with it.
+    for field, entry in sorted(manifest["base_grid_report"].items()):
+        if entry.get("fingerprint", False):
+            print("  %-28s bit-identical across runs" % field)
+            continue
+        runs = entry.get("diff_vs_donor_outside_windows") or []
+        print("  %-28s rel_max %.3g  rel_rms %.3g  (%d run%s differ from the "
+              "donor outside their own windows)"
+              % (field, entry.get("rel_max", float("nan")),
+                 entry.get("rel_rms", float("nan")), len(runs),
+                 "" if len(runs) == 1 else "s"))
 
 
 if __name__ == "__main__":
