@@ -388,6 +388,31 @@ The ladder is driven by `runs/multizoom_ultrafaint/advance_ultrafaint.sh`, a
 variant of `advance_group.sh` pointed at the production checkout because only
 that copy resolves 1024-catalog halos by provenance.
 
+### Ladder progress, 2026-08-29
+
+L1, L2 and L3 DM all reached z = 0 the day the pack was created; L4 builds
+automatically behind them. Grid counts assert the structure at every rung --
+12 at L1, 21 at L2, 31 at L3 -- and the L3 manifest shows all ten inputs
+contributing exactly three patches each, which is the check that catches a
+phase silently dropping a halo rather than merely producing a wrong total.
+
+Every level is built by `runs/multizoom_ultrafaint/build_level.sh`, in three
+phases, because 543386 and 537545 must be merged as a union sub-run and **the
+clearance requirement comes from level 1, so it binds identically at L2, L3
+and L4** -- a plain merge build fails at every rung, not just the one where
+the problem was found.
+
+Two fixes made that work, both in the shared package rather than in a
+one-off: a union sub-run needs its own output name (`run_level` otherwise
+renames the product to the canonical `<sim>-L<n>`, which is the MERGED
+output's name, and a ladder driver that decides a level is built by the
+presence of `parameter_file.txt` will then assemble and submit a two-halo run
+as the pack); and it needs `no_shift`, or MUSIC picks its own domain frame and
+`merge_runs` rejects the set. Both were verified to generalize at L3.
+
+Cost so far: **535 GB for eleven halos through two levels**, against 106 GB of
+L4 ICs and 155 GB of L4 DM run for halo80181 alone.
+
 ### The dependency this creates: Component C becomes a science blocker
 
 Steps 4 and 5 together **require multirefine, `CellFlaggingMethod = 20`**.
