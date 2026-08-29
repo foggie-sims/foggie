@@ -16,6 +16,7 @@ import errno
 import fcntl
 import json
 import os
+import socket
 import time
 from contextlib import contextmanager
 
@@ -68,13 +69,38 @@ def guard_unmanaged(halo_dir, sim_name, adopt=False):
 # Locking
 # ---------------------------------------------------------------------------
 
+def _lock_identity(state):
+    return ("%s host=%s pid=%d job=%s at=%s\n"
+            % (state, socket.gethostname(), os.getpid(),
+               os.environ.get("PBS_JOBID", "-"),
+               time.strftime("%Y-%m-%d %H:%M:%S")))
+
+
 @contextmanager
 def halo_lock(halo_dir, timeout=30):
-    """Exclusive lock for one halo, so the hook and the poller cannot race."""
+    """Exclusive lock for one halo, so the hook and the poller cannot race.
+
+    The lock file RECORDS ITS HOLDER, because a bare timeout message is
+    actively misleading. `fcntl.flock` is released by the kernel when the
+    holding process dies, so a leftover lock FILE is never a held lock and an
+    orphaned lock cannot block anyone -- if acquisition times out, some live
+    process really does hold it. But pipeline builds run on compute nodes under
+    PBS, so that holder is invisible to `pgrep` on the login node, and the
+    obvious conclusion ("stale lock, delete it") is both wrong and unsafe:
+    removing the file lets the next process create a new inode and take a
+    second lock, which is exactly the race this exists to prevent. Recording
+    host, pid and PBS job id turns the question into one a person can answer.
+
+    Opened with O_CREAT|O_RDWR and never truncated on entry. The previous
+    `open(path, "w")` truncated BEFORE flock was acquired, so every process
+    that merely waited erased the live holder's identity -- which is why the
+    file was always empty when anyone looked at it.
+    """
     ensure_managed(halo_dir)
     path = os.path.join(pipeline_dir(halo_dir), "lock")
     deadline = time.time() + timeout
-    fp = open(path, "w")
+    fd = os.open(path, os.O_CREAT | os.O_RDWR, 0o664)
+    fp = os.fdopen(fd, "r+")
     try:
         while True:
             try:
@@ -84,11 +110,36 @@ def halo_lock(halo_dir, timeout=30):
                 if exc.errno not in (errno.EAGAIN, errno.EACCES):
                     raise
                 if time.time() > deadline:
-                    raise RuntimeError("Timed out waiting for lock on %s" % path)
+                    try:
+                        fp.seek(0)
+                        who = fp.read().strip() or "(no identity recorded)"
+                    except Exception:
+                        who = "(unreadable)"
+                    raise RuntimeError(
+                        "Timed out after %ds waiting for the lock on %s.\n"
+                        "  Held by: %s\n"
+                        "  A LIVE process holds this. flock is dropped by the "
+                        "kernel when a process dies, so an abandoned lock file "
+                        "cannot block -- do NOT delete it. The holder is most "
+                        "likely a build running on a compute node, which "
+                        "pgrep on the login node cannot see; check the job id "
+                        "above with qstat, or wait for it to finish."
+                        % (timeout, path, who))
                 time.sleep(1)
+        fp.seek(0)
+        fp.truncate()
+        fp.write(_lock_identity("HELD by"))
+        fp.flush()
         yield
     finally:
         try:
+            try:
+                fp.seek(0)
+                fp.truncate()
+                fp.write(_lock_identity("released by"))
+                fp.flush()
+            except Exception:
+                pass
             fcntl.flock(fp, fcntl.LOCK_UN)
         finally:
             fp.close()
