@@ -481,10 +481,27 @@ def dm_ladder(row):
 
 
 def gas_stage(row, include_gas=True):
-    """The gas stage for a row, or None.  Gas runs at the final level only."""
+    """The gas stage for a row, or None.  Gas runs at one level only.
+
+    That level is the DM final_level, CAPPED by the optional `gas_max_level`
+    column. The cap exists because promoting a halo's DM ladder one rung also
+    moves its gas stage, and an L4 gas run is the most expensive thing in the
+    project -- halo80181's is 224 GB against 155 GB for its L4 DM. Deepening
+    the DM ladder should not silently commit to that; set gas_max_level to
+    hold gas at L3 while DM goes to L4, and raise it deliberately.
+
+    Absent the column, behavior is exactly as before.
+    """
     if not include_gas or not bool(row["gas"]):
         return None
-    return (int(row["final_level"]), "gas")
+    level = int(row["final_level"])
+    try:
+        cap = int(row["gas_max_level"])
+    except (KeyError, IndexError, TypeError, ValueError):
+        cap = level
+    if cap > 0:
+        level = min(level, cap)
+    return (level, "gas")
 
 
 def gas_prerequisite(box, halo_id, level):
