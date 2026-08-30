@@ -47,7 +47,7 @@ DEFAULT_WIDTHS_RVIR = (40.0, 8.0, 2.0)
 COARSE_FACTOR = 1.5
 
 
-def center_in_run(box, halo_id, level, halo_dir, rvir_min=None):
+def center_in_run(box, halo_id, level, halo_dir, rvir_min=None, phase="DM"):
     """Halo center in the coordinate frame of the level-N *run*, and Rvir.
 
     Note this is not the same as the center written into the level-N build
@@ -63,7 +63,15 @@ def center_in_run(box, halo_id, level, halo_dir, rvir_min=None):
     rvir = _build.catalog_rvir(box, halo_id)
     if level == 0:
         return np.array(center), rvir, zoom_radius
-    conf_log = os.path.join(halo_dir, "%s-L%d.conf_log.txt" % (box.sim_name, level))
+    # THE GAS STAGE HAS ITS OWN SHIFT. Its ICs are a separate MUSIC run, and
+    # MUSIC picks the domain shift per run: halo80181's L2 DM is
+    # (-212,-69,-250) and its L2 gas is (-201,-96,+250) -- the z component
+    # flips sign, half a box apart. Reading the DM conf log for a gas stage
+    # therefore centres the panel on empty sky. It went unnoticed because L3
+    # and L3-gas happen to share a shift, so only the L2-gas panel was blank.
+    suffix = "-gas" if str(phase) == "gas" else ""
+    conf_log = os.path.join(halo_dir, "%s-L%d%s.conf_log.txt"
+                            % (box.sim_name, level, suffix))
     if not os.path.exists(conf_log):
         raise RuntimeError("No %s -- cannot place the halo in the L%d frame"
                            % (conf_log, level))
@@ -489,7 +497,8 @@ def _density_panel(box, halo_id, halo_dir, level, phase, stage_dir, width_rvir,
         # failed to form.  Skip the stage and say so rather than draw it.
         return dict(label=None, name=name, z=zdump, skipped="not at z = 0")
 
-    center, rvir_kpc, _ = center_in_run(box, halo_id, level, halo_dir)
+    center, rvir_kpc, _ = center_in_run(box, halo_id, level, halo_dir,
+                                        phase=phase)
     center = np.array(center)
     # Rvir and the catalog positions carry the same h and the same comoving
     # convention, so dividing both by the box size in the same units cancels
@@ -916,7 +925,9 @@ def make_neighbor_projection(box, halo_id, level=None, phase="DM", out_path=None
     if snap is None:
         return None, "no dump on disk"
 
-    center, rvir_kpc, _ = center_in_run(box, halo_id, level, halo_dir, rvir_min)
+    # phase matters: the gas stage carries its own MUSIC domain shift.
+    center, rvir_kpc, _ = center_in_run(box, halo_id, level, halo_dir, rvir_min,
+                                        phase=phase)
     center = np.array(center)
     ds = yt.load(snap)
     half_code = float(half_mpch / box.boxsize_mpc)
