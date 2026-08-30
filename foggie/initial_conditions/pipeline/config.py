@@ -319,6 +319,12 @@ BOXES = {
         template_config="25Mpc_DM_512_planck18.conf",
         template_dir="initial_conditions/templates",
         # 4 levels, not 3: halo80181 ran a full L1-L4 ladder successfully.
+        # 4 is also the CEILING, by decision (JT 2026-08-30): the 512 fleet is
+        # not going to L5. L4 already gives 2.76e3 Msun particles, and a 512-L5
+        # would need seed[14] -- levelmin 9 puts it at levelmax 14, past the
+        # last seed the template defines -- so it would be a new realization
+        # rather than another rung. Depth beyond L4 comes from the gas side:
+        # forced refinement and the nref ladder. Do not raise this.
         max_level=4,
         omega_b=0.04576,
         omega_m=0.291,
