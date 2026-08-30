@@ -99,6 +99,17 @@ def locate_halo(rel_kpc, mass, guess_radius_kpc, verbose=True):
     box, and a large one means the halo moved or a different object was
     targeted.
     """
+    # The finest species is defined by a MASS screen, which is only meaningful
+    # among particles of one kind. Hand this star masses and mass.min() is a
+    # few solar masses against 2e5 for L2 dark matter, so "fine" selects stars
+    # and the shrinking sphere either wanders or gives up. load_particles
+    # filters to DM by default; this asserts the caller did not defeat that.
+    if mass.max() / mass.min() > 1e4:
+        raise RuntimeError(
+            "locate_halo: mass range %.3g-%.3g spans %.0fx, which is wider "
+            "than the DM species ladder -- star particles were probably not "
+            "filtered out. Use load_particles(..., dm_only=True)."
+            % (mass.min(), mass.max(), mass.max() / mass.min()))
     fine = mass < COARSE_FACTOR * mass.min()
     if fine.sum() < 50:
         return None
@@ -150,11 +161,27 @@ def last_output(stage_dir):
     return None, None, None, False
 
 
-def load_particles(dataset_path, center, half_width_kpc):
+def load_particles(dataset_path, center, half_width_kpc, dm_only=True):
     """Particle positions (kpc, relative to center) and masses (Msun) in a box.
 
     Reads a region rather than the whole domain: the parent box has 134 million
     particles and only the neighborhood matters here.
+
+    `dm_only` (the DEFAULT) keeps particle types 1 and 4 and drops stars
+    (type 2). Those two types are ALL of the dark matter -- coarse is type 1,
+    must-refine is type 4 -- so this removes stars without removing any DM
+    species, which is why it is safe for the contamination path as well as for
+    centering. Every consumer here screens species by MASS, and a mass screen
+    is only meaningful within one kind of particle.
+
+    It exists because locate_halo selects
+    its "finest" species with `mass < COARSE_FACTOR * mass.min()`, and in a GAS
+    run the minimum mass is a STAR particle: they run down to a few solar
+    masses against 2e5 for L2 dark matter. The finest-species mask then selects
+    only stars, and where a quenched dwarf has fewer than 50 of them the
+    shrinking sphere gives up and the panel reports "halo not located" -- which
+    is exactly what halo80181's L2-gas panel did once its domain shift was
+    fixed. On a DM-only dataset this changes nothing.
     """
     import yt
 
@@ -172,6 +199,17 @@ def load_particles(dataset_path, center, half_width_kpc):
     mass = region["all", "particle_mass"].in_units("Msun").d
     if mass.size == 0:
         return None, None, ds
+
+    if dm_only:
+        try:
+            ptype = np.asarray(region["all", "particle_type"].d, dtype=int)
+        except Exception:
+            ptype = None            # DM-only run: no particle_type field
+        if ptype is not None:
+            keep = (ptype == 1) | (ptype == 4)
+            if keep.any():
+                pos = pos[:, keep]
+                mass = mass[keep]
 
     kpc_per_code = float(ds.quan(1.0, "code_length").in_units("kpc").d)
     delta = pos.T - np.array(center)
