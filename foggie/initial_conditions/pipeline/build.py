@@ -373,6 +373,39 @@ def halo_center_and_radius(box, halo_id, rvir_min=None):
     return center, rvir
 
 
+def _catalog_field(box, halo_id, name, col_1024):
+    """One catalog quantity, FROM THE CATALOG THE HALO CAME FROM.
+
+    halo_center_and_radius resolves provenance; these did not, so a halo
+    selected from the 1024 rockstar catalog was looked up in the 512 list and
+    raised "not found". That is the same defect, one function over: it only
+    surfaced later because the center lookup is called first and, once fixed,
+    let execution reach here. Both callers are diagnostics -- contamination
+    assessment could not run on any 1024-selected halo.
+
+    col_1024 is the column index in the 1024 rockstar ascii: mvir=2, rvir=4.
+    """
+    catalog, rs_id = _registry_provenance(halo_id)
+    if catalog == 1024 and rs_id is not None:
+        import glob
+        import numpy as np
+        for f in sorted(glob.glob(os.path.join(ROCKSTAR_1024, "halos_0.*.ascii"))):
+            a = np.loadtxt(f, comments="#", ndmin=2)
+            if not a.size:
+                continue
+            hit = a[a[:, 0] == int(rs_id)]
+            if len(hit):
+                return float(hit[0][col_1024])
+        raise RuntimeError("rockstar id %s not in the 1024 catalog at %s"
+                           % (rs_id, ROCKSTAR_1024))
+    halos = _read_catalog(box.catalog_path())
+    match = halos[halos["ID"] == int(halo_id)]
+    if len(match) != 1:
+        raise RuntimeError("halo %s not found in %s"
+                           % (halo_id, box.catalog_path()))
+    return float(match[name][0])
+
+
 def catalog_rvir(box, halo_id):
     """The halo's virial radius from the catalog, with no floor applied.
 
@@ -382,11 +415,7 @@ def catalog_rvir(box, halo_id):
     distance in units of an inflated radius understates how far in the coarse
     particles have come.
     """
-    halos = _read_catalog(box.catalog_path())
-    match = halos[halos["ID"] == int(halo_id)]
-    if len(match) != 1:
-        raise RuntimeError("halo %s not found in %s" % (halo_id, box.catalog_path()))
-    return float(match["Rvir"][0])
+    return _catalog_field(box, halo_id, "Rvir", 4)
 
 
 def catalog_mvir(box, halo_id):
@@ -395,11 +424,7 @@ def catalog_mvir(box, halo_id):
     Carries the same h as the positions and Rvir, so it is quoted alongside them
     unconverted; the caller divides by h if it wants physical solar masses.
     """
-    halos = _read_catalog(box.catalog_path())
-    match = halos[halos["ID"] == int(halo_id)]
-    if len(match) != 1:
-        raise RuntimeError("halo %s not found in %s" % (halo_id, box.catalog_path()))
-    return float(match["Mvir"][0])
+    return _catalog_field(box, halo_id, "Mvir", 2)
 
 
 _SHIFT_RE = re.compile(r"setup/shift_([xyz])\s*=\s*(-?\d+)")
