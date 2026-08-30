@@ -369,7 +369,15 @@ BOXES = {
         # 512 at 7 and 256 at 8 both reach 0.545 proper kpc; leaving this at 7
         # would quietly halve the resolution of every 256 gas run.
         gas_max_refine_level=8,
-        max_level=4,
+        # 5, not 4. This box's levelmin is 8, so an L5 zoom is levelmax 13 --
+        # covered by the existing seed table, which stops at seed[13]. The 512
+        # box cannot do the same: its levelmin is 9, so ITS L5 would need
+        # seed[14] and a new realization. The reason to go there is that the
+        # 256 ladder is offset one rung from the 512 one, so 256-L4 matches
+        # 512-L3 in DM particle mass (2.21e4) and 256-L5 matches 512-L4
+        # (2.76e3) -- the resolution-matched comparisons that decide whether
+        # halos drawn from the 256 catalog can be used for science.
+        max_level=5,
         omega_b=0.04576,
         omega_m=0.291,
         rvir_floor_kpc=200.0,
