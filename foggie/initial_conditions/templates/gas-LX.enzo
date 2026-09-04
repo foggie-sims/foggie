@@ -283,9 +283,11 @@ SubgridSizeAutoAdjust       = 1
 # grids at L9 on 128 ranks in a typical nref9 run -- and 58% of wall is then
 # spent waiting at the first Allreduce of every subcycle.  1024 measured
 # -24% wall per root cycle on a live nref9 run (same node, 2026-09-04,
-# perf_bench/LEDGER.md) at a -5% star-count systematic that JT accepted on
-# 2026-08-24; 512 gives -35% at -8% stars and is not the default.
-SubgridSizeAutoAdjustMinimum = 1024
+# perf_bench/LEDGER.md); 512 gives -35%.  The "star deficit" that comes
+# with it (-5% / -8% in particle COUNT) is star formation in grid-padding
+# cells that were refined by accident of grid geometry -- total stellar
+# mass formed is unchanged to 1.4% -- and JT chose 512 on 2026-09-04.
+SubgridSizeAutoAdjustMinimum = 512
 OptimalSubgridsPerProcessor = 16
 
 #
