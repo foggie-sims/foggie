@@ -463,6 +463,21 @@ is the experiment now running.
 - Then a small forced multizoom group, before committing the ultra-faint set.
 
 
+### Progress note — 2026-09-04
+
+- Step 1 done: all enabled halos at L3 DM. Step 2 exceeded: the whole fleet was promoted to
+  L4 (39/45 at z=0, the massive end finishing). halo59186 was **discarded** — a 4.1 Mpc/h
+  filament makes it unreliable as an isolated object, and its L4 MUSIC build needed >427 GB.
+  Fleet is 45 halos.
+- Step 3 in progress: L3-gas at z=0 for 19 halos, 26 running, the logM > 10 set parked.
+  L4-gas running for 543386 and 80181. **L2-gas is closed** (JT, 2026-09-03): the 18 L2/L3
+  z=0 pairs show M200c and f_baryon converged to 10–20% but nref8 *never* ignites star
+  formation below 2e9 M☉; the 31 finished L2-gas runs are a convergence control only.
+- Two resolution controls running: the fixed-hydro sweep (nref9 gas, DM L2/L3/L4) on
+  80181, 47314, 56672; and a no-feedback 80181 L4-gas run against the fiducial to separate
+  UV-background from feedback quenching.
+- Steps 4–5 unchanged: blocked on C2. No work started.
+
 ## What already exists
 
 The single most important finding: **two of the three components are substantially built.** The
@@ -697,6 +712,69 @@ restart. Verify particle counts survive `CommunicationUpdateStarParticleCount` a
 `StarParticleFinalize.C`.
 
 ---
+
+### Status addendum — 2026-09-04: scoped against the tree, deliberately not started
+
+**Decision (JT, 2026-09-04): B is scoped but we are not ready to implement it.** This
+addendum records what a scoping pass against `atp-dwarfs-dev` found, so the work can start
+from facts rather than from the 2026-08-01 sketch above. Nothing below has been coded.
+
+**What the tree already provides**
+
+- The "small aggregate" half of §5.2.1 is delivered: per-region minimum star mass makes
+  6–100 M☉ particles in the forced runs today. The greenfield is the *hybrid* scheme,
+  individual stars above ≈ 8 M☉.
+- ActiveParticle framework: 12 types compiled; `ParticleAttributeHandler` drives HDF5 IO,
+  MPI packing and grid transfer generically. `ActiveParticle_Skeleton.C` is 309 lines.
+- IMF sampler: `Star::AssignFinalMassFromIMF` (table-based inverse CDF). The legacy `Star`
+  class carries `FinalMass`, `LifeTime`, `HitEndpoint` for single stars.
+- Cassi's `TestMultiStarParticle` problem (Fibonacci-shell placement of many star particles
+  in a sphere) is a ready feedback harness.
+- **Caution the sketch missed:** `ActiveParticleType_PopIII::EvaluateFeedback` in this tree
+  is an empty stub. There is no worked example of *time-delayed per-particle feedback* on
+  the AP path; the pattern must come from the legacy `Star` class.
+
+**What has to be built, in dependency order**
+
+0. **Per-star yield tables — the item the sketch underweights.** The production SYGMA table
+   (`sygma_feedback_table_1000.h5`) is an SSP product: `ejecta_mass`, `ejecta_metal_mass`,
+   `sne_event_rate` on 8 metallicities × 1000 population ages, with *no initial-mass axis*.
+   Per-star feedback needs ejecta mass, metal mass, energy and lifetime as functions of
+   (initial mass, Z): a new NuGrid/SYGMA product, a *recorded* generation recipe (the current
+   table has none — see Risks), and a reader in Enzo.
+0b. **A truncated SSP table for the aggregate.** With stars above the threshold tracked
+   individually, the aggregate must draw from an SSP table whose IMF is cut at the threshold,
+   or every CCSN is counted twice. Same pipeline as item 0; the SNIa DTD (B4) rides inside it.
+1. **B1** `MassiveStar` AP type: birth time, initial mass, current mass, metallicity,
+   endpoint type.
+2. **B2** sampling at formation: `star_maker_h2reg.F` returns arrays (mp, tcp, tdp, metalf)
+   to `Grid_StarParticleHandler.C`, which stamps them type 2 at lines ~979–1018. The
+   massive-end IMF draw per cell, one AP per draw, residual into the aggregate, all go there.
+   First unit test: mass budget closes exactly.
+3. **B3** per-star feedback: `star_feedback6.F` (2158 lines) admits only `type(n) .eq. 2`
+   with the SSP tables. Factor its deposition kernel (mechanical momentum/energy split) into
+   a routine callable per event; invoke at each MassiveStar's lifetime endpoint with the
+   per-star yields; new STARFEED bit so the two paths never double count.
+4. **B5** restart round-trips of AP particles, counts through
+   `CommunicationUpdateStarParticleCount`, and on the analysis side halocat catalogs, which
+   sum type 2 only and would silently omit the massive stars.
+
+**Effort:** roughly two developer-months for someone who knows the tree — a week each for
+the tables and B1, a week for B2, two to three for B3, the rest for restart tests and the
+analysis path. Keep B after the multi-refine repairs (C2/C1) and A1–A3 as sequenced above,
+with one change: **build the yield tables first, in parallel** — they gate B3 and are pure
+data work.
+
+**Decision the science team must take before any of it starts:** the committed gas
+templates carry `StarMakerMinimumMass = 10000` while every completed run used 10. With
+individual stars the residual aggregate per event can be a few solar masses, so that
+parameter and the ≈ 8 M☉ threshold must be chosen together.
+
+**Related, settled 2026-09-04:** collisional heating of light star particles by DM particles
+is not a concern at L3 or L4 (relaxation time ≥ 7–15× the Hubble time at the stellar
+half-mass radius at L3, ≥ 100× at L4; L2 fails). Appendix in the paper draft
+(`app:relaxation`, `halocat/scripts/plot_relaxation_time.py`). Since the scattered
+particle's mass does not enter, small star particles do not change this conclusion.
 
 ## Component C — Multi-refine (§5.2.3)
 
