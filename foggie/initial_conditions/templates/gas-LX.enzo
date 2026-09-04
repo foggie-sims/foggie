@@ -59,9 +59,28 @@ DataDumpName     = DD
 RedshiftDumpName = RD
 RedshiftDumpDir  = RD
 
-dtDataDump 	 = 0        // no periodic DD dumps: the 266-entry redshift list
-                          // below already provides the analysis cadence, and
-                          // DD dumps merely duplicate it at ~28 TB per run.
+dtDataDump 	 = __DT_DATA_DUMP__  // DD dumps every N code-time units, for
+                          // RESTART granularity ONLY.  They are DELETED once the
+                          // run reaches z = 0, so they cost transient disk.
+                          //
+                          // NOT 10, and emphatically not 1.  Every dump in these
+                          // runs is 38-41 GB whatever the redshift -- the 512^3
+                          // root grid with ~30 baryon fields is ~32 GB before any
+                          // refinement -- so DD cadence is expensive at every
+                          // epoch.  dtDataDump = 1 (21.14 Myr) would write 642
+                          // dumps = 24.4 TB per run and add 7-20% wall in I/O,
+                          // and 367 of those 642 land at z < 1 where the refine
+                          // track is already accurate to 0.1 ckpc/h.
+                          //
+                          // Track quality is bought in the RD list instead:
+                          // outputs_71_track.txt spends its extra outputs at
+                          // z > 7, where the box moves 30-50 ckpc/h between rows
+                          // against a 50 ckpc/h half-width and where nothing had
+                          // been measured, for 28 dumps.  DD dumps do not and
+                          // cannot supply a track anyway: a FOGGIE track is
+                          // Lagrangian off the z = 0 particle set, so it can only
+                          // be derived from a COMPLETED pass, never on the fly.
+                          //
                           // dtRestartDump still checkpoints before the wall.
 dtRestartDump    = __RESTART_DUMP_SECONDS__  // wallclock checkpoint before the PBS wall
 
@@ -157,11 +176,12 @@ RebuildHierarchyCycleSkip[10] = 2
 # per-cycle budget is the measurement there.
 TimingCycleSkip = 10
 
-# Output cadence copied verbatim from the completed gas runs, all of which
-# use this 266-entry list.  dtDataDump does NOT supply the analysis cadence
-# for these runs -- every one of them wrote its outputs from this list and
-# essentially no DD dumps.  The entry at z = 15 is load-bearing: it is the
-# dump the second leg restarts from after the cooling transition.
+# Output cadence.  Substituted from config.Box.gas_outputs_for(); production
+# gas runs now take outputs_71_track.txt (FOGGIE 43 + high-z track cadence +
+# four fill-ins at z = 5.5/4.5/3.75/3.25).  dtDataDump does NOT supply the
+# analysis cadence, and does not supply the refine track either -- see above.
+# The entry at z = 15 is load-bearing: it is the dump the second leg restarts
+# from after the cooling transition, and every list here must contain one.
 __OUTPUT_REDSHIFTS__
 
 
@@ -258,6 +278,14 @@ WriteFeedbackLogFiles              = 0
 #
 
 SubgridSizeAutoAdjust       = 1
+# Floor on the auto-adjusted MaximumSubgridSize (T0.3, PR #73).  The code
+# default of 2000 leaves the deep levels with fewer grids than ranks -- 84
+# grids at L9 on 128 ranks in a typical nref9 run -- and 58% of wall is then
+# spent waiting at the first Allreduce of every subcycle.  1024 measured
+# -24% wall per root cycle on a live nref9 run (same node, 2026-09-04,
+# perf_bench/LEDGER.md) at a -5% star-count systematic that JT accepted on
+# 2026-08-24; 512 gives -35% at -8% stars and is not the default.
+SubgridSizeAutoAdjustMinimum = 1024
 OptimalSubgridsPerProcessor = 16
 
 #

@@ -113,7 +113,26 @@ class Box:
     # Changing this mid-ladder makes levels incomparable -- the same RD number
     # then means a different redshift -- so runs already on disk keep the
     # cadence they were built with.  Only newly built gas stages are affected.
+    #
+    # 2026-09-01, SECOND PASS: outputs_71_track.txt replaces outputs_43_foggie.txt.
+    # The 43-entry FOGGIE list is fine for science but thin for a forced-refine
+    # track, and it is thinnest exactly where nothing had been measured.
+    # Subsampling our two fine tracks and interpolating back, at z < 6 against a
+    # 50 ckpc/h box half-width:  43-list max 3.00 (halo15659) / 5.63 (halo80181)
+    # ckpc/h, 71-list max 2.00 / 2.56.  Above z = 7 there is no measurement at
+    # all -- outputs_266.txt is IDENTICAL to the 43-list up there -- while
+    # consecutive rows step 30-50 ckpc/h, comparable to the half-width itself.
+    # The 71-list adds a uniform 21.14 Myr (1 code time unit) grid over z > 7,
+    # which costs only 28 dumps because z = 99 -> 7 is 745 Myr of cosmic time,
+    # plus four fill-ins at z = 5.5/4.5/3.75/3.25 in the 43-list's worst gap.
+    # Nothing is added below z = 3, where the track is already flat to
+    # 0.1 ckpc/h.  71 x ~39 GB = 2.8 TB/run, still below the 3.7 TB the halos
+    # on outputs_266.txt are producing.  See templates/outputs_71_track.txt.
     dm_output_list: str = "outputs_15.txt"
+    # 2026-09-02: L2-gas is the comparison arm, not a track source, and 16
+    # dumps vs 71 is 2.2 TB/run at a moment when the fleet is 83 TB from
+    # quota.  gas_output_list_deep stays at 71: L3+/L4 gas is where
+    # make_root_track.py gets forced-refinement tracks.
     gas_output_list: str = "outputs_16_gas.txt"
     # DEPLOYED 2026-08-27: enzo-perf-on-fcf.exe, built from branch perf-on-fcf,
     # which is a STRICT SUPERSET of fcf-on-cassi (0 commits missing) plus six
@@ -137,7 +156,7 @@ class Box:
     # RebuildHierarchy at level 5 on the L3 stages -- plus the mechanical
     # feedback and PPM NaN-laundering fixes on top of it.  Do not point this
     # back at a tree without both.  Keep templates/simrun.pl's fallback in sync.
-    enzo_exe: str = "/home1/jtumlins/nobackup/enzo-foggie-feedback-fix/src/enzo/enzo-perf-on-fcf.exe"
+    enzo_exe: str = "/home1/jtumlins/nobackup/enzo-frozen-binaries/enzo-atp-instr-a9373b37.exe"
     music_exe_dir: str = None       # defaults to FOGGIE_REPO/initial_conditions/music
     email: str = "tumlinson@stsci.edu"
     group_list: str = "s3128"
@@ -197,7 +216,13 @@ class Box:
     # directly comparable; it gives a median step of 29 ckpc/h and the same
     # maximum (49) as the full 266, because that ceiling is set by the halo's
     # motion rather than by the sampling.
-    gas_output_list_deep: str = "outputs_100_gas.txt"
+    gas_output_list_deep: str = "outputs_71_track.txt"
+    # DD dumps are restart granularity, not science: dtRestartDump already
+    # checkpoints before the PBS wall.  Deep gas keeps them because a dense
+    # dump record is what make_root_track.py reads; shallow gas is the
+    # comparison arm and 31 DDs would be twice the disk of its 16 RDs.
+    gas_dtdatadump: int = 0
+    gas_dtdatadump_deep: int = 20
     # Zoom depth at or beyond which the deep list is used.  L3 zooms are the
     # ones we intend to run forced-refinement boxes on.
     gas_deep_level: int = 3
@@ -308,6 +333,12 @@ class Box:
         if int(level) >= int(self.gas_deep_level):
             return self.gas_output_list_deep
         return self.gas_output_list
+
+    def gas_dtdatadump_for(self, level):
+        """dtDataDump for a gas run at this zoom depth.  See gas_outputs_for."""
+        if int(level) >= int(self.gas_deep_level):
+            return self.gas_dtdatadump_deep
+        return self.gas_dtdatadump
 
 
 BOXES = {
