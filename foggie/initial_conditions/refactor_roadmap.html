@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IC Pipeline Refactor — Roadmap</title>
+<style>
+  :root {
+    --bg:        #ffffff;
+    --surface:   #f6f7f9;
+    --surface-2: #eceef2;
+    --text:      #16181d;
+    --muted:     #5c6370;
+    --line:      #d3d7de;
+    --build:     #2f6fb5;
+    --build-bg:  #e4eef9;
+    --run:       #6247aa;
+    --run-bg:    #ebe6f7;
+    --adv:       #1f7a52;
+    --adv-bg:    #e0f2e9;
+    --warn:      #a8571b;
+    --warn-bg:   #fbeee0;
+    --frozen:    #6b7280;
+    --frozen-bg: #eceef2;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:        #14161a;
+      --surface:   #1b1e24;
+      --surface-2: #232730;
+      --text:      #e6e8ec;
+      --muted:     #9aa1ad;
+      --line:      #333944;
+      --build:     #7fb2e8;
+      --build-bg:  #1c2b3d;
+      --run:       #b39ded;
+      --run-bg:    #282140;
+      --adv:       #5fce9d;
+      --adv-bg:    #14312a;
+      --warn:      #e0a86a;
+      --warn-bg:   #35281a;
+      --frozen:    #8b93a1;
+      --frozen-bg: #232730;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--text);
+    font-family: var(--sans);
+    font-size: 16px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 48px 28px 96px; }
+
+  header { border-bottom: 2px solid var(--line); padding-bottom: 22px; margin-bottom: 36px; }
+  h1 { font-size: 30px; line-height: 1.25; margin: 0 0 8px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 16px; margin: 0; }
+  .meta { margin-top: 16px; font-size: 13px; color: var(--muted); font-family: var(--mono); }
+  .meta span { display: inline-block; margin-right: 18px; }
+
+  h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.09em;
+    color: var(--muted); font-weight: 700;
+    margin: 52px 0 6px; padding-bottom: 8px; border-bottom: 1px solid var(--line);
+  }
+  h2:first-of-type { margin-top: 8px; }
+  .lede { font-size: 16px; margin: 14px 0 22px; max-width: 78ch; }
+
+  code { font-family: var(--mono); font-size: 0.88em; background: var(--surface-2);
+         padding: 1px 5px; border-radius: 3px; }
+
+  figure { margin: 0 0 8px; }
+  .scroll { overflow-x: auto; padding-bottom: 6px; }
+  svg { display: block; }
+  figcaption { font-size: 13.5px; color: var(--muted); margin-top: 10px; max-width: 82ch; }
+
+  /* SVG theming via classes so dark mode works */
+  .s-label   { font-family: var(--sans); font-size: 13px; font-weight: 600; fill: var(--text); }
+  .s-small   { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+  .s-tiny    { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
+  .s-head    { font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: .08em; }
+  .box-build { fill: var(--build-bg); stroke: var(--build); stroke-width: 1.5; }
+  .box-run   { fill: var(--run-bg);   stroke: var(--run);   stroke-width: 1.5; }
+  .box-adv   { fill: var(--adv-bg);   stroke: var(--adv);   stroke-width: 1.5; }
+  .box-plain { fill: var(--surface);  stroke: var(--line);  stroke-width: 1.5; }
+  .box-warn  { fill: var(--warn-bg);  stroke: var(--warn);  stroke-width: 1.5; }
+  .box-future{ fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 5 4; }
+  .t-build { fill: var(--build); } .t-run { fill: var(--run); }
+  .t-adv   { fill: var(--adv); }   .t-warn { fill: var(--warn); }
+  .t-muted { fill: var(--muted); }
+  .flow    { stroke: var(--line); stroke-width: 1.8; fill: none; }
+  .flow-adv{ stroke: var(--adv);  stroke-width: 2;   fill: none; }
+  .flow-dash { stroke: var(--muted); stroke-width: 1.6; fill: none; stroke-dasharray: 5 4; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; margin: 6px 0 8px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 700; }
+  td:first-child { white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .phases { list-style: none; padding: 0; margin: 18px 0 0; }
+  .phases li {
+    position: relative; padding: 0 0 26px 52px; border-left: 2px solid var(--line); margin-left: 15px;
+  }
+  .phases li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  .phases .n {
+    position: absolute; left: -16px; top: -2px; width: 30px; height: 30px; border-radius: 50%;
+    background: var(--surface-2); border: 2px solid var(--line); color: var(--text);
+    font-family: var(--mono); font-size: 13px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .phases li.gate .n { background: var(--adv-bg); border-color: var(--adv); color: var(--adv); }
+  .phases .ttl { font-weight: 700; font-size: 16px; display: block; margin-bottom: 2px; }
+  .phases .body { color: var(--muted); font-size: 14.5px; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; margin-top: 18px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; }
+  .card h3 { margin: 0 0 6px; font-size: 14px; letter-spacing: 0.01em; }
+  .card p { margin: 0; font-size: 14px; color: var(--muted); }
+  .card.tier1 { border-left: 4px solid var(--adv); }
+  .card.tier2 { border-left: 4px solid var(--build); }
+  .card.tier3 { border-left: 4px solid var(--warn); }
+
+  .note {
+    background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--warn);
+    border-radius: 6px; padding: 14px 18px; margin: 22px 0; font-size: 14.5px;
+  }
+  .note strong { color: var(--warn); }
+
+  footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--line);
+           font-size: 13px; color: var(--muted); font-family: var(--mono); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Automating the 25&nbsp;Mpc zoom IC&nbsp;→&nbsp;Enzo pipeline</h1>
+  <p class="sub">Refactor roadmap — replacing the hand-driven <code>script512.py</code> / <code>script256.py</code> workflow
+     with a registry-driven, self-advancing pipeline.</p>
+  <p class="meta">
+    <span>branch: ics_refactor</span>
+    <span>base: master @ e20f8bf8</span>
+    <span>plan: REFACTOR_PLAN.md</span>
+  </p>
+</header>
+
+<h2>The problem</h2>
+<p class="lede">
+  Every refinement level needs a human. Submit <code>L1.sh</code>, wait hours-to-days for Enzo to reach
+  <code>RD0265</code>&nbsp;(z&nbsp;=&nbsp;0), notice it finished, hand-submit <code>L2.sh</code>, repeat.
+  Nothing reports fleet state except <code>tail</code>-ing <code>OutputLog</code>. The cost is idle machine time
+  between levels and silent stalls — <code>halo15097/25Mpc_DM_512-L1</code> died at <code>RD0259</code> on a
+  walltime kill and simply sat there.
+</p>
+
+<h2>The pathway</h2>
+<p class="lede">
+  Each level is two jobs: a small <strong>build</strong> job that generates ICs, and a large <strong>run</strong> job
+  that evolves them to z&nbsp;=&nbsp;0. The green <code>advance</code> hook is the piece that does not exist today —
+  the manual gap it closes is marked in orange.
+</p>
+
+<figure>
+<div class="scroll">
+<svg width="1130" height="400" viewBox="0 0 1130 400" role="img"
+     aria-label="Pipeline pathway: registry feeds L1 build and run, advance triggers L2, then L3, then a future gas stage.">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--line)"/>
+    </marker>
+    <marker id="ah-adv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--adv)"/>
+    </marker>
+    <marker id="ah-mut" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted)"/>
+    </marker>
+  </defs>
+
+  <!-- lane labels -->
+  <text x="8" y="86"  class="s-head t-build">BUILD</text>
+  <text x="8" y="99"  class="s-tiny">1 core</text>
+  <text x="8" y="110" class="s-tiny">devel</text>
+  <text x="8" y="222" class="s-head t-run">RUN</text>
+  <text x="8" y="235" class="s-tiny">64 rank</text>
+  <text x="8" y="246" class="s-tiny">mil_ait</text>
+
+  <!-- registry -->
+  <rect x="76" y="14" width="978" height="34" rx="6" class="box-plain"/>
+  <text x="90" y="30"  class="s-label">halo_registry.ecsv</text>
+  <text x="90" y="43"  class="s-small">hand-curated · halo_id · final_level · gas · queue — the only thing you edit</text>
+  <path d="M 176 48 V 66" class="flow" marker-end="url(#ah)"/>
+
+  <!-- ============ L1 ============ -->
+  <rect x="76" y="68" width="200" height="72" rx="7" class="box-build"/>
+  <text x="90" y="88"  class="s-label t-build">L1 · build ICs</text>
+  <text x="90" y="105" class="s-small">enzo-mrp-music → MUSIC</text>
+  <text x="90" y="118" class="s-small">render .enzo + RunScript</text>
+  <text x="90" y="131" class="s-small">qsub</text>
+  <path d="M 176 140 V 186" class="flow" marker-end="url(#ah)"/>
+
+  <rect x="76" y="188" width="200" height="86" rx="7" class="box-run"/>
+  <text x="90" y="208" class="s-label t-run">L1 · Enzo run</text>
+  <text x="90" y="225" class="s-small">simrun.pl + enzo.exe</text>
+  <text x="90" y="238" class="s-small">self-resubmits on walltime</text>
+  <text x="90" y="255" class="s-small">└ until RD0265  (z = 0)</text>
+  <text x="90" y="268" class="s-small">writes RunFinished</text>
+
+  <!-- advance L1 -> L2 -->
+  <path d="M 276 231 H 306 V 104 H 344" class="flow-adv" marker-end="url(#ah-adv)"/>
+  <rect x="262" y="292" width="120" height="42" rx="6" class="box-adv"/>
+  <text x="274" y="309" class="s-label t-adv">advance</text>
+  <text x="274" y="325" class="s-small">no-op unless DONE</text>
+  <path d="M 306 292 V 240" class="flow-adv" marker-end="url(#ah-adv)"/>
+
+  <!-- ============ L2 ============ -->
+  <rect x="346" y="68" width="200" height="72" rx="7" class="box-build"/>
+  <text x="360" y="88"  class="s-label t-build">L2 · build ICs</text>
+  <text x="360" y="105" class="s-small">reads L1 outputs to trace</text>
+  <text x="360" y="118" class="s-small">the Lagrangian region</text>
+  <text x="360" y="131" class="s-small">levelmax 9 → 11</text>
+  <path d="M 446 140 V 186" class="flow" marker-end="url(#ah)"/>
+
+  <rect x="346" y="188" width="200" height="86" rx="7" class="box-run"/>
+  <text x="360" y="208" class="s-label t-run">L2 · Enzo run</text>
+  <text x="360" y="225" class="s-small">→ RD0265</text>
+
+  <path d="M 546 231 H 576 V 104 H 614" class="flow-adv" marker-end="url(#ah-adv)"/>
+  <text x="556" y="169" class="s-tiny t-adv">advance</text>
+
+  <!-- ============ L3 ============ -->
+  <rect x="616" y="68" width="200" height="72" rx="7" class="box-build"/>
+  <text x="630" y="88"  class="s-label t-build">L3 · build ICs</text>
+  <text x="630" y="105" class="s-small">levelmax 9 → 12</text>
+  <text x="630" y="118" class="s-small">MustRefine → level 3</text>
+  <path d="M 716 140 V 186" class="flow" marker-end="url(#ah)"/>
+
+  <rect x="616" y="188" width="200" height="86" rx="7" class="box-run"/>
+  <text x="630" y="208" class="s-label t-run">L3 · Enzo run</text>
+  <text x="630" y="225" class="s-small">→ RD0265</text>
+  <text x="630" y="242" class="s-small">final DM level</text>
+
+  <path d="M 816 231 H 846 V 104 H 884" class="flow-dash" marker-end="url(#ah-mut)"/>
+  <text x="826" y="169" class="s-tiny t-muted">advance</text>
+
+  <!-- ============ gas (future) ============ -->
+  <rect x="886" y="68" width="168" height="206" rx="7" class="box-future"/>
+  <text x="900" y="88"  class="s-label t-muted">L3 · gas</text>
+  <text x="900" y="106" class="s-small">MUSIC direct</text>
+  <text x="900" y="119" class="s-small">baryons = yes</text>
+  <text x="900" y="132" class="s-small">→ RD0265</text>
+  <rect x="900" y="150" width="88" height="20" rx="10" class="box-plain"/>
+  <text x="911" y="164" class="s-tiny">PHASE 5</text>
+  <text x="900" y="192" class="s-small">registry column</text>
+  <text x="900" y="205" class="s-small">gas = True</text>
+  <text x="900" y="222" class="s-small">designed in now,</text>
+  <text x="900" y="235" class="s-small">enabled later</text>
+
+  <!-- manual-today callout -->
+  <rect x="76" y="352" width="740" height="38" rx="6" class="box-warn"/>
+  <text x="90" y="368" class="s-label t-warn">Today, every one of those green arrows is a human.</text>
+  <text x="90" y="383" class="s-small">You watch OutputLog, notice RD0265, and hand-submit the next level. That is the entire thing being removed.</text>
+</svg>
+</div>
+<figcaption>
+  Levels are strictly sequential: level&nbsp;N's ICs cannot be built until level&nbsp;N−1 has reached z&nbsp;=&nbsp;0,
+  because enzo-mrp-music loads those outputs with yt to trace the Lagrangian region back to z&nbsp;=&nbsp;99.
+</figcaption>
+</figure>
+
+<h2>Per-stage state machine</h2>
+<p class="lede">
+  A stage is <code>(halo, box, level, phase)</code>. Its state is a pure function of files already on disk —
+  no database, no bookkeeping to corrupt. That is what makes <code>advance</code> idempotent and safe to call
+  from two places at once.
+</p>
+
+<figure>
+<div class="scroll">
+<svg width="1010" height="250" viewBox="0 0 1010 250" role="img"
+     aria-label="State machine: BLOCKED to READY to BUILDING to QUEUED to RUNNING to DONE, with STALLED as a terminal branch requiring a human.">
+  <defs>
+    <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--line)"/>
+    </marker>
+    <marker id="ah2-w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--warn)"/>
+    </marker>
+  </defs>
+
+  <rect x="10"  y="40" width="128" height="52" rx="7" class="box-plain"/>
+  <text x="24"  y="62" class="s-label">BLOCKED</text>
+  <text x="24"  y="78" class="s-small">prev not DONE</text>
+  <path d="M 138 66 H 174" class="flow" marker-end="url(#ah2)"/>
+
+  <rect x="176" y="40" width="128" height="52" rx="7" class="box-plain"/>
+  <text x="190" y="62" class="s-label">READY</text>
+  <text x="190" y="78" class="s-small">no IC dir yet</text>
+  <path d="M 304 66 H 340" class="flow" marker-end="url(#ah2)"/>
+
+  <rect x="342" y="40" width="128" height="52" rx="7" class="box-build"/>
+  <text x="356" y="62" class="s-label t-build">BUILDING</text>
+  <text x="356" y="78" class="s-small">MUSIC job live</text>
+  <path d="M 470 66 H 506" class="flow" marker-end="url(#ah2)"/>
+
+  <rect x="508" y="40" width="128" height="52" rx="7" class="box-run"/>
+  <text x="522" y="62" class="s-label t-run">QUEUED / RUNNING</text>
+  <text x="522" y="78" class="s-small">qstat says Q · R</text>
+  <path d="M 636 66 H 672" class="flow" marker-end="url(#ah2)"/>
+
+  <rect x="674" y="40" width="150" height="52" rx="7" class="box-adv"/>
+  <text x="688" y="62" class="s-label t-adv">DONE</text>
+  <text x="688" y="78" class="s-small">RD0265 + RunFinished</text>
+
+  <path d="M 824 66 H 860 V 30" class="flow-adv" marker-end="url(#ah-adv)"/>
+  <text x="838" y="22" class="s-tiny t-adv">→ next level</text>
+
+  <!-- stalled -->
+  <path d="M 572 92 V 150" class="flow" stroke="var(--warn)" marker-end="url(#ah2-w)"/>
+  <rect x="466" y="152" width="240" height="60" rx="7" class="box-warn"/>
+  <text x="480" y="174" class="s-label t-warn">STALLED</text>
+  <text x="480" y="190" class="s-small">no live job · not DONE</text>
+  <text x="480" y="203" class="s-small">walltime kill · "in trouble!" · crash</text>
+  <text x="722" y="180" class="s-small t-warn">deliberately does NOT auto-retry —</text>
+  <text x="722" y="195" class="s-small t-warn">resubmitting into the same wall burns allocation</text>
+
+  <text x="10" y="180" class="s-small">Detected from:</text>
+  <text x="10" y="196" class="s-small">OutputLog · RunFinished</text>
+  <text x="10" y="209" class="s-small">qstat -x · .message</text>
+  <text x="10" y="222" class="s-small">pbs_output_*.txt</text>
+</svg>
+</div>
+<figcaption>
+  <code>DONE</code> means the <code>OutputLog</code> tail names the final redshift dump <em>and</em> <code>RunFinished</code> exists.
+  The final dump index is read from the stage's own <code>.enzo</code> file rather than hardcoded to <code>RD0265</code>,
+  so it survives any change to the output list.
+</figcaption>
+</figure>
+
+<h2>Two triggers, one engine</h2>
+
+<figure>
+<div class="scroll">
+<svg width="980" height="230" viewBox="0 0 980 230" role="img"
+     aria-label="Job-chained hook and periodic poller both call the same idempotent advance engine.">
+  <defs>
+    <marker id="ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--line)"/>
+    </marker>
+  </defs>
+
+  <rect x="10" y="16" width="290" height="76" rx="7" class="box-run"/>
+  <text x="26" y="38" class="s-label t-run">1 · Job-chained  — primary</text>
+  <text x="26" y="55" class="s-small">last line of RunScript.sh, after simrun.pl</text>
+  <text x="26" y="70" class="s-small">runs on the compute node at job exit</text>
+  <text x="26" y="85" class="s-small">latency: seconds</text>
+
+  <rect x="10" y="112" width="290" height="76" rx="7" class="box-plain"/>
+  <text x="26" y="134" class="s-label">2 · Poller  — safety net</text>
+  <text x="26" y="151" class="s-small">self-resubmitting PBS job, or cron on pfe</text>
+  <text x="26" y="166" class="s-small">catches chains broken by node failure</text>
+  <text x="26" y="181" class="s-small">latency: ~30 min</text>
+
+  <path d="M 300 54  H 350 V 108" class="flow" marker-end="url(#ah3)"/>
+  <path d="M 300 150 H 350 V 126" class="flow" marker-end="url(#ah3)"/>
+
+  <rect x="368" y="80" width="250" height="76" rx="7" class="box-adv"/>
+  <text x="384" y="102" class="s-label t-adv">advance</text>
+  <text x="384" y="119" class="s-small">re-derives state from disk</text>
+  <text x="384" y="134" class="s-small">flock per halo + qstat-checked ledger</text>
+  <text x="384" y="149" class="s-small">no-op unless a stage is DONE</text>
+
+  <path d="M 618 118 H 664" class="flow" marker-end="url(#ah3)"/>
+
+  <rect x="666" y="80" width="300" height="76" rx="7" class="box-build"/>
+  <text x="682" y="102" class="s-label t-build">submit next build job</text>
+  <text x="682" y="119" class="s-small">…or do nothing, which is the common case</text>
+  <text x="682" y="136" class="s-small">double-firing is structurally impossible</text>
+
+  <rect x="368" y="176" width="598" height="40" rx="6" class="box-plain"/>
+  <text x="384" y="192" class="s-small">Why no "did it finish?" test in bash: simrun.pl exits three ways — finished, self-resubmitted for walltime, or died.</text>
+  <text x="384" y="206" class="s-small">Only one should advance. Re-deriving state is simpler and safer than encoding that in shell.</text>
+</svg>
+</div>
+</figure>
+
+<h2>What gets cleaned up</h2>
+<table>
+  <thead><tr><th>Today</th><th>After</th></tr></thead>
+  <tbody>
+    <tr><td><code>script512.py</code> + <code>script256.py</code>, ~90&nbsp;% copy-paste</td>
+        <td>One parameterized module; box (512/256/1024) is configuration</td></tr>
+    <tr><td>Four near-identical <code>set_NtoM_conf</code> functions</td>
+        <td>One <code>write_mrp_config(level)</code></td></tr>
+    <tr><td>Config files built by shelling out to <code>awk</code>/<code>sed</code></td>
+        <td>Python file editing, checked return codes</td></tr>
+    <tr><td>Level dispatch on <code>'2' in args.level</code></td>
+        <td>Integer levels</td></tr>
+    <tr><td>Three DM <code>.enzo</code> templates differing in 3 values</td>
+        <td>One template + keyword substitution, diff-verified against the originals</td></tr>
+    <tr><td>Hand-maintained <code>L1.sh</code> … <code>L4-gas.sh</code>, several broken</td>
+        <td>All generated; none committed</td></tr>
+    <tr><td>Hardcoded MUSIC + enzo binary paths</td>
+        <td>Box config, defaulting to the in-repo <code>music/MUSIC</code></td></tr>
+    <tr><td><code>Omega_b = 0.0461</code> to MUSIC vs <code>0.04576</code> to Enzo</td>
+        <td>One value per box, asserted at build time</td></tr>
+  </tbody>
+</table>
+
+<div class="note">
+  <strong>Found while planning.</strong> <code>convert_to_gas()</code> hardcodes <code>Omega_b = 0.0461</code> while every
+  <code>-gas.enzo</code> declares <code>CosmologySimulationOmegaBaryonNow = 0.04576</code> — MUSIC and Enzo are being
+  told different baryon fractions. Also flagged: the committed <code>-gas.enzo</code> templates carry
+  <code>StarMakerMinimumMass = 10000.</code>, but the runs that actually completed used <code>10</code>.
+  Worth a conscious decision before the first new gas run; neither blocks DM work.
+</div>
+
+<h2>Phases</h2>
+<ol class="phases">
+  <li>
+    <span class="n">0</span>
+    <span class="ttl">Fix the repo tree, land the templates</span>
+    <span class="body">Add the missing <code>new_ics_directory</code> / <code>HALO_DIR</code> plumbing to
+    <code>enzo-mrp-music.py</code> — without it the committed code fails at L1. Land <code>templates_512/</code>
+    and <code>validate-templates</code>. No behaviour change yet.</span>
+  </li>
+  <li class="gate">
+    <span class="n">1</span>
+    <span class="ttl">status only — read-only, zero risk</span>
+    <span class="body">Point the state detector at the frozen manual runs and confirm it reproduces what is
+    known to be true. Between them they cover every state: <code>halo42189-manual</code> gives three
+    <code>DONE</code>, <code>halo11177-manual</code> gives a run that stalled before its first RD dump,
+    <code>halo15097</code> gives a walltime kill plus two <code>DONE</code>. Free ground truth, before the code
+    can submit anything.</span>
+  </li>
+  <li>
+    <span class="n">2</span>
+    <span class="ttl">build + submit, one stage</span>
+    <span class="body"><code>--dry-run</code> first, then live: <code>halo11177</code> L1 into a fresh directory.</span>
+  </li>
+  <li class="gate">
+    <span class="n">3</span>
+    <span class="ttl">advance + hook + poller — the headline test</span>
+    <span class="body">Recreate <code>halo42189</code> end-to-end and unattended: L1 → L2 → L3 with no human
+    in the loop. This is the whole point of the project, and it has a golden reference to check against.</span>
+  </li>
+  <li>
+    <span class="n">4</span>
+    <span class="ttl">Regression check vs halo42189-manual</span>
+    <span class="body">Three tiers — see below.</span>
+  </li>
+  <li>
+    <span class="n">5</span>
+    <span class="ttl">Gas extension</span>
+    <span class="body">Honour the registry <code>gas</code> column; add the L3 gas stage to the plan.</span>
+  </li>
+  <li>
+    <span class="n">6</span>
+    <span class="ttl">Documentation</span>
+    <span class="body"><code>doc/source/user_guide/ic_pipeline.rst</code> registered in the "New Sims" toctree,
+    plus a <code>README.md</code> for the directory. Branch is then handed off — the PR into
+    <code>foggie-sims/foggie:master</code> is JT's to make.</span>
+  </li>
+</ol>
+
+<h2>Regression: recreated halo42189 vs the preserved manual run</h2>
+<p class="lede">
+  Expecting a clean diff everywhere would be wrong. The comparison splits into three tiers by what
+  <em>can</em> legitimately match.
+</p>
+<div class="cards">
+  <div class="card tier1">
+    <h3>Tier 1 — must match exactly</h3>
+    <p>MUSIC configs, shift values, <code>CosmologySimulationGrid*</code> geometry, final <code>.enzo</code> files.
+    Deterministic text. Any difference is a bug in the rewrite, not physics — except the known fixes,
+    which get enumerated and justified rather than waved through.</p>
+  </div>
+  <div class="card tier2">
+    <h3>Tier 2 — expected bitwise</h3>
+    <p>The MUSIC IC files. Seeded from fixed <code>seed[5..13]</code> and the shared <code>wnoise_*.bin</code>,
+    so identical configs should give identical ICs. A mismatch means an input drifted — seed, transfer
+    function, or the traced Lagrangian region.</p>
+  </div>
+  <div class="card tier3">
+    <h3>Tier 3 — physical only, never bitwise</h3>
+    <p>The Enzo outputs. MPI reduction order varies with decomposition, so trajectories diverge at
+    round-off and amplify. Compare the science instead: halo center, <code>Rvir</code>, <code>Mvir</code> at
+    RD0265, with cycle count (1208 / 1208 / 1209) as a sanity check.</p>
+  </div>
+</div>
+
+<h2>What is deliberately not touched</h2>
+<table>
+  <thead><tr><th>Item</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td><code>simrun.pl</code></td>
+        <td>The Enzo restart/resubmit loop works. The pipeline sits above it; only the hardcoded
+            <code>$enzo_executable</code> becomes config.</td></tr>
+    <tr><td>enzo-mrp-music, MUSIC, Enzo</td>
+        <td>Same tools throughout. Only the <code>new_ics_directory</code> gap and the hardcoded binary
+            path change.</td></tr>
+    <tr><td>All existing <code>halo?????</code> directories</td>
+        <td>Frozen until the automation is proven. A guard in <code>build</code> refuses to write into any
+            halo directory holding stage dirs it did not create.</td></tr>
+    <tr><td><code>foggie/initial_conditions/music/</code></td>
+        <td>Newly tracked in the repo; the restructure works around it.</td></tr>
+    <tr><td>The deprecated standalone <code>initial_conditions</code> tree</td>
+        <td>Not a source of truth. Diffed only to learn what the repo tree was missing; nothing copied
+            or vendored from it.</td></tr>
+  </tbody>
+</table>
+
+<footer>
+  foggie / initial_conditions · branch ics_refactor · full detail in REFACTOR_PLAN.md
+</footer>
+
+</div>
+</body>
+</html>

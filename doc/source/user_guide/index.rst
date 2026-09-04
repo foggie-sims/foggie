@@ -35,5 +35,6 @@ or for restarting an existing FOGGIE simulation from a certain snapshot.
    :maxdepth: 1
   
    enzo-foggie.rst
+   generating_new_ICs.rst
    clean_from_ICs.rst
    restart.rst

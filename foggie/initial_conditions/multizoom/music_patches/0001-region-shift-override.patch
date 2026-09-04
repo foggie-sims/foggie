@@ -1,0 +1,26 @@
+--- a/foggie/initial_conditions/music/mesh.hh	2026-08-25 15:49:07.630262741 +0000
++++ b/foggie/initial_conditions/music/mesh.hh	2026-08-25 15:50:03.065962397 +0000
+@@ -1371,7 +1371,22 @@
+ 	  xc[1] = fmod(x0ref_[1]+0.5*lxref_[1],1.0);
+ 	  xc[2] = fmod(x0ref_[2]+0.5*lxref_[2],1.0);
+ 	  
+-	  if( (levelmin_ != levelmax_) && (!bnoshift || force_shift) )
++	  //... region_shift_override: one fixed shift (integer coarse cells)
++	  //... shared by a set of same-seed runs, so their frames coincide
++	  //... while regions near the box boundary are still moved inside.
++	  //... Takes precedence over both the auto-shift and no_shift.
++
++	  if( cf_.containsKey("setup", "region_shift_override") )
++	    {
++	      std::string temp = cf_.getValue<std::string>( "setup", "region_shift_override" );
++	      if( sscanf( temp.c_str(), "%d , %d , %d", &xshift_[0], &xshift_[1], &xshift_[2] ) != 3 )
++		{
++		  LOGERR("Error parsing triple for region_shift_override");
++		  throw std::runtime_error("Error parsing triple for region_shift_override");
++		}
++	      LOGINFO("Using user-supplied domain shift (%d, %d, %d)", xshift_[0], xshift_[1], xshift_[2]);
++	    }
++	  else if( (levelmin_ != levelmax_) && (!bnoshift || force_shift) )
+ 	    {
+ 	      xshift_[0] = (int)((0.5-xc[0])*ncoarse);
+ 	      xshift_[1] = (int)((0.5-xc[1])*ncoarse);

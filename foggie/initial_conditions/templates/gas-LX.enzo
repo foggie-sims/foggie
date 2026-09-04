@@ -1,0 +1,310 @@
+# FOGGIE "NEW ICS" L3 baryons 
+
+ProblemType                = 30      // cosmology simulation
+TopGridRank                = 3
+TopGridDimensions          = __TOP_GRID__
+TopGridGravityBoundary     = 0       // Periodic BC for gravity
+LeftFaceBoundaryCondition  = 3 3 3   // same for fluid
+RightFaceBoundaryCondition = 3 3 3
+SelfGravity                = 1       // gravity on
+PotentialIterations        = 4
+
+#
+#  problem parameters
+#
+CosmologySimulationOmegaBaryonNow        = 0.04576
+CosmologySimulationOmegaCDMNow           = 0.24524
+CosmologySimulationDensityName           = GridDensity
+CosmologySimulationVelocity1Name         = GridVelocities_x
+CosmologySimulationVelocity2Name         = GridVelocities_y
+CosmologySimulationVelocity3Name         = GridVelocities_z
+CosmologySimulationParticleVelocity1Name = ParticleVelocities_x
+CosmologySimulationParticleVelocity2Name = ParticleVelocities_y
+CosmologySimulationParticleVelocity3Name = ParticleVelocities_z
+CosmologySimulationParticleDisplacement1Name = ParticleDisplacements_x
+CosmologySimulationParticleDisplacement2Name = ParticleDisplacements_y
+CosmologySimulationParticleDisplacement3Name = ParticleDisplacements_z
+CosmologySimulationParticleTypeName     = RefinementMask
+CosmologySimulationCalculatePositions    = 1
+CosmologySimulationNumberOfInitialGrids  = __NUM_INITIAL_GRIDS__
+
+#
+#  define cosmology parameters
+#
+ComovingCoordinates        = 1       // Expansion ON
+CosmologyOmegaMatterNow    = 0.291
+CosmologyOmegaDarkMatterNow = 0.24524
+CosmologyOmegaLambdaNow    = 0.709
+CosmologyHubbleConstantNow = 0.7
+CosmologyComovingBoxSize   = 25.0    // in Mpc/h 
+CosmologyMaxExpansionRate  = 0.015   // maximum allowed delta(a)/a
+CosmologyInitialRedshift   = 99.0
+CosmologyFinalRedshift 	   = __GAS_STOP_REDSHIFT__   // first leg only; RunScript.sh
+                                     // rewrites this to 0 and restarts once
+                                     // shielded cooling is switched on
+GravitationalConstant      = 1       // this must be true for cosmology
+
+
+CosmologySimulationUseMetallicityField = 1 
+StarFeedbackTrackMetalSources          = 1 
+StarMakerStoreInitialMass              = 1 
+ComputePotential =1 
+WritePotential =1 
+
+#
+#  set I/O and stop/start parameters
+#
+DataDumpDir      = DD
+DataDumpName     = DD
+RedshiftDumpName = RD
+RedshiftDumpDir  = RD
+
+dtDataDump 	 = __DT_DATA_DUMP__  // DD dumps every N code-time units, for
+                          // RESTART granularity ONLY.  They are DELETED once the
+                          // run reaches z = 0, so they cost transient disk.
+                          //
+                          // NOT 10, and emphatically not 1.  Every dump in these
+                          // runs is 38-41 GB whatever the redshift -- the 512^3
+                          // root grid with ~30 baryon fields is ~32 GB before any
+                          // refinement -- so DD cadence is expensive at every
+                          // epoch.  dtDataDump = 1 (21.14 Myr) would write 642
+                          // dumps = 24.4 TB per run and add 7-20% wall in I/O,
+                          // and 367 of those 642 land at z < 1 where the refine
+                          // track is already accurate to 0.1 ckpc/h.
+                          //
+                          // Track quality is bought in the RD list instead:
+                          // outputs_71_track.txt spends its extra outputs at
+                          // z > 7, where the box moves 30-50 ckpc/h between rows
+                          // against a 50 ckpc/h half-width and where nothing had
+                          // been measured, for 28 dumps.  DD dumps do not and
+                          // cannot supply a track anyway: a FOGGIE track is
+                          // Lagrangian off the z = 0 particle set, so it can only
+                          // be derived from a COMPLETED pass, never on the fly.
+                          //
+                          // dtRestartDump still checkpoints before the wall.
+dtRestartDump    = __RESTART_DUMP_SECONDS__  // wallclock checkpoint before the PBS wall
+
+OutputCoolingTime                        = 1
+OutputTemperature                        = 1
+
+NumberOfOutputsBeforeExit = 1
+
+StopCycle        = 100000
+StopCPUTime      = 3600000
+
+#
+#  set hydro parameters
+#
+HydroMethod                     = 0       // PPM
+RiemannSolver                   = 4       // HLLC
+Gamma                           = 1.6667
+PPMFlatteningParameter          = 3       // flatten the reconstruction near
+                                          // shocks; read straight through by
+                                          // ReadParameterFile.C:311 with no
+                                          // override, unlike Diffusion below
+PPMSteepeningParameter          = 0
+PPMDiffusionParameter           = 0       // Enzo forces this to 0 for every
+                                          // ProblemType except 60
+                                          // (ReadParameterFile.C:1981-1991), so
+                                          // any other value is silently
+                                          // discarded.  Set to 0 to match what
+                                          // the code actually runs.
+ApplyBoundsToBaryonFields       = 1       // clamp baryon fields to the
+                                          // density/energy floors rather than
+                                          // letting a bad zone crash the run
+# Stability guards.  Both completed gas runs on disk set these -- the reference
+# halo42189 L3-gas-radius3 and halo15134's L3-gas -- and both ran past 250
+# outputs.  Without them the two most massive halos of the first L2 gas batch
+# produced hundreds of flux_hllc.F Riemann failures within hours of the z = 15
+# transition; halo51541 segfaulted and halo42189 fell to 12% efficiency, while
+# the two lightest halos ran clean at 95%+ with zero warnings.
+RestrictTemperature             = 1
+RestrictVelocity                = 1
+# RestrictDensity exists as a third guard but both reference runs leave it off.
+RestrictDensity                 = 0
+DualEnergyFormalism             = 1       // use total & internal energy
+InterpolationMethod             = 1       // SecondOrderA
+ReconstructionMethod            = 1 // PPM
+RiemannSolverFallback           = 1 // HLL if there's a dnu<=0
+FluxCorrection                  = 1
+ConservativeInterpolation       = 0
+CourantSafetyNumber             = 0.4
+ParticleCourantSafetyNumber     = 0.5
+
+
+#
+#  set grid refinement parameters
+#
+StaticHierarchy                = 0    // dynamic hierarchy
+MaximumRefinementLevel         = __MAX_REFINE_LEVEL__
+MaximumGravityRefinementLevel  = __MAX_REFINE_LEVEL__
+MaximumParticleRefinementLevel = __MAX_REFINE_LEVEL__
+RefineBy                       = 2    // refinement factor
+CellFlaggingMethod             = 2 4 8 
+MinimumEfficiency              = 0.4  // fraction efficiency
+MinimumOverDensityForRefinement = __MIN_OVERDENSITY_GAS__
+
+MinimumMassForRefinementLevelExponent = 0.0 0.0
+MustRefineParticlesCreateParticles = 3
+MustRefineParticlesRefineToLevel   = __MRP_REFINE_TO_LEVEL__
+NumberOfBufferZones                      = 2
+
+# Every level must appear here: unset levels default to 1 = rebuild the grid
+# hierarchy on EVERY subcycle of that level, and the deepest levels are where
+# both the subcycles and the rebuild cost concentrate.  This list once stopped
+# at [6], which left levels 7-9 rebuilding every subcycle -- measured on the
+# nref9c/nref7f run as 3,272 level-9 rebuilds per root cycle, with
+# RebuildHierarchy at 12% of wall.  Skip = 2 is the FOGGIE production standard;
+# the enzo-performance audit measured skip = 3 as unsafe (particle drift
+# exceeds the 2-cell flagging buffer).
+RebuildHierarchyCycleSkip[0] = 2
+RebuildHierarchyCycleSkip[1] = 2
+RebuildHierarchyCycleSkip[2] = 2
+RebuildHierarchyCycleSkip[3] = 2
+RebuildHierarchyCycleSkip[4] = 2
+RebuildHierarchyCycleSkip[5] = 2
+RebuildHierarchyCycleSkip[6] = 2
+RebuildHierarchyCycleSkip[7] = 2
+RebuildHierarchyCycleSkip[8] = 2
+RebuildHierarchyCycleSkip[9] = 2
+RebuildHierarchyCycleSkip[10] = 2
+
+# performance.out is written through ~15-20 blocking MPI_Gathers (one per named
+# timer; EnzoTiming.h Reduce_Times) plus a rank-0 file open/close.  The default
+# TimingCycleSkip = 1 pays that every cycle.  10 keeps the record useful for
+# post-hoc budgets at 10% of the cost.  Bench runs set it back to 1 -- the
+# per-cycle budget is the measurement there.
+TimingCycleSkip = 10
+
+# Output cadence.  Substituted from config.Box.gas_outputs_for(); production
+# gas runs now take outputs_71_track.txt (FOGGIE 43 + high-z track cadence +
+# four fill-ins at z = 5.5/4.5/3.75/3.25).  dtDataDump does NOT supply the
+# analysis cadence, and does not supply the refine track either -- see above.
+# The entry at z = 15 is load-bearing: it is the dump the second leg restarts
+# from after the cooling transition, and every list here must contain one.
+__OUTPUT_REDSHIFTS__
+
+
+#
+#  chemistry, cooling, radiation background
+#
+RadiativeCooling                         = 1
+use_grackle                              = 1
+MultiSpecies                             = 2
+MultiMetals                              = 0
+MetalCooling                             = 1
+# Unshielded cooling for the first leg (z > __GAS_STOP_REDSHIFT__).  RunScript.sh
+# flips all three of these, together with CosmologyFinalRedshift, at the stop
+# redshift.  Kept explicit rather than left to Enzo's defaults so that a restart
+# file shows plainly which leg it belongs to.
+H2FormationOnDust                        = 0
+self_shielding_method                    = 0
+H2_self_shielding                        = 0
+UVbackground                             = 1
+grackle_data_file                        = /u/jtumlins/grackle/grackle-3.3.1-dev/grackle_data_files/input/CloudyData_UVB=HM2012.h5
+CMBTemperatureFloor                      = 1
+
+#
+# star formation and feedback parameters
+#
+StarParticleCreation                     = 2048
+StarFormationOncePerRootGridTimeStep     = 1
+StarParticleFeedback                     = 64
+StarMakerOverDensityThreshold            = 1.0e+4
+StarMakerMinimumMass                     = 10
+StarMakerMinimumDynamicalTime            = 1e6
+StarMakerMassEfficiency                  = 0.02
+StarMassEjectionFraction                 = 0.25
+StarMetalYield                           = 0.025
+StarEnergyToThermalFeedback              = 1e-5
+StarFeedbackSNePerTimestepLimit           = 0.001   // Enzo defaults this to 1e-6
+                                          // (SetDefaultGlobalValues.C:628), which
+                                          // is what our runs were silently using.
+                                          // halo42189-manual completed 258 outputs
+                                          // at 0.001.  Set it explicitly rather
+                                          // than inheriting a default.
+StarFeedbackDistRadius                   = 1
+StarFeedbackDistCellStep                 = 3
+
+H2StarMakerH2FractionMethod        = 1
+H2StarMakerEfficiency              = 0.02     // This is the efficiency
+                                          // star_maker_h2reg actually uses --
+                                          // StarMakerMassEfficiency is not passed
+                                          // to it.  Matches the parent-box run
+                                          // 25Mpc_DM_512-L0-gas.  It was briefly
+                                          // set to 0.002 while the gas crashes
+                                          // were being chased; the crash is a cell
+                                          // at the 1e-30 density floor with a star
+                                          // particle ~1.3 cells away and a specific
+                                          // energy 1e7 times its neighbors', i.e.
+                                          // momentum injected into gas that star
+                                          // formation has removed, and the fix for
+                                          // it belongs in the feedback parameters
+                                          // below and in the Enzo binary, not here.
+H2StarMakerNumberDensityThreshold  = 0
+H2StarMakerMinimumH2FractionForStarFormation = 0
+H2StarMakerStochastic              = 0
+H2StarMakerUseSobolevColumn        = 1
+H2StarMakerSigmaOverR              = 0.0333333
+H2StarMakerAssumeColdWarmPressureBalance = 1
+H2StarMakerH2DissociationFlux_MW   = 1
+H2StarMakerH2FloorInColdGas        = 0
+H2StarMakerColdGasTemperature      = 10000
+H2StarMakerUseLocalDensityMax      = 1
+H2StarMakerWriteStarLogFiles       = 1
+
+#
+# mechanical feedback.  StarParticleFeedback = 64 above selects star_feedback6,
+# but on its own it runs at Enzo's defaults: no tabular yields, no pre-SN winds
+# and no cap on the velocity kick.  These are the values from the parent-box run
+# 25Mpc_DM_512-L0-gas/sffb_gas_dm_AMR.enzo, which is the reference for what this
+# feedback method is supposed to be doing.
+#
+StarFeedbackMomentumMultiplier     = 1
+StarFeedbackUseTabularYields       = 1
+StarFeedbackTabularFilename        = /home1/jtumlins/nobackup/enzo-foggie-feedback-fix/run/StarParticle/TabularFeedbackTest/sygma_feedback_table_1000.h5
+StarFeedbackTabularSNIIEnergy      = 1e+51
+StarFeedbackTabularSNIaEnergy      = 1e+51
+StarFeedbackStochasticSNe          = 1
+StarFeedbackPreSNFeedback          = 1
+StarFeedbackPreSNMomentum          = 1
+StarFeedbackPreSNFilename          = /home1/jtumlins/nobackup/enzo-foggie-feedback-fix/input/preSN_feedback_SB99.hdf5
+StarFeedbackCapVelocityKick        = 1
+UseLocalStellarRadiation           = 0
+WriteFeedbackLogFiles              = 0
+
+#
+# parallelism stuff
+#
+
+SubgridSizeAutoAdjust       = 1
+# Floor on the auto-adjusted MaximumSubgridSize (T0.3, PR #73).  The code
+# default of 2000 leaves the deep levels with fewer grids than ranks -- 84
+# grids at L9 on 128 ranks in a typical nref9 run -- and 58% of wall is then
+# spent waiting at the first Allreduce of every subcycle.  1024 measured
+# -24% wall per root cycle on a live nref9 run (same node, 2026-09-04,
+# perf_bench/LEDGER.md); 512 gives -35%.  The "star deficit" that comes
+# with it (-5% / -8% in particle COUNT) is star formation in grid-padding
+# cells that were refined by accident of grid geometry -- total stellar
+# mass formed is unchanged to 1.4% -- and JT chose 512 on 2026-09-04.
+SubgridSizeAutoAdjustMinimum = 512
+OptimalSubgridsPerProcessor = 16
+
+#
+#
+GreensFunctionMaxNumber = 30 
+ParallelRootGridIO                       = 1
+ParallelParticleIO                       = 1
+PartitionNestedGrids                     = 1
+UnigridTranspose     = 2
+
+LoadBalancing          = 1
+ResetLoadBalancing     = 1
+LoadBalancingCycleSkip = 10
+LoadBalancingMinLevel  = 0
+LoadBalancingMaxLevel  = 50
+
+#
+#  nested grid geometry, written by MUSIC into parameter_file.txt
+#
+__GRID_PARAMETERS__

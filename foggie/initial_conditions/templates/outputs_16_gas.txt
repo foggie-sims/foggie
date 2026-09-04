@@ -1,0 +1,16 @@
+CosmologyOutputRedshift[0] = 99.0
+CosmologyOutputRedshift[1] = 50.0
+CosmologyOutputRedshift[2] = 15.0
+CosmologyOutputRedshift[3] = 10.0
+CosmologyOutputRedshift[4] = 9.0
+CosmologyOutputRedshift[5] = 8.0
+CosmologyOutputRedshift[6] = 7.0
+CosmologyOutputRedshift[7] = 6.0
+CosmologyOutputRedshift[8] = 5.0
+CosmologyOutputRedshift[9] = 4.0
+CosmologyOutputRedshift[10] = 3.0
+CosmologyOutputRedshift[11] = 2.0
+CosmologyOutputRedshift[12] = 1.0
+CosmologyOutputRedshift[13] = 0.5
+CosmologyOutputRedshift[14] = 0.2
+CosmologyOutputRedshift[15] = 0.0
