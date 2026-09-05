@@ -14,35 +14,45 @@ are the plan.
 
 ### 1a. The relation is bimodal, not a threshold with scatter
 
-Anchored z=0 L3-gas halos, sorted by M200c (Msun):
+**Tier 0 / 0.1 done 2026-09-05** (`figures_z0/ignition_branches_L3.png`,
+`.tsv`; `scripts/plot_ignition_branches.py`, `scripts/progenitor_mass.py`).
+Progenitor masses are now Lagrangian: the AHF particle IDs of every object
+inside the catalog's R200c at the anchor, matched to the AHF object holding
+most of them at each earlier snapshot. The first version of this table used
+a catalog-position walk and got 52675 and 1703 wrong (both "late igniters"
+were hops onto neighbours); those numbers are superseded.
 
-| halo | M200c | M* | N* | z_ign | M200c at z_ign | M200c at z=6 |
-|---|---|---|---|---|---|---|
-| 21432 | 5.8e8 | 0 | 0 | never | - | 9.6e7 |
-| 170570 | 6.0e8 | 3.0e2 | 25 | 1.2 | 4.8e8 | 7.0e7 |
-| 57194 | 8.7e8 | 1.7e3 | 133 | 6.1 | 1.2e8 | 1.2e8 |
-| 21246 | 1.4e9 | 2.7e2 | 21 | 4.9 | 2.3e8 | 9.4e7 |
-| 46615 | 1.4e9 | 7.9e5 | 3859 | 9.0 | 2.6e8 | 5.4e8 |
-| 1703 | 1.5e9 | 2.1e7 | 18850 | 6.3 | 8.7e7 | 9.9e7 |
-| 56672 | 1.7e9 | 2.0e6 | 10020 | 9.0 | 1.5e8 | 3.9e8 |
-| 52675 | 1.9e9 | 1.8e7 | 45953 | 2.4 | 1.2e9 | 2.6e7 |
-| 47314 | 2.1e9 | 5.5e5 | 7481 | 5.7 | 1.8e8 | 1.5e8 |
-| 15659 | 2.2e9 | 2.3e7 | 28761 | 9.0 | 1.5e8 | 7.5e8 |
-| 75392 | 2.7e9 | 1.5e7 | 18766 | 10.0 | 4.8e8 | 1.2e9 |
-| 42502 | 3.3e9 | 2.7e7 | 39757 | 12.5 | 1.5e8 | 8.0e8 |
+L3-gas halos with M200c(z=0) > 5e8, plus the running ones below z=4
+(M* at their latest catalog, a lower limit):
 
-(The ultrafaints below 5e8 all have M* < 2e3 or none; the running halos
-above 2e9 all ignited at z >= 9 from M200c ~ 1e8.)
+| halo | M200c(z=0) | M* | N* | z_ign | M200c at z_ign | M200c at z=6 | branch |
+|---|---|---|---|---|---|---|---|
+| 21432 | 5.8e8 | 0 | 0 | never | - | 9.6e7 | dark |
+| 170570 | 6.0e8 | 3.0e2 | 25 | 5.7 | 1.2e8 | 1.1e8 | dark |
+| 57194 | 8.7e8 | 1.7e3 | 133 | 6.1 | 1.2e8 | 1.2e8 | dark |
+| 24122 (z=3.5) | 1.0e9 | 1.2e7 | 18717 | 10.0 | 1.4e8 | 4.8e8 | bright |
+| 48014 (z=0.6) | 1.3e9 | 5.3e3 | 343 | 8.0 | 8.5e7 | 1.1e8 | dark |
+| 21246 | 1.4e9 | 2.7e2 | 21 | 4.7 | 2.8e8 | 1.0e8 | dark |
+| 1703 (z=3.5) | 1.5e9 | 2.1e7 | 18850 | 10.0 | 1.0e8 | 2.4e8 | bright |
+| 56672 | 1.7e9 | 2.0e6 | 10020 | 9.0 | 1.5e8 | 3.7e8 | bright, quenched |
+| 42784 (z=3.6) | 1.8e9 | 2.4e7 | 33269 | 15.0 | 9.6e7 | 7.9e8 | bright |
+| 52675 | 1.9e9 | 1.8e7 | 45953 | 10.0 | 1.5e8 | 6.6e8 | bright |
+| 47314 | 2.1e9 | 5.5e5 | 7481 | 6.6 | 1.9e8 | 2.7e8 | bright, marginal |
+| 15659 (z=3.9) | 2.2e9 | 2.3e7 | 28761 | 9.0 | 1.5e8 | 7.5e8 | bright |
 
-There is nothing between M* = 1.5e4 and 5e5 Msun. A halo either ignited
-early (z >= 9, at M200c ~ 1e8, the H2-cooling minihalo regime) and ran
-away, or it ignited late in one or two cells and stayed there. z=0 mass is
-the wrong axis: 21246 (1.4e9, dark) and 1703 (1.5e9, 2e7 Msun) differ by a
-factor 4 in M200c at z=6 and by 1e5 in stars. The discriminating variable
-is the progenitor mass at z ~ 6-9, i.e. at the end of reionization. Two
-exceptions prove it: 1703 crossed 1e8 only at z=6.3 and still ran away;
-52675 assembled after z=3 and ignited at z=2.4 in gas the catalog already
-records at 0.17 Zsun (enriched from outside before it ever formed a star).
+(The eleven ultrafaints below 5e8 have M* <= 7e2 and M200c(z=6) <= 1e8.)
+
+There is nothing between M* = 1.5e4 and 5e5 Msun. **The two branches
+separate completely in M200c at z=6**: the dark branch tops out at 1.24e8
+(57194) and the bright branch starts at 2.4e8 (1703), a factor-2 gap with
+no halo in it, while in z=0 mass they overlap over 1.3-2.1e9 (48014 and
+21246 dark; 24122, 1703, 56672, 47314 bright). Ignition mass does NOT
+separate them: dark halos ignite too, at 5e7-2.8e8, but at z <= 8; every
+bright halo except 47314 (z=6.6) ignited at z >= 9. So the boundary is
+"was the progenitor above ~2e8 by z ~ 6-7", i.e. the reionization-epoch
+mass, and 2e9 today is just where that maps to for a typical growth
+history. 47314 sits on the boundary (2.7e8 at z=6, ignited z=6.6, 5.5e5 of
+stars); 21246 crossed 2.8e8 only at z=4.7 and stayed dark.
 
 ### 1b. What separates the two branches in the star logs
 
@@ -117,11 +127,12 @@ Two more numerical facts that belong in the plan:
 
 ## 3. Tier 0 -- analysis on the runs we have (no queue, 2-3 days)
 
-0.1 **Ignition table and figure.** `ignition_scan_L3z0.json` exists; turn it
-    into M* vs M200c(z=6) and vs M200c(z_ign), with the two branches
-    marked. If the branches separate cleanly in M200c(z=6) at 2-4e8, the
-    threshold is a reionization-timing boundary and the sweeps in Tier 2
-    are the physics; if they overlap, Tier 1 is where the answer is.
+0.1 **Ignition table and figure.** DONE 2026-09-05, section 1a: the
+    branches separate completely in M200c(z=6) (gap 1.24e8-2.4e8, no halo
+    in it) and not in ignition mass. The threshold is a reionization-epoch
+    mass boundary; Tier 2 is the physics of its LOCATION, Tier 1 tests
+    whether the floor sets it. 439991 and 491413 have no z>=6 catalogs yet
+    (439991's are queued, job 25093928).
 0.2 **Gate-4 history of the densest cell** for 21246, 48014, 57194 (dark)
     and 1703, 47314, 56672 (bright, marginal): from every dump, the peak
     n_H, T, fH2, Sobolev column, metallicity and the implied
