@@ -26,6 +26,7 @@ duplicated here.
 
 import os
 
+import re
 import numpy as np
 
 try:
@@ -522,11 +523,50 @@ def halocat_target(box, halo_id, level, phase, snap_name):
     ics = os.environ.get("FOGGIE_ICS_DIR", "/nobackupnfs1/jtumlins/25Mpc_new_cosmology")
     lst = os.path.join(ics, "figures_z0", "main_halos_L%d%sz0.json" % (int(level), "" if phase == "gas" else "DM_"))
     run = "halo%d-%d-L%d-%s" % (int(halo_id), int(box.parent_ngrid), int(level), "gas" if phase == "gas" else "DM")
-    if not os.path.exists(lst):
-        return None
-    ent = json.load(open(lst)).get(run)
-    if not ent or str(ent.get("snap", "")).lstrip("~") != os.path.basename(snap_name):
-        return None
+    ent = json.load(open(lst)).get(run) if os.path.exists(lst) else None
+    if ent and str(ent.get("snap", "")).lstrip("~") != os.path.basename(snap_name):
+        ent = None
+    if ent is None:
+        # No list for this level: carry the L3 target (DM list, else gas
+        # list) into this level's frame through the region_point_shift of the
+        # two confs -- the same construction build.center_for_level uses.
+        # Only when both runs are at z = 0, so the position means the same.
+        if os.path.basename(snap_name)[:2] != "RD":
+            return None
+        hdir = box.halo_dir(int(halo_id)); src = None
+        for lvl3, ph3 in ((3, "DM"), (3, "gas")):
+            l3 = os.path.join(ics, "figures_z0", "main_halos_L3%sz0.json" % ("DM_" if ph3 == "DM" else ""))
+            r3 = "halo%d-%d-L3-%s" % (int(halo_id), int(box.parent_ngrid), ph3)
+            e3 = json.load(open(l3)).get(r3) if os.path.exists(l3) else None
+            if e3 and abs(float(e3.get("z", 9))) < 5e-3:
+                src = (e3, r3, ph3); break
+        if src is None:
+            return None
+        e3, r3, ph3 = src
+        def _shift(conf):
+            if not os.path.exists(conf): return None
+            for line in open(conf):
+                if line.strip().startswith("region_point_shift"):
+                    return np.array([float(v) for v in line.split("=", 1)[1].split(",")])
+            return None
+        s3 = _shift(os.path.join(hdir, "25Mpc_DM_%d-L3%s.conf" % (int(box.parent_ngrid), "" if ph3 == "DM" else "-gas")))
+        sL = _shift(os.path.join(hdir, "25Mpc_DM_%d-L%d%s.conf" % (int(box.parent_ngrid), int(level), "" if phase != "gas" else "-gas")))
+        if s3 is None or sL is None:
+            return None
+        cat3 = os.path.join("/nobackupnfs1/jtumlins/halocat_data", r3, "catalogs", e3["snap"] + "_halos.h5")
+        if not os.path.exists(cat3):
+            return None
+        with h5py.File(cat3, "r") as f:
+            i = int(e3["index"])
+            c3 = np.array([float(f["pos_%s_mpch" % x][i]) for x in "xyz"]) / box.boxsize_mpc
+            r200 = float(f["r_200c_mpch"][i]) * 1000.0
+        # this level's own dump must be at the same epoch as the L3 target
+        pf = open(snap_name, errors="replace").read()
+        m = re.search(r"CosmologyCurrentRedshift\s*=\s*(\S+)", pf)
+        if m is None or abs(float(m.group(1))) > 5e-3:
+            return None
+        c = (c3 + (sL - s3) / float(box.parent_ngrid)) % 1.0
+        return c, r200
     cat = os.path.join("/nobackupnfs1/jtumlins/halocat_data", run, "catalogs", ent["snap"] + "_halos.h5")
     if not os.path.exists(cat):
         return None
