@@ -133,7 +133,15 @@ class Box:
     # dumps vs 71 is 2.2 TB/run at a moment when the fleet is 83 TB from
     # quota.  gas_output_list_deep stays at 71: L3+/L4 gas is where
     # make_root_track.py gets forced-refinement tracks.
-    gas_output_list: str = "outputs_16_gas.txt"
+    # 2026-09-06 (JT): every new gas run takes the FOGGIE 43-redshift RD list
+    # plus a DD every 20 Myr (dtDataDump = 0.946 code time units; the code time
+    # unit is 21.14 Myr).  RDs are full dumps; DDs are cut to the fine region
+    # (every grid above the root, root cropped to their bounding box) by
+    # halocat/scripts/cut_dd_dumps.py, 40 GB -> 1.2-3.5 GB, and are the
+    # science cadence.  A 43-list track interpolates the 100-dump Lagrangian
+    # path to < 6 ckpc/h at z < 6, and the DD cutouts keep the fine DM
+    # particles, so make_root_track can be run on them for anything denser.
+    gas_output_list: str = "outputs_43_foggie.txt"
     # DEPLOYED 2026-08-27: enzo-perf-on-fcf.exe, built from branch perf-on-fcf,
     # which is a STRICT SUPERSET of fcf-on-cassi (0 commits missing) plus six
     # audit picks: T0.3 SubgridSizeAutoAdjust floor parameter, T1.9 O(N) sibling
@@ -216,13 +224,13 @@ class Box:
     # directly comparable; it gives a median step of 29 ckpc/h and the same
     # maximum (49) as the full 266, because that ceiling is set by the halo's
     # motion rather than by the sampling.
-    gas_output_list_deep: str = "outputs_71_track.txt"
+    gas_output_list_deep: str = "outputs_43_foggie.txt"
     # DD dumps are restart granularity, not science: dtRestartDump already
     # checkpoints before the PBS wall.  Deep gas keeps them because a dense
     # dump record is what make_root_track.py reads; shallow gas is the
     # comparison arm and 31 DDs would be twice the disk of its 16 RDs.
-    gas_dtdatadump: int = 0
-    gas_dtdatadump_deep: int = 20
+    gas_dtdatadump: float = 0.946      # 20 Myr; see the 2026-09-06 note above
+    gas_dtdatadump_deep: float = 0.946
     # Zoom depth at or beyond which the deep list is used.  L3 zooms are the
     # ones we intend to run forced-refinement boxes on.
     gas_deep_level: int = 3
