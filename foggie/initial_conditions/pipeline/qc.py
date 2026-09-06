@@ -503,6 +503,42 @@ def density_stages(box, halo_id, include_gas=False):
     return stages
 
 
+def halocat_target(box, halo_id, level, phase, snap_name):
+    """The halo the analysis actually uses, from the halocat target lists.
+
+    figures_z0/main_halos_L<L>z0.json (gas) and main_halos_L<L>DM_z0.json (DM)
+    are written by find_main_halos.py / dm_anchor_targets.py and point at a
+    row of a halocat catalog for the run's LAST dump.  Returns (center_code,
+    r200_kpc_comoving_over_h) or None when there is no list, no entry, or the
+    entry is for a different dump than the one being drawn.
+
+    Why this exists: the shrinking-sphere re-centering below is independent of
+    the catalogs and, for a dwarf with a heavier neighbour inside its search
+    radius, slides onto the neighbour (halo486694: 529 kpc = 26 R200 off,
+    2026-09-06).  The catalog target is the authority; this lets the panel be
+    drawn on it and say so.
+    """
+    import json, glob, h5py
+    ics = os.environ.get("FOGGIE_ICS_DIR", os.path.dirname(os.path.dirname(box.halo_dir(halo_id))))
+    lst = os.path.join(ics, "figures_z0", "main_halos_L%d%sz0.json" % (level, "" if phase == "gas" else "DM_"))
+    run = "halo%d-%d-L%d-%s" % (halo_id, box.parent_ngrid, level, "gas" if phase == "gas" else "DM")
+    if not os.path.exists(lst):
+        return None
+    ent = json.load(open(lst)).get(run)
+    if not ent or str(ent.get("snap", "")).lstrip("~") != os.path.basename(snap_name):
+        return None
+    cat = os.path.join("/nobackupnfs1/jtumlins/halocat_data", run, "catalogs", ent["snap"] + "_halos.h5")
+    if not os.path.exists(cat):
+        return None
+    with h5py.File(cat, "r") as f:
+        i = int(ent["index"])
+        # catalog positions are Mpc/h; boxsize_mpc is the same 25 (Mpc/h) the
+        # rest of this module divides by, so h cancels
+        c = np.array([float(f["pos_%s_mpch" % x][i]) for x in "xyz"]) / box.boxsize_mpc
+        r200 = float(f["r_200c_mpch"][i]) * 1000.0
+    return c, r200
+
+
 def _density_panel(box, halo_id, halo_dir, level, phase, stage_dir, width_rvir,
                    context_mpc=DENSITY_CONTEXT_MPC, recenter=False):
     """Project one stage.  Returns a dict of everything the figure needs, or None.
@@ -561,6 +597,22 @@ def _density_panel(box, halo_id, halo_dir, level, phase, stage_dir, width_rvir,
             kpc_per_code = float(ds.quan(1.0, "code_length").to("kpc").d)
             offset_code = np.asarray(offset) / kpc_per_code
 
+    # The halocat target overrides the shrinking spheres when the two disagree
+    # by more than R200: that is the neighbour case, and the picture must be of
+    # the halo the analysis uses.
+    authority = "spheres"
+    tgt = halocat_target(box, halo_id, level, phase, snap)
+    if tgt is not None:
+        tc, r200_ckpch = tgt
+        d = tc - center; d -= np.round(d)
+        kpc_per_code = float(ds.quan(1.0, "code_length").to("kpc").d)
+        sep_spheres = float(np.sqrt(((d - offset_code) ** 2).sum()) * kpc_per_code)
+        r200_phys = r200_ckpch / (box.boxsize_mpc * 1000.0) * kpc_per_code
+        if drift is None or sep_spheres > r200_phys:
+            offset_code = d
+            drift = float(np.sqrt((d ** 2).sum()) * kpc_per_code)
+            authority = "halocat"
+
     if recenter and drift is not None:
         center = center + offset_code
 
@@ -590,7 +642,8 @@ def _density_panel(box, halo_id, halo_dir, level, phase, stage_dir, width_rvir,
                 half_kpc=images[0]["half_kpc"],
                 rvir_phys=rvir_phys, rvir_kpc=rvir_kpc,
                 hubble=float(ds.hubble_constant),
-                drift=drift, recentered=bool(recenter and drift is not None))
+                drift=drift, recentered=bool(recenter and drift is not None),
+                authority=authority)
 
 
 def make_density_figure(box, halo_id, out_path=None, width_rvir=DENSITY_WIDTH_RVIR,
@@ -657,6 +710,8 @@ def make_density_figure(box, halo_id, out_path=None, width_rvir=DENSITY_WIDTH_RV
             note = "plotted; halo not located"
         elif panel["recentered"]:
             note = "plotted, re-centered %.0f kpc" % drift
+            if panel.get("authority") == "halocat":
+                note += " onto the halocat target (shrinking spheres had slid onto a neighbour)"
         elif drift > half_kpc:
             note = ("OUT OF FRAME: halo is %.0f kpc away, frame half-width %.0f kpc"
                     % (drift, half_kpc))
@@ -724,8 +779,8 @@ def make_density_figure(box, halo_id, out_path=None, width_rvir=DENSITY_WIDTH_RV
                 ax.text(0.03, 0.955, "halo not located", transform=ax.transAxes,
                         fontsize=9, color="#ffb74d", weight="bold")
             elif p["recentered"]:
-                ax.text(0.03, 0.955, "re-centered %.0f kpc" % drift,
-                        transform=ax.transAxes, fontsize=9, color="0.85")
+                ax.text(0.03, 0.955, "re-centered %.0f kpc%s" % (drift, "\non halocat target" if p.get("authority") == "halocat" else ""),
+                        transform=ax.transAxes, fontsize=9, color="0.85", va="top")
             elif drift > half:
                 ax.text(0.03, 0.955, "HALO OUT OF FRAME\n%.0f kpc = %.1f Rvir away"
                         % (drift, drift / p["rvir_phys"]), transform=ax.transAxes,
