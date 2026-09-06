@@ -543,16 +543,6 @@ def halocat_target(box, halo_id, level, phase, snap_name):
         if src is None:
             return None
         e3, r3, ph3 = src
-        def _shift(conf):
-            if not os.path.exists(conf): return None
-            for line in open(conf):
-                if line.strip().startswith("region_point_shift"):
-                    return np.array([float(v) for v in line.split("=", 1)[1].split(",")])
-            return None
-        s3 = _shift(os.path.join(hdir, "25Mpc_DM_%d-L3%s.conf" % (int(box.parent_ngrid), "" if ph3 == "DM" else "-gas")))
-        sL = _shift(os.path.join(hdir, "25Mpc_DM_%d-L%d%s.conf" % (int(box.parent_ngrid), int(level), "" if phase != "gas" else "-gas")))
-        if s3 is None or sL is None:
-            return None
         cat3 = os.path.join("/nobackupnfs1/jtumlins/halocat_data", r3, "catalogs", e3["snap"] + "_halos.h5")
         if not os.path.exists(cat3):
             return None
@@ -565,7 +555,17 @@ def halocat_target(box, halo_id, level, phase, snap_name):
         m = re.search(r"CosmologyCurrentRedshift\s*=\s*(\S+)", pf)
         if m is None or abs(float(m.group(1))) > 5e-3:
             return None
-        c = (c3 + (sL - s3) / float(box.parent_ngrid)) % 1.0
+        # center_in_run carries the catalog centre into every level's frame
+        # (MUSIC re-centres each level; a shift difference is not enough --
+        # L1's region_point_shift is 0).  The target's offset from that
+        # carried centre at L3 is frame-independent, so apply it at this level.
+        try:
+            c3_run = np.array(center_in_run(box, int(halo_id), 3, hdir, phase=ph3)[0])
+            cL_run = np.array(center_in_run(box, int(halo_id), int(level), hdir, phase=phase)[0])
+        except Exception:
+            return None
+        delta = c3 - c3_run; delta -= np.round(delta)
+        c = (cL_run + delta) % 1.0
         return c, r200
     cat = os.path.join("/nobackupnfs1/jtumlins/halocat_data", run, "catalogs", ent["snap"] + "_halos.h5")
     if not os.path.exists(cat):
