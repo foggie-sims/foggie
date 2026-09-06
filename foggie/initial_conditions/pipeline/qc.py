@@ -519,9 +519,9 @@ def halocat_target(box, halo_id, level, phase, snap_name):
     drawn on it and say so.
     """
     import json, glob, h5py
-    ics = os.environ.get("FOGGIE_ICS_DIR", os.path.dirname(os.path.dirname(box.halo_dir(halo_id))))
-    lst = os.path.join(ics, "figures_z0", "main_halos_L%d%sz0.json" % (level, "" if phase == "gas" else "DM_"))
-    run = "halo%d-%d-L%d-%s" % (halo_id, box.parent_ngrid, level, "gas" if phase == "gas" else "DM")
+    ics = os.environ.get("FOGGIE_ICS_DIR", "/nobackupnfs1/jtumlins/25Mpc_new_cosmology")
+    lst = os.path.join(ics, "figures_z0", "main_halos_L%d%sz0.json" % (int(level), "" if phase == "gas" else "DM_"))
+    run = "halo%d-%d-L%d-%s" % (int(halo_id), int(box.parent_ngrid), int(level), "gas" if phase == "gas" else "DM")
     if not os.path.exists(lst):
         return None
     ent = json.load(open(lst)).get(run)
