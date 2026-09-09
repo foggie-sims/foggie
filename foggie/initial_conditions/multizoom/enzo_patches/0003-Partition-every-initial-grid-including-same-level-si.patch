@@ -1,0 +1,120 @@
+From 12f70fa6679e32760666963e21ca4a5c67cc7856 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 25 Aug 2026 15:44:48 +0000
+Subject: [PATCH 3/5] Partition every initial grid, including same-level
+ siblings
+
+The nested-grid partition walk in InitializeNew descended only the
+first-child chain (NextGridNextLevel) and skipped partitioning any
+grid with a sibling, so with several nested grids on one level the
+extra patches were never partitioned or visited. Snapshot the
+initial-grid list with a full hierarchy traversal before partitioning
+(CommunicationPartitionGrid splices new siblings into the chains), then
+partition each entry. The non-nested path keeps its old behavior of
+partitioning only the top grid.
+---
+ src/enzo/InitializeNew.C | 72 ++++++++++++++++++++++++++--------------
+ 1 file changed, 48 insertions(+), 24 deletions(-)
+
+diff --git a/src/enzo/InitializeNew.C b/src/enzo/InitializeNew.C
+index 00e12be..8b5632b 100644
+--- a/src/enzo/InitializeNew.C
++++ b/src/enzo/InitializeNew.C
+@@ -260,12 +260,32 @@ int GetUnits(float *DensityUnits, float *LengthUnits,
+ 
+  
+ // Character strings
+- 
++
+ char outfilename[] = "amr.out";
+- 
+- 
+- 
+- 
++
++
++// Snapshot the initial-grid hierarchy into a flat list.  Recurses both
++// hierarchy links because sibling grids on a level hang off different
++// parents once several nested grids share a level.
++
++static void CollectInitialGrids(HierarchyEntry *Grid, int level,
++				HierarchyEntry **List, int *Levels,
++				int *Count)
++{
++  while (Grid != NULL) {
++    if (List != NULL) {
++      List[*Count] = Grid;
++      Levels[*Count] = level;
++    }
++    (*Count)++;
++    if (Grid->NextGridNextLevel != NULL)
++      CollectInitialGrids(Grid->NextGridNextLevel, level+1,
++			  List, Levels, Count);
++    Grid = Grid->NextGridThisLevel;
++  }
++}
++
++
+ int InitializeNew(char *filename, HierarchyEntry &TopGrid,
+ 		  TopGridData &MetaData, ExternalBoundary &Exterior,
+ 		  float *Initialdt)
+@@ -958,33 +978,37 @@ int InitializeNew(char *filename, HierarchyEntry &TopGrid,
+   if (debug)
+     printf("InitializeNew: Initial grid hierarchy set\n");
+   
+-  // Walk the grids
+-  
+-  HierarchyEntry *CurrentGrid;
++  // Walk the grids.  Partitioning splices new siblings into the
++  // hierarchy chains, so snapshot the initial grids first and then
++  // partition each one from the list.
++
+   FLOAT WT = -1.0;
+   int GP = 1;
+   int gridcounter = 0;
+-  
+-  CurrentGrid = &TopGrid;
+ 
++  int NumberOfInitialGrids = 0;
++  CollectInitialGrids(&TopGrid, 0, NULL, NULL, &NumberOfInitialGrids);
++  HierarchyEntry **InitialGridList =
++    new HierarchyEntry*[NumberOfInitialGrids];
++  int *InitialGridLevels = new int[NumberOfInitialGrids];
++  int CollectedGrids = 0;
++  CollectInitialGrids(&TopGrid, 0, InitialGridList, InitialGridLevels,
++		      &CollectedGrids);
++
++  for (gridcounter = 0; gridcounter < CollectedGrids; gridcounter++) {
++
++    if (!PartitionNestedGrids && InitialGridLevels[gridcounter] > 0)
++      continue;
+ 
+- 
+-  while (CurrentGrid != NULL) {
+-    
+     if (debug)
+       printf("InitializeNew: Partition Initial Grid %"ISYM"\n", gridcounter);
+-    
+-    if (CurrentGrid->NextGridThisLevel == NULL)     
+-      CommunicationPartitionGrid(CurrentGrid, gridcounter);
+-    
+-    gridcounter++;
+-    
+-    if (PartitionNestedGrids)
+-      CurrentGrid = CurrentGrid->NextGridNextLevel;
+-    else
+-      CurrentGrid = NULL;
+-    
++
++    CommunicationPartitionGrid(InitialGridList[gridcounter], gridcounter);
++
+   }
++
++  delete [] InitialGridList;
++  delete [] InitialGridLevels;
+   
+   // For problem 30, using ParallelGridIO,
+   // read in data only after partitioning the grid
+-- 
+2.43.0
+

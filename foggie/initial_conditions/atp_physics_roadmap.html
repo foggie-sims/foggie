@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ATP 2023 — Enzo physics roadmap (for review)</title>
+<style>
+  :root{
+    --bg:#fff; --surface:#f6f7f9; --surface2:#eceef2; --text:#16181d; --muted:#5c6370;
+    --line:#d3d7de; --exists:#1f7a52; --exists-bg:#e0f2e9; --build:#2f6fb5; --build-bg:#e4eef9;
+    --bug:#c62828; --bug-bg:#fdeaea; --warn:#a8571b; --warn-bg:#fbeee0;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#14161a; --surface:#1b1e24; --surface2:#232730; --text:#e6e8ec; --muted:#9aa1ad;
+      --line:#333944; --exists:#5fce9d; --exists-bg:#14312a; --build:#7fb2e8; --build-bg:#1c2b3d;
+      --bug:#ef7a7a; --bug-bg:#3a1e1e; --warn:#e0a86a; --warn-bg:#35281a;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);
+       font-size:16px;line-height:1.62;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:44px 28px 96px}
+  header{border-bottom:2px solid var(--line);padding-bottom:20px;margin-bottom:16px}
+  h1{font-size:29px;margin:0 0 8px;letter-spacing:-.02em;line-height:1.24}
+  .sub{color:var(--muted);margin:0;font-size:16px}
+  .meta{margin-top:14px;font-size:12.5px;color:var(--muted);font-family:var(--mono)}
+  .meta span{display:inline-block;margin-right:18px}
+
+  .banner{background:var(--warn-bg);border:1px solid var(--warn);border-left:5px solid var(--warn);
+          border-radius:7px;padding:15px 20px;margin:22px 0 34px}
+  .banner b{color:var(--warn)}
+  .banner p{margin:6px 0 0;font-size:14.5px}
+
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);
+     font-weight:700;margin:50px 0 6px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .lede{font-size:16px;margin:14px 0 20px;max-width:80ch}
+  code{font-family:var(--mono);font-size:.87em;background:var(--surface2);padding:1px 5px;border-radius:3px}
+  pre{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--bug);
+      border-radius:6px;padding:13px 16px;overflow-x:auto;font-family:var(--mono);
+      font-size:12.5px;line-height:1.55;margin:14px 0}
+  pre.ok{border-left-color:var(--exists)}
+
+  figure{margin:0 0 6px}
+  .scroll{overflow-x:auto;padding-bottom:6px}
+  svg{display:block}
+  figcaption{font-size:13.5px;color:var(--muted);margin-top:10px;max-width:84ch}
+  .s-lab{font-family:var(--sans);font-size:13px;font-weight:600;fill:var(--text)}
+  .s-sm{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
+  .s-hd{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.09em}
+  .b-ex{fill:var(--exists-bg);stroke:var(--exists);stroke-width:1.5}
+  .b-bd{fill:var(--build-bg);stroke:var(--build);stroke-width:1.5}
+  .b-bug{fill:var(--bug-bg);stroke:var(--bug);stroke-width:1.5}
+  .b-pl{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+  .t-ex{fill:var(--exists)} .t-bd{fill:var(--build)} .t-bug{fill:var(--bug)} .t-mu{fill:var(--muted)}
+  .fl{stroke:var(--line);stroke-width:1.8;fill:none}
+
+  table{border-collapse:collapse;width:100%;font-size:14.5px;margin:8px 0}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700}
+  td:first-child{white-space:nowrap;font-family:var(--mono);font-size:13px}
+  tbody tr:last-child td{border-bottom:none}
+  .pill{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:700;
+        padding:2px 8px;border-radius:11px;letter-spacing:.04em}
+  .p-ex{background:var(--exists-bg);color:var(--exists)}
+  .p-bd{background:var(--build-bg);color:var(--build)}
+  .p-bug{background:var(--bug-bg);color:var(--bug)}
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;margin-top:16px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px 18px}
+  .card h3{margin:0 0 7px;font-size:14.5px}
+  .card p{margin:0;font-size:14px;color:var(--muted)}
+  .card.ex{border-left:4px solid var(--exists)}
+  .card.bd{border-left:4px solid var(--build)}
+  .card.bug{border-left:4px solid var(--bug)}
+
+  ol.seq{list-style:none;padding:0;margin:16px 0 0}
+  ol.seq li{position:relative;padding:0 0 22px 50px;border-left:2px solid var(--line);margin-left:15px}
+  ol.seq li:last-child{border-left-color:transparent;padding-bottom:0}
+  ol.seq .n{position:absolute;left:-15px;top:-2px;width:29px;height:29px;border-radius:50%;
+            background:var(--surface2);border:2px solid var(--line);font-family:var(--mono);
+            font-size:12.5px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  ol.seq li.gate .n{background:var(--bug-bg);border-color:var(--bug);color:var(--bug)}
+  ol.seq .ttl{font-weight:700;display:block;margin-bottom:2px}
+  ol.seq .bd{color:var(--muted);font-size:14.5px}
+
+  footer{margin-top:60px;padding-top:18px;border-top:1px solid var(--line);
+         font-size:12.5px;color:var(--muted);font-family:var(--mono)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Implementing the ATP 2023 physics in Enzo</h1>
+  <p class="sub">“Galaxy Evolution at the Edge” §5.2 — small star particles, chemical evolution,
+     and multi-refine tracking of dwarfs.</p>
+  <p class="meta">
+    <span>branch: ics_refactor</span>
+    <span>full plan: ATP_PHYSICS_PLAN.md</span>
+    <span>source: ATP2023-DRAFT-v3-June28.pdf</span>
+  </p>
+</header>
+
+<div class="banner">
+  <b>FOR REVIEW — nothing has been implemented.</b>
+  <p>No Enzo source has been modified, no branch cut in <code>enzo-foggie</code>, no PR opened.
+     This page and the accompanying plan exist so the team can review the approach before any code
+     is written. Everything described as “to build” is proposed, not done.</p>
+</div>
+
+<h2>The headline</h2>
+<p class="lede">
+  <strong>Two of the three components are substantially built already.</strong> The proposal reads
+  as three new features; the code says otherwise. The work is far more repair-and-connect than
+  greenfield, and one of the “new” capabilities is a five-line bug fix away from working.
+</p>
+
+<figure>
+<div class="scroll">
+<svg width="1090" height="330" viewBox="0 0 1090 330" role="img"
+     aria-label="Status of the three ATP components: chemical evolution and multi-refine largely exist, small star particles partly exist.">
+  <text x="8" y="20" class="s-hd t-mu">§5.2.2  CHEMICAL EVOLUTION</text>
+  <rect x="8" y="30" width="500" height="86" rx="7" class="b-ex"/>
+  <text x="22" y="52" class="s-lab t-ex">Already built</text>
+  <text x="22" y="70" class="s-sm">SYGMA/NuGrid table reader + bilinear (Z, age) interpolation</text>
+  <text x="22" y="84" class="s-sm">4 sources in the table: SNII, SNIa, AGB, NSM</text>
+  <text x="22" y="98" class="s-sm">MetalAGBDensity / MetalNSMDensity fields exist</text>
+  <text x="22" y="112" class="s-sm">agb_* and nsm_* routines written</text>
+
+  <rect x="524" y="30" width="558" height="86" rx="7" class="b-bug"/>
+  <text x="538" y="52" class="s-lab t-bug">…but unreachable</text>
+  <text x="538" y="70" class="s-sm">agb_mass / agb_metal / nsm_mass / nsm_metal: ZERO call sites</text>
+  <text x="538" y="84" class="s-sm">AGB + r-process yields are read into memory and dropped</text>
+  <text x="538" y="98" class="s-sm">the two fields are missing from the fraction/density conversion,</text>
+  <text x="538" y="112" class="s-sm">so enabling them today corrupts rather than merely omits</text>
+
+  <text x="8" y="150" class="s-hd t-mu">§5.2.3  MULTI-REFINE</text>
+  <rect x="8" y="160" width="500" height="86" rx="7" class="b-ex"/>
+  <text x="22" y="182" class="s-lab t-ex">Already built, documented, tested</text>
+  <text x="22" y="200" class="s-sm">CellFlaggingMethod 20: 20 moving boxes, per-box levels</text>
+  <text x="22" y="214" class="s-sm">time-interpolated tracks; context-aware star formation</text>
+  <text x="22" y="228" class="s-sm">Enzo manual entries + amr_nested_cosmology test problem</text>
+  <text x="22" y="242" class="s-sm">anna-branch fully merged into enzo-foggie main</text>
+
+  <rect x="524" y="160" width="558" height="86" rx="7" class="b-bug"/>
+  <text x="538" y="182" class="s-lab t-bug">…but one bug makes it unusable</text>
+  <text x="538" y="200" class="s-sm">refinement levels are never reset per cell, so one cell inside</text>
+  <text x="538" y="214" class="s-sm">a region refines THE WHOLE GRID</text>
+  <text x="538" y="228" class="s-sm">the existing test asserts only lower bounds, so it cannot</text>
+  <text x="538" y="242" class="s-sm">catch over-refinement — it passes green</text>
+
+  <text x="8" y="280" class="s-hd t-mu">§5.2.1  SMALL STAR PARTICLES</text>
+  <rect x="8" y="290" width="500" height="34" rx="7" class="b-ex"/>
+  <text x="22" y="311" class="s-sm t-ex">Partly delivered: per-region minimum star mass, tested</text>
+
+  <rect x="524" y="290" width="558" height="34" rx="7" class="b-bd"/>
+  <text x="538" y="311" class="s-sm t-bd">To build: hybrid individual &gt;8 M☉ stars on ActiveParticle — the real work</text>
+</svg>
+</div>
+<figcaption>
+  Green is code that exists today. Red is what stops it working. Blue is genuinely new.
+</figcaption>
+</figure>
+
+<h2>The finding that matters most</h2>
+<p class="lede">
+  The multi-refine flagging routine never resets its per-cell refinement levels. They are declared
+  at function scope and only ever raised, so once any single cell lands inside a region, every
+  later cell in the traversal inherits that level and is flagged.
+</p>
+
+<pre>int LocalMaximumRefinementLevel = 0;   // function scope — never reset per cell
+int LocalMinimumRefinementLevel = 0;
+...
+  for (k…) for (j…) for (i…) {
+      NRegions = 0;                    // this IS reset
+      for (region…)
+          if (cell inside region)
+              LocalMinimumRefinementLevel = max(…);   // only ever raised
+      if (level &lt; LocalMinimumRefinementLevel) FlaggingField[index] = 1;
+  }</pre>
+
+<p class="lede">
+  And the existing test cannot see it, because every assertion is a <em>lower</em> bound:
+</p>
+
+<pre class="ok">assert(np.all(MRR1['index','grid_level'] &gt;= llim[timestep]))   # inside evolving region
+assert(np.all(MRR2['index','grid_level'] &gt;= 2))                # inside static region
+                                                               # nothing checks OUTSIDE</pre>
+
+<p class="lede">
+  Over-refinement satisfies both. So the plan opens with <strong>adding the missing upper-bound
+  assertion and watching it fail</strong> before anything is fixed — a fix verified only by a test
+  that could not have caught the bug is not verified.
+</p>
+
+<h2>What gets built</h2>
+<table>
+  <thead><tr><th>Item</th><th>Status</th><th>What it is</th></tr></thead>
+  <tbody>
+    <tr><td>A1</td><td><span class="pill p-bug">connect</span></td><td>Call the existing AGB/NSM yield routines; fix the fraction↔density omission in the same commit</td></tr>
+    <tr><td>A2</td><td><span class="pill p-bd">new</span></td><td>Fifth source — winds and planetary nebulae — as <code>MetalWindDensity</code></td></tr>
+    <tr><td>A3–A5</td><td><span class="pill p-bd">new</span></td><td>Generalise source indexing; total metallicity for cooling; audit table-edge behaviour</td></tr>
+    <tr><td>A6</td><td><span class="pill p-bd">new</span></td><td>IMF variation via alternate SYGMA tables, with recorded provenance</td></tr>
+    <tr><td>B1–B3</td><td><span class="pill p-bd">new</span></td><td><code>MassiveStar</code> ActiveParticle, IMF sampling at formation, per-star feedback</td></tr>
+    <tr><td>B4</td><td><span class="pill p-ex">exists</span></td><td>Type Ia — already in the SYGMA table; add an explicit DTD only if that proves unsuitable</td></tr>
+    <tr><td>C0–C1</td><td><span class="pill p-bug">fix</span></td><td>Add the upper-bound assertion, then the per-cell scoping fix</td></tr>
+    <tr><td>C2–C4</td><td><span class="pill p-bug">fix</span></td><td>Enforce per-box max level; prefilter the 1000-iteration loop; stop restarts duplicating tracks</td></tr>
+    <tr><td>C5</td><td><span class="pill p-bd">revive</span></td><td>Radius-graded spheres — a 2013 prototype exists but was never compiled</td></tr>
+    <tr><td>C6–C9</td><td><span class="pill p-bd">new</span></td><td>Scale past 20 tracks; time-varying per-track levels; bound-particle tracers; cap cooling refinement</td></tr>
+  </tbody>
+</table>
+
+<h2>Order of work</h2>
+<ol class="seq">
+  <li class="gate"><span class="n">0</span><span class="ttl">Branch and reproduce</span>
+    <span class="bd">Cut from <code>enzo-foggie</code>, port the Aitken machine file, and confirm the
+    build reproduces a current production run <em>before</em> changing any physics.
+    halo42189 L1 is the reference — already shown bit-identical to its hand-built counterpart.</span></li>
+  <li class="gate"><span class="n">1</span><span class="ttl">Multi-refine repairs (C0–C4)</span>
+    <span class="bd">Highest value per line in the whole plan. C1 is a few lines that turn an
+    unusable feature into a working one; C0 is the test that proves it.</span></li>
+  <li><span class="n">2</span><span class="ttl">Connect AGB/NSM, add winds (A1–A2)</span>
+    <span class="bd">Cheap, and it exercises the field-addition path end to end before anything
+    harder depends on it.</span></li>
+  <li><span class="n">3</span><span class="ttl">Generalise sources, audit edges (A3–A5)</span></li>
+  <li><span class="n">4</span><span class="ttl">MassiveStar ActiveParticle (B1–B3)</span>
+    <span class="bd">The largest single piece, and the main correctness risk: two star-particle
+    systems must sum correctly and never double count.</span></li>
+  <li><span class="n">5</span><span class="ttl">Radius grading, tracers, cooling caps (C5–C9)</span></li>
+  <li><span class="n">6</span><span class="ttl">Type Ia prescription, IMF variants (B4, A6)</span></li>
+</ol>
+
+<h2>How each piece is verified</h2>
+<div class="cards">
+  <div class="card bug">
+    <h3>Multi-refine</h3>
+    <p>Outside every region, <code>grid_level</code> must not exceed the outer level. Must
+    <strong>fail before</strong> the fix and pass after. Restart twice; region count must not change.</p>
+  </div>
+  <div class="card bd">
+    <h3>Small star particles</h3>
+    <p>Mass closure: individual star masses plus the aggregated particle must equal the mass removed
+    from the cell, exactly. This is the first unit test, not the last.</p>
+  </div>
+  <div class="card ex">
+    <h3>Chemical evolution</h3>
+    <p>Per-source metal fields must sum to the total every step. Then integrate one star particle's
+    ejecta over 13 Gyr and compare against <strong>SYGMA's own totals</strong> — an oracle outside
+    Enzo for the whole interpolate/integrate path.</p>
+  </div>
+</div>
+
+<h2>Open risks</h2>
+<table>
+  <tbody>
+    <tr><td>coexistence</td><td>ActiveParticle massive stars alongside legacy aggregated particles — feedback must sum correctly across both and neither may double count. The main correctness risk.</td></tr>
+    <tr><td>scale</td><td><code>MAX_TRACKS = 20</code> against a proposal wanting hundreds of dwarfs. The arrays are statically sized; dynamic allocation touches restart.</td></tr>
+    <tr><td>divergence</td><td>Work on a branch off <code>enzo-foggie</code> while production runs <code>enzo-foggie-aitken-mpich</code>. Rebase early and often rather than one big merge.</td></tr>
+    <tr><td>provenance</td><td><code>sygma_feedback_table_1000.h5</code> has no recorded generation recipe. Before varying the IMF, record how tables are produced or the variants are not comparable.</td></tr>
+    <tr><td>for the team</td><td>Not a coding decision: the committed gas templates carry <code>StarMakerMinimumMass = 10000.</code> while the runs that completed used <code>10</code>. Small star particles make that parameter far more consequential.</td></tr>
+  </tbody>
+</table>
+
+<footer>
+  foggie / initial_conditions · branch ics_refactor · full detail in ATP_PHYSICS_PLAN.md ·
+  for review, not yet implemented
+</footer>
+
+</div>
+</body>
+</html>

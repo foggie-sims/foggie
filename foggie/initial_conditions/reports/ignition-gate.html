@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Literature assessment and research plan for the ATP ultrafaint fleet: resolution and code comparison against LYRA, EDGE2, FIRE-2 and Kuhlen+ 2012.">
+<style>
+  html{color-scheme:light dark}
+  body{margin:0;font:14px/1.5 system-ui,sans-serif}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+</style>
+<title>The Ten Solar Mass Gate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  --ground:#EEF1F2;
+  --surface:#FFFFFF;
+  --sunk:#E4E9EB;
+  --ink:#14181B;
+  --muted:#5A6570;
+  --faint:#8A959D;
+  --rule:#CBD5D9;
+  --rule-soft:#DFE6E9;
+  --ember:#B4401A;
+  --ember-soft:#F0DBD1;
+  --deep:#1F5F6B;
+  --deep-soft:#D9E6E8;
+  --measure:69ch;
+  --s1:.35rem; --s2:.7rem; --s3:1.1rem; --s4:1.7rem; --s5:2.6rem; --s6:4rem;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1315; --surface:#161C1F; --sunk:#1C2429;
+    --ink:#E7ECEE; --muted:#95A2AA; --faint:#6C7A82;
+    --rule:#2B363C; --rule-soft:#222C31;
+    --ember:#EE7B47; --ember-soft:#3A2118;
+    --deep:#63B0BC; --deep-soft:#16302F;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1315; --surface:#161C1F; --sunk:#1C2429;
+  --ink:#E7ECEE; --muted:#95A2AA; --faint:#6C7A82;
+  --rule:#2B363C; --rule-soft:#222C31;
+  --ember:#EE7B47; --ember-soft:#3A2118;
+  --deep:#63B0BC; --deep-soft:#16302F;
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--ground); color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:16px; line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1120px;margin:0 auto;padding:var(--s5) var(--s4) var(--s6)}
+.col{max-width:var(--measure)}
+p{margin:0 0 var(--s3)}
+a{color:var(--deep)}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--ember);outline-offset:3px;border-radius:2px}
+
+h1,h2,h3{font-family:Newsreader,Georgia,"Times New Roman",serif;text-wrap:balance;margin:0}
+h1{font-size:clamp(2.4rem,5.2vw,3.7rem);font-weight:500;line-height:1.02;letter-spacing:-.015em}
+h2{font-size:1.85rem;font-weight:500;line-height:1.15;letter-spacing:-.01em}
+h3{font-size:1.15rem;font-weight:600;line-height:1.3}
+
+.eyebrow{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--faint);font-weight:500;
+}
+.mono,td.num,th.num{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,monospace;font-variant-numeric:tabular-nums}
+
+/* ---- masthead ---- */
+.masthead{border-bottom:1px solid var(--rule);padding-bottom:var(--s4);margin-bottom:var(--s5)}
+.standfirst{font-family:Newsreader,Georgia,serif;font-size:1.32rem;line-height:1.5;color:var(--muted);max-width:60ch;margin:var(--s3) 0 var(--s4)}
+.meta{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);align-items:baseline}
+.meta div{display:flex;flex-direction:column;gap:2px}
+.meta .k{font-family:"IBM Plex Mono",monospace;font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.meta .v{font-family:"IBM Plex Mono",monospace;font-size:.92rem;font-variant-numeric:tabular-nums}
+
+/* ---- section rhythm ---- */
+section{margin-top:var(--s6)}
+section > .eyebrow{display:block;margin-bottom:var(--s1)}
+section > h2{margin-bottom:var(--s3)}
+.lede{font-size:1.06rem;color:var(--muted);max-width:62ch;margin-bottom:var(--s4)}
+
+/* ---- the finding strip ---- */
+.finding{
+  background:var(--surface);border:1px solid var(--rule);
+  border-left:3px solid var(--ember);
+  padding:var(--s3) var(--s4);margin:var(--s4) 0;
+}
+.finding .eq{
+  font-family:"IBM Plex Mono",monospace;font-size:1.02rem;
+  display:block;margin:var(--s2) 0;color:var(--ember);font-weight:500;
+}
+
+/* ---- tables ---- */
+figure{margin:0 0 var(--s5)}
+.scroll{overflow-x:auto;border:1px solid var(--rule);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:.87rem}
+caption{
+  text-align:left;font-family:"IBM Plex Mono",monospace;font-size:.7rem;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--faint);
+  padding:0 0 var(--s2);
+}
+th{
+  text-align:left;font-weight:600;font-size:.72rem;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted);
+  padding:.7rem .85rem;border-bottom:1px solid var(--rule);
+  white-space:nowrap;vertical-align:bottom;
+}
+td{padding:.62rem .85rem;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+.num{text-align:right}
+tr.ours td{background:var(--ember-soft)}
+tr.ours td:first-child{box-shadow:inset 3px 0 0 var(--ember)}
+tr.ours{font-weight:500}
+.code{font-family:"IBM Plex Mono",monospace;font-size:.84rem;color:var(--deep);font-weight:500}
+td small{display:block;color:var(--muted);font-size:.78rem;line-height:1.4;margin-top:2px}
+.figcap{font-size:.83rem;color:var(--muted);margin-top:var(--s2);max-width:74ch}
+
+/* ---- scale chart ---- */
+.scale{background:var(--surface);border:1px solid var(--rule);padding:var(--s3) var(--s2) var(--s2)}
+.scale svg{display:block;width:100%;height:auto}
+.ax{stroke:var(--rule);stroke-width:1}
+.tick{stroke:var(--rule);stroke-width:1}
+.ticklbl{fill:var(--faint);font-family:"IBM Plex Mono",monospace;font-size:10px}
+.pin{stroke:var(--deep);stroke-width:1.5}
+.dot{fill:var(--deep)}
+.lbl{fill:var(--ink);font-family:"IBM Plex Sans",sans-serif;font-size:11.5px;font-weight:500}
+.val{fill:var(--muted);font-family:"IBM Plex Mono",monospace;font-size:10.5px}
+.pin.us{stroke:var(--ember)} .dot.us{fill:var(--ember)} .lbl.us{fill:var(--ember)}
+
+/* ---- ladder ---- */
+.ladder{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule)}
+.rung{background:var(--surface);padding:var(--s3) var(--s2);display:flex;flex-direction:column;gap:3px}
+.rung .lv{font-family:"IBM Plex Mono",monospace;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.rung .m{font-family:"IBM Plex Mono",monospace;font-size:1.18rem;font-variant-numeric:tabular-nums}
+.rung .n{font-size:.76rem;color:var(--muted);line-height:1.35}
+.rung.proj{background:var(--ember-soft)}
+.rung.proj .m,.rung.proj .lv{color:var(--ember)}
+
+/* ---- gap blocks ---- */
+.gaps{display:grid;gap:var(--s3);grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:var(--s4)}
+.gap{border-top:2px solid var(--ember);padding-top:var(--s2)}
+.gap.ok{border-top-color:var(--deep)}
+.gap h3{margin-bottom:var(--s1)}
+.gap p{font-size:.92rem;color:var(--muted);margin:0}
+
+/* ---- ranked novelty ---- */
+ol.rank{list-style:none;counter-reset:r;padding:0;margin:var(--s4) 0 0;display:flex;flex-direction:column;gap:var(--s3)}
+ol.rank li{counter-increment:r;display:grid;grid-template-columns:2.1rem 1fr;gap:var(--s2);align-items:start}
+ol.rank li::before{
+  content:counter(r);font-family:"IBM Plex Mono",monospace;font-size:.8rem;font-weight:600;
+  color:var(--ember);border:1px solid var(--ember);border-radius:50%;
+  width:1.7rem;height:1.7rem;display:grid;place-items:center;margin-top:.15rem;
+}
+ol.rank strong{display:block;font-weight:600}
+ol.rank p{font-size:.94rem;color:var(--muted);margin:.25rem 0 0}
+
+/* ---- tiers ---- */
+.tier{border:1px solid var(--rule);background:var(--surface);margin-bottom:var(--s3)}
+.tier > summary{
+  cursor:pointer;list-style:none;padding:var(--s3) var(--s4);
+  display:flex;gap:var(--s3);align-items:baseline;flex-wrap:wrap;
+}
+.tier > summary::-webkit-details-marker{display:none}
+.tier .tg{font-family:"IBM Plex Mono",monospace;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ember);font-weight:600}
+.tier .th{font-family:Newsreader,Georgia,serif;font-size:1.2rem;font-weight:500}
+.tier .ts{font-size:.85rem;color:var(--muted);margin-left:auto}
+.tier .body{padding:0 var(--s4) var(--s4);border-top:1px solid var(--rule-soft);margin-top:0}
+.tier .body p{font-size:.94rem;margin-top:var(--s3)}
+.tier .body p:last-child{margin-bottom:0}
+
+.dont{background:var(--sunk);border:1px solid var(--rule);padding:var(--s3) var(--s4);margin-top:var(--s4)}
+.dont ul{margin:var(--s2) 0 0;padding-left:1.1rem;font-size:.94rem;color:var(--muted)}
+.dont li{margin-bottom:var(--s1)}
+
+.srcs{font-size:.86rem;line-height:1.9;border-top:1px solid var(--rule);padding-top:var(--s3);margin-top:var(--s6);color:var(--muted)}
+.srcs a{text-decoration-color:var(--rule)}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:640px){
+  .wrap{padding:var(--s4) var(--s3) var(--s5)}
+  .tier > summary{padding:var(--s3)}
+  .tier .body{padding:0 var(--s3) var(--s3)}
+  .tier .ts{margin-left:0;width:100%}
+}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <span class="eyebrow">Research plan &middot; ATP ultrafaint fleet</span>
+  <h1>The Ten Solar&nbsp;Mass Gate</h1>
+  <p class="standfirst">Where our ultrafaint ignition study stands against the highly-resolved
+  simulation literature &mdash; and why the star formation threshold at the faint end turned out to be
+  a discretization, not a physical scale.</p>
+  <div class="meta">
+    <div><span class="k">Prepared</span><span class="v">2026&#8209;09&#8209;09</span></div>
+    <div><span class="k">Fleet</span><span class="v">61 halos &middot; 27 at z=0</span></div>
+    <div><span class="k">Control arms</span><span class="v">18 reion &middot; 18 norad</span></div>
+    <div><span class="k">Code</span><span class="v">Enzo AMR &middot; nref9</span></div>
+  </div>
+</header>
+
+<section style="margin-top:0">
+  <span class="eyebrow">The finding this plan responds to</span>
+  <h2>One inequality sets the faint&#8209;end threshold</h2>
+  <div class="col">
+    <p>In our decks both optional gates in <span class="mono">star_maker_h2reg.F</span> are disabled
+    (<span class="mono">NumberDensityThreshold&nbsp;=&nbsp;0</span>,
+    <span class="mono">MinimumH2Fraction&nbsp;=&nbsp;0</span>). The only test the code applies is the
+    minimum&#8209;mass one, and because <span class="mono">t_ff&nbsp;&prop;&nbsp;n<sub>H</sub><sup>&minus;1/2</sup></span>
+    and <span class="mono">m_cell&nbsp;&prop;&nbsp;n<sub>H</sub>&nbsp;dx&sup3;</span> at fixed refinement level, it collapses
+    to a single scaling.</p>
+  </div>
+  <div class="finding col">
+    <span class="mono" style="font-size:.9rem;color:var(--muted)">m_form = min(0.9, &epsilon; &middot; f<sub>H2</sub> &middot; dt/&tau;) &middot; m_cell &nbsp;&ge;&nbsp; 10 M<sub>&#9737;</sub></span>
+    <span class="eq">R &nbsp;&prop;&nbsp; f<sub>H2</sub> &middot; n<sub>H</sub><sup>3/2</sup> &middot; dx&sup3;</span>
+    <span class="mono" style="font-size:.82rem;color:var(--muted)">R &ge; 1 is ignition. Our dark halos sit at R = 0.019&ndash;0.092 &mdash; short by 11&ndash;52&times;.</span>
+  </div>
+  <div class="col">
+    <p>Repairing a dead stochastic branch that had been discarding all sub&#8209;threshold star
+    formation ignites three halos that were dark in <em>every</em> previous configuration. Predicted
+    yields from the measured R histories were 7&thinsp;/&thinsp;93&thinsp;/&thinsp;258 particles;
+    measured 7&thinsp;/&thinsp;81&thinsp;/&thinsp;323. The question this document answers is whether
+    that is a result the field needs, and what it obliges us to run next.</p>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">Table 1</span>
+  <h2>The comparison set</h2>
+  <p class="lede">Four highly-resolved ultrafaint studies plus the paper our own star maker comes from.
+  Only one of the five is SPH.</p>
+  <figure>
+    <div class="scroll">
+      <table>
+        <caption>Resolution, star formation physics and sample</caption>
+        <thead>
+          <tr>
+            <th>Study</th><th>Code &amp; scheme</th>
+            <th class="num">DM particle</th><th class="num">Baryon element</th><th class="num">Spatial floor</th>
+            <th>Star formation</th><th>H<sub>2</sub></th><th>Radiation</th><th>Sample</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>LYRA ultrafaints</strong><small>Brown+ 2025</small></td>
+            <td class="code">AREPO<small style="color:var(--muted)">moving Voronoi mesh</small></td>
+            <td class="num mono">74.7</td>
+            <td class="num mono">4<small>target cell mass</small></td>
+            <td class="num mono">5.9&ndash;14.8&nbsp;pc</td>
+            <td>n<sub>H</sub>&gt;10&sup3; <em>and</em> T&lt;100&nbsp;K, &epsilon;=0.02<small>IMF sampled to individual stars</small></td>
+            <td>equilibrium tables<small>non-eq. H/He only</small></td>
+            <td>no RT<small>two LW backgrounds</small></td>
+            <td class="mono">65 halos<small>10<sup>7</sup>&ndash;5&times;10<sup>9</sup>, to z=0</small></td>
+          </tr>
+          <tr>
+            <td><strong>EDGE2</strong><small>Rey+ 2025</small></td>
+            <td class="code">RAMSES-RT<small style="color:var(--muted)">Eulerian AMR octree</small></td>
+            <td class="num mono">950</td>
+            <td class="num mono">~150<small>refine above 1200</small></td>
+            <td class="num mono">3&nbsp;pc</td>
+            <td>&rho;&gt;300&nbsp;m<sub>p</sub>&nbsp;cm<sup>&minus;3</sup>, &epsilon;<sub>ff</sub>=10%<small>300 M<sub>&#9737;</sub> particles</small></td>
+            <td>non&#8209;equilibrium<small>gas, dust, collisional</small></td>
+            <td>on&#8209;the&#8209;fly M1 RT<small>6 bins incl. 12&ndash;13.6&nbsp;eV</small></td>
+            <td class="mono">15 halos<small>M<sub>200</sub> 10<sup>9</sup>&ndash;10<sup>10</sup></small></td>
+          </tr>
+          <tr>
+            <td><strong>Wheeler+ 2019</strong></td>
+            <td class="code">GIZMO / FIRE-2<small style="color:var(--muted)">meshless finite mass</small></td>
+            <td class="num mono">&mdash;</td>
+            <td class="num mono">30</td>
+            <td class="num mono">~pc</td>
+            <td>self&#8209;gravitating, dense</td>
+            <td>approximate</td>
+            <td>local + UVB</td>
+            <td class="mono">~15 UFDs</td>
+          </tr>
+          <tr>
+            <td><strong>Applebaum+ 2021</strong><small>Mint DC Justice League</small></td>
+            <td class="code">ChaNGa<small style="color:var(--muted)">SPH</small></td>
+            <td class="num mono">~10<sup>4</sup></td>
+            <td class="num mono">~10<sup>3</sup></td>
+            <td class="num mono">~90&nbsp;pc</td>
+            <td>density + temperature</td>
+            <td>approximate</td>
+            <td>UVB</td>
+            <td class="mono">MW context</td>
+          </tr>
+          <tr>
+            <td><strong>Kuhlen+ 2012</strong><small>our prescription's origin</small></td>
+            <td class="code">Enzo<small style="color:var(--muted)">Eulerian AMR octree</small></td>
+            <td class="num mono">3.1&times;10<sup>6</sup></td>
+            <td class="num mono">&mdash;</td>
+            <td class="num mono">76&nbsp;pc <span style="font-size:.8em">(z=4)</span></td>
+            <td>H<sub>2</sub>&#8209;regulated, no &rho; threshold<small>m<sub>min</sub>=10<sup>4</sup>, <em>with</em> stochastic sampling</small></td>
+            <td>KMT09 analytic<small>zero at Z=0; Z floor 10<sup>&minus;3</sup> Z<sub>&#9737;</sub> at z=9</small></td>
+            <td>optically thin HM01<small>LW varied 1&ndash;1000 J<sub>MW</sub></small></td>
+            <td class="mono">12.5 Mpc box<small>z &ge; 4</small></td>
+          </tr>
+          <tr class="ours">
+            <td><strong>This work</strong><small>ATP ultrafaint fleet</small></td>
+            <td class="code">Enzo<small style="color:var(--muted)">Eulerian AMR octree</small></td>
+            <td class="num mono">2.21&times;10<sup>4</sup><small>2761 at L4</small></td>
+            <td class="num mono">2.3&times;10<sup>4</sup><small>at n<sub>H</sub>=100; refine above 3.3&times;10<sup>4</sup></small></td>
+            <td class="num mono">19.2&nbsp;pc <span style="font-size:.8em">(z=6)</span></td>
+            <td>H<sub>2</sub>&#8209;regulated, no &rho; or f<sub>H2</sub> threshold<small>m<sub>min</sub>=10, stochastic branch <em>was dead</em></small></td>
+            <td>non&#8209;equilibrium Grackle<small>H2I+H2II field read directly</small></td>
+            <td>tabulated HM2012<small>no RT, no LW model</small></td>
+            <td class="mono">61 halos<small>+18 reion, +18 norad matched</small></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="figcap">Masses in M<sub>&#9737;</sub>. Spatial floors are proper parsecs at the redshift noted.
+    EDGE2 is our structural twin &mdash; the same Eulerian AMR family with a maximum refinement level &mdash;
+    not a Lagrangian counterpoint. Only LYRA holds cell mass genuinely constant.</p>
+  </figure>
+</section>
+
+<section>
+  <span class="eyebrow">Table 2</span>
+  <h2>Dark matter ladder, and what L5 would buy</h2>
+  <p class="lede">Measured in an actual gas run, so already baryon&#8209;corrected: dark matter carries
+  (&Omega;<sub>m</sub>&minus;&Omega;<sub>b</sub>)/&Omega;<sub>m</sub> = 0.843 of the matter. The ladder
+  is exactly &divide;8 per zoom level.</p>
+  <div class="ladder">
+    <div class="rung"><span class="lv">512 root</span><span class="m">1.132e7</span><span class="n">134M particles</span></div>
+    <div class="rung"><span class="lv">L1</span><span class="m">1.416e6</span><span class="n">29,364</span></div>
+    <div class="rung"><span class="lv">L2</span><span class="m">1.770e5</span><span class="n">73,440</span></div>
+    <div class="rung"><span class="lv">L3</span><span class="m">2.213e4</span><span class="n">241,672 &middot; production</span></div>
+    <div class="rung"><span class="lv">L4</span><span class="m">2761</span><span class="n">5,365,696 &middot; measured</span></div>
+    <div class="rung proj"><span class="lv">L5</span><span class="m">345</span><span class="n">implied &middot; below EDGE2's 950</span></div>
+  </div>
+  <p class="figcap">Counts from <span class="mono">halo47314&#8209;512&#8209;L4&#8209;gas&#8209;L9</span> at z=0.
+  L4 is currently the declared floor for the 512 box. L5 would put us below EDGE2 on dark matter and
+  within a factor of five of LYRA &mdash; competitive with anything in the field on this axis alone.</p>
+</section>
+
+<section>
+  <span class="eyebrow">Table 3</span>
+  <h2>Gas cells &mdash; where we are actually behind</h2>
+  <p class="lede">At a fixed maximum refinement level our cells hold more mass as gas gets denser.
+  The star&#8209;forming cells are therefore the heaviest ones we have, which is precisely the regime
+  where a mass&#8209;refined code keeps them light.</p>
+  <figure>
+    <div class="scroll">
+      <table>
+        <caption>halo543386 L3&#8209;gas &mdash; measured cell census by refinement level</caption>
+        <thead>
+          <tr>
+            <th>Level</th>
+            <th class="num">Cells (z=6.08)</th><th class="num">dx</th><th class="num">m median</th><th class="num">m max</th>
+            <th class="num">dx (z=0)</th><th class="num">m max (z=0)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="mono">0 &nbsp;root</td><td class="num mono">134,189,160</td><td class="num mono">9,850</td><td class="num mono">1.2e6</td><td class="num mono" style="color:var(--ember);font-weight:600">2.35e10</td><td class="num mono">69,754</td><td class="num mono" style="color:var(--ember);font-weight:600">2.27e12</td></tr>
+          <tr><td class="mono">3</td><td class="num mono">1,614,801</td><td class="num mono">1,231</td><td class="num mono">1257</td><td class="num mono">2.73e4</td><td class="num mono">8,719</td><td class="num mono">2.65e4</td></tr>
+          <tr><td class="mono">6</td><td class="num mono">478,475</td><td class="num mono">154</td><td class="num mono">59.6</td><td class="num mono">1.11e4</td><td class="num mono">1,090</td><td class="num mono">7,642</td></tr>
+          <tr class="ours"><td class="mono">9 &nbsp;finest</td><td class="num mono">40,896</td><td class="num mono">19.2</td><td class="num mono">42.4</td><td class="num mono">6.996e4</td><td class="num mono">136</td><td class="num mono">1.35e5</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="figcap">Cell sizes in proper parsecs, masses in M<sub>&#9737;</sub>. The level&#8209;9 <em>median</em>
+    of 42 M<sub>&#9737;</sub> is diffuse gas and is not where stars form; the level&#8209;9 <em>maximum</em>
+    of 7.0&times;10<sup>4</sup> is a cell at n<sub>H</sub>&nbsp;&asymp;&nbsp;300. The root&#8209;grid maximum is
+    the entire explanation for the 2.68&times;10<sup>10</sup> M<sub>&#9737;</sub> of spurious IGM star
+    formation per run: a cell that large clears the 10 M<sub>&#9737;</sub> gate at f<sub>H2</sub>&nbsp;~&nbsp;10<sup>&minus;5</sup>.</p>
+  </figure>
+
+  <div class="scale">
+    <svg viewBox="0 0 900 232" role="img" aria-label="Log scale of star-forming gas cell mass across four codes, from LYRA at 4 solar masses to our root grid at 2.3e10 solar masses">
+      <line class="ax" x1="40" y1="176" x2="860" y2="176"></line>
+      <g class="tick">
+        <line x1="40" y1="176" x2="40" y2="182"></line>
+        <line x1="189" y1="176" x2="189" y2="182"></line>
+        <line x1="338" y1="176" x2="338" y2="182"></line>
+        <line x1="487" y1="176" x2="487" y2="182"></line>
+        <line x1="636" y1="176" x2="636" y2="182"></line>
+        <line x1="786" y1="176" x2="786" y2="182"></line>
+      </g>
+      <g class="ticklbl" text-anchor="middle">
+        <text x="40" y="197">1</text>
+        <text x="189" y="197">10&#178;</text>
+        <text x="338" y="197">10&#8308;</text>
+        <text x="487" y="197">10&#8310;</text>
+        <text x="636" y="197">10&#8312;</text>
+        <text x="786" y="197">10&#185;&#8304;</text>
+      </g>
+      <text class="ticklbl" x="450" y="220" text-anchor="middle">star-forming gas cell mass &nbsp;[ M&#9737; ]</text>
+
+      <!-- LYRA 4 -->
+      <line class="pin" x1="85" y1="176" x2="85" y2="120"></line>
+      <circle class="dot" cx="85" cy="120" r="3.5"></circle>
+      <text class="lbl" x="85" y="110" text-anchor="middle">LYRA</text>
+      <text class="val" x="85" y="97" text-anchor="middle">4</text>
+
+      <!-- star particle floor 10 -->
+      <line class="pin us" x1="115" y1="176" x2="115" y2="62" stroke-dasharray="3 3"></line>
+      <circle class="dot us" cx="115" cy="62" r="3.5"></circle>
+      <text class="lbl us" x="122" y="52">star particle floor</text>
+      <text class="val" x="122" y="39" style="fill:var(--ember)">10 &mdash; the gate</text>
+
+      <!-- EDGE2 88 -->
+      <line class="pin" x1="185" y1="176" x2="185" y2="120"></line>
+      <circle class="dot" cx="185" cy="120" r="3.5"></circle>
+      <text class="lbl" x="185" y="110" text-anchor="middle">EDGE2</text>
+      <text class="val" x="185" y="97" text-anchor="middle">88</text>
+
+      <!-- ours nref10 2900 -->
+      <line class="pin us" x1="298" y1="176" x2="298" y2="120"></line>
+      <circle class="dot us" cx="298" cy="120" r="3.5"></circle>
+      <text class="lbl us" x="298" y="110" text-anchor="middle">ours, nref10</text>
+      <text class="val" x="298" y="97" text-anchor="middle">2,900</text>
+
+      <!-- ours nref9 2.3e4 -->
+      <line class="pin us" x1="365" y1="176" x2="365" y2="62"></line>
+      <circle class="dot us" cx="365" cy="62" r="4.5"></circle>
+      <text class="lbl us" x="365" y="52" text-anchor="middle">ours, nref9 &mdash; today</text>
+      <text class="val" x="365" y="39" text-anchor="middle">2.3&times;10&#8308;</text>
+
+      <!-- root grid -->
+      <line class="pin us" x1="812" y1="176" x2="812" y2="120"></line>
+      <circle class="dot us" cx="812" cy="120" r="3.5"></circle>
+      <text class="lbl us" x="812" y="110" text-anchor="middle">our root grid</text>
+      <text class="val" x="812" y="97" text-anchor="middle">2.3&times;10&#185;&#8304;</text>
+    </svg>
+  </div>
+  <p class="figcap">All values at n<sub>H</sub>&nbsp;=&nbsp;100&nbsp;cm<sup>&minus;3</sup>, z&nbsp;=&nbsp;6, except
+  the root&#8209;grid cell, which is plotted at its measured mass. We are ~260&times; heavier than EDGE2 and
+  ~5,700&times; heavier than LYRA where stars form. One extra refinement level closes less than a factor
+  of ten of that &mdash; nref10 alone will not reproduce EDGE&#8209;like behavior.</p>
+</section>
+
+<section>
+  <span class="eyebrow">Physics</span>
+  <h2>One advantage, two gaps</h2>
+  <div class="gaps">
+    <div class="gap ok">
+      <h3>Non&#8209;equilibrium H<sub>2</sub></h3>
+      <p>We feed the star maker Grackle's actual H2I+H2II field. LYRA takes H<sub>2</sub> from
+      equilibrium tables; Kuhlen+ used the KMT09 analytic model, which returns <em>exactly zero</em>
+      at zero metallicity. Only EDGE2 matches us, and they add radiative transfer on top.</p>
+    </div>
+    <div class="gap">
+      <h3>No Lyman&#8209;Werner treatment</h3>
+      <p>LW intensity is zero, there is no local LW and no dissociating band. LYRA's headline result is
+      that the early LW background moves the dark&#8209;to&#8209;luminous transition a full dex, from
+      10<sup>7</sup> to 10<sup>8</sup> M<sub>&#9737;</sub>, and that ultrafaints are exactly the
+      population that cares. Our norad arm is the maximally optimistic LW case.</p>
+    </div>
+    <div class="gap">
+      <h3>No Pop&nbsp;III enrichment floor</h3>
+      <p>Our dark halos sit at Z = 7.7&times;10<sup>&minus;9</sup> Z<sub>&#9737;</sub> forever. Kuhlen+
+      imposed Z = 10<sup>&minus;3</sup> Z<sub>&#9737;</sub> at z=9 <em>because</em> their H<sub>2</sub>
+      model gives nothing at Z=0. The metals&rarr;dust&rarr;H<sub>2</sub> bootstrap cannot start,
+      by construction &mdash; a choice we did not make deliberately.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">Assessment</span>
+  <h2>What is genuinely new</h2>
+  <p class="lede"><strong>Not novel:</strong> resolution &mdash; we are behind LYRA, EDGE2 and FIRE&#8209;2
+  on baryons; H<sub>2</sub>&#8209;regulated star formation in Enzo, which is Kuhlen+ 2012 running this
+  same routine; and &ldquo;reionization quenches ultrafaints,&rdquo; settled since 2000.</p>
+  <ol class="rank">
+    <li>
+      <div>
+        <strong>The minimum star particle mass is the threshold &mdash; measured, predicted, removed.</strong>
+        <p>Kuhlen+ 2012 wrote that a hard mass threshold &ldquo;can lead to a significant amount of
+        <em>unfulfilled</em> star formation, although this can be remedied with a stochastic SF
+        criterion,&rdquo; then used stochastic sampling. The warning is fourteen years old and nobody has
+        measured how much star formation the hard threshold discards, or shown that it sets the
+        apparent halo&#8209;mass threshold. This applies to any AMR code with a coarse spatial floor and a
+        hard minimum particle mass &mdash; it is not exotic to Enzo.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>A matched three&#8209;arm radiation ladder on the same halos.</strong>
+        <p>Fiducial (Enzo's hard&#8209;coded z=7 gate), reion (unmodified HM2012 from z=15.13), and a
+        <em>true zero&#8209;radiation arm</em>, 18 halos each on identical initial conditions. That third
+        arm is what separated &ldquo;the UVB removes the fuel&rdquo; from &ldquo;the halo cannot make
+        H<sub>2</sub> anyway.&rdquo; Removing the background entirely buys only 1&ndash;10&times; of the
+        11&ndash;52&times; needed.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Enzo's silent <span class="mono">RadiationRedshiftOn = 7</span>.</strong>
+        <p>Every Enzo run using tabulated HM2012 has been getting a step function at z=7 rather than
+        the tabulated history. Worth a short methods note on its own; it is a trap for the whole user base.</p>
+      </div>
+    </li>
+  </ol>
+  <div class="finding col" style="margin-top:var(--s5)">
+    <span class="eyebrow" style="color:var(--ember)">The discrepancy to confront</span>
+    <p style="margin:var(--s2) 0 0;font-size:.96rem">LYRA finds ignition in progenitors of
+    M<sub>200c</sub>&nbsp;~&nbsp;10<sup>5</sup>&ndash;10<sup>6</sup> M<sub>&#9737;</sub> at z&nbsp;&gtrsim;&nbsp;8.
+    Our dark halos are at 10<sup>7</sup>&ndash;10<sup>8</sup> and never ignite at all. That is one to two
+    decades of disagreement with the newest and highest&#8209;resolution study in the field &mdash; explained
+    by some combination of the mass gate, the missing Pop&nbsp;III metals, and resolution. All three are testable.</p>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">Plan</span>
+  <h2>Three tiers, in priority order</h2>
+  <p class="lede">Tier A is ~12 runs and ~8&nbsp;TB, branched from norad at z=12.5 and stopped at z=4.
+  Do not queue Tier B until Tier A reports.</p>
+
+  <details class="tier" open>
+    <summary><span class="tg">Tier A</span><span class="th">Close the two gaps the literature says dominate</span><span class="ts">highest value</span></summary>
+    <div class="body">
+      <p><strong>A1 &middot; Pop III enrichment floor.</strong> Add Z = 10<sup>&minus;3</sup> Z<sub>&#9737;</sub>
+      at z=9 following Kuhlen+ exactly, with 10<sup>&minus;4</sup> and 10<sup>&minus;2</sup> variants. This
+      is the standard of the lineage our prescription comes from and its absence is an unforced error.
+      Expect the largest effect after stochastic sampling.</p>
+      <p><strong>A2 &middot; Lyman&#8209;Werner background.</strong> <span class="mono">LWbackground_intensity</span>
+      and <span class="mono">TabulatedLWBackground</span> already exist in the deck, both at zero. Run LYRA's
+      two prescriptions so our results are directly comparable to the paper that will be the reference.</p>
+    </div>
+  </details>
+
+  <details class="tier">
+    <summary><span class="tg">Tier B</span><span class="th">The resolution statement, required regardless</span><span class="ts">turns the weakness into the experiment</span></summary>
+    <div class="body">
+      <p><strong>B1 &middot; nref9 &rarr; 10 &rarr; 11</strong> on 543386 and 537545 with stochastic star
+      formation on. Since R&nbsp;&prop;&nbsp;dx&sup3;, the prediction is that the <em>deterministic</em>
+      threshold moves up ~0.9 dex per level while the <em>stochastic</em> one barely moves. If that holds
+      it is the cleanest demonstration that stochastic sampling is the resolution&#8209;independent choice.</p>
+      <p><strong>B2 &middot; the L4 rung</strong> of the nref9 dark matter sweep. 47314&#8209;L4 reached z=0 on
+      09&#8209;08; the L2 rung was deleted the same day, so this is L3 versus L4 only.</p>
+    </div>
+  </details>
+
+  <details class="tier">
+    <summary><span class="tg">Tier C</span><span class="th">Finish the stochastic result</span><span class="ts">3 runs</span></summary>
+    <div class="body">
+      <p><strong>C1 &middot; stochastic off the fiducial arms</strong> rather than norad, to answer whether the
+      ignited halos re&#8209;quench once radiation is restored. The fiducial&#8209;R prediction says the three
+      smallest drop to 3&ndash;6 particles formed almost entirely before z=6 &mdash; ignite&#8209;then&#8209;quench
+      fossils &mdash; while the rest keep forming. That estimate cannot see the enrichment bootstrap or SN
+      blowout, which is the whole point of running it.</p>
+      <p><strong>C2 &middot; a bright halo</strong> (42502 or 15659) branched the same way. The control 235659
+      moved from 140 to 1.7&times;10<sup>4</sup> M<sub>&#9737;</sub> &mdash; a factor of 100. If the
+      well&#8209;resolved end moves similarly the recipe cannot go fleet&#8209;wide as it stands.</p>
+      <p><strong>C3 &middot; aperture.</strong> R<sub>200c</sub> is ~7 ckpc/h for a 2&times;10<sup>7</sup>
+      M<sub>&#9737;</sub> halo and its star count swings with merger bookkeeping &mdash; halo174526 read 7
+      inside R<sub>200c</sub> against 28 in a fixed 100 ckpc/h aperture. Adopt a fixed comoving aperture
+      for the ultrafaints and say so.</p>
+    </div>
+  </details>
+
+  <div class="dont col">
+    <span class="eyebrow">What we should not claim</span>
+    <ul>
+      <li>Not a resolution record. Say plainly that EDGE2 is 3&nbsp;pc and LYRA is 4 M<sub>&#9737;</sub>,
+      and that our threshold is a threshold at nref9.</li>
+      <li>Not the discovery that H<sub>2</sub> regulates dwarf star formation &mdash; that is Kuhlen+ 2012
+      and Gnedin+ 2009.</li>
+      <li>Nothing about the Lyman&#8209;Werner background until A2 exists.</li>
+    </ul>
+  </div>
+</section>
+
+<p class="srcs">
+  <span class="eyebrow" style="display:block;margin-bottom:var(--s2)">Sources</span>
+  <a href="https://www.alphaxiv.org/abs/2511.21824">LYRA ultrafaints &mdash; Brown+ 2025</a> &middot;
+  <a href="https://www.alphaxiv.org/abs/2503.03813">EDGE2 scaling relations &mdash; Rey+ 2025</a> &middot;
+  <a href="https://www.alphaxiv.org/abs/2209.03366">LYRA III, reionization survivors</a> &middot;
+  <a href="https://arxiv.org/pdf/1105.2376">Kuhlen+ 2012, H<sub>2</sub>&#8209;regulated star formation in Enzo</a> &middot;
+  <a href="https://academic.oup.com/mnras/article/490/3/4447/5588613">Wheeler+ 2019, 30 M<sub>&#9737;</sub> dwarfs</a> &middot;
+  <a href="https://arxiv.org/pdf/2008.11207">Applebaum+ 2021, Mint DC Justice League</a> &middot;
+  <a href="https://arxiv.org/pdf/1810.12417">Munshi+ 2019, uncertainty in UFD predictions</a>
+</p>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,34 @@
+From 57bae412d62008800ca93c7aba1c4ce4869b61d9 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 25 Aug 2026 15:48:38 +0000
+Subject: [PATCH 5/5] Fix duplicate coarse particles under later-scanned static
+ regions
+
+The static-region particle-exclusion loop in
+grid::CosmologyInitializeParticles stopped scanning ALL remaining
+regions (break) as soon as one same-level region failed to overlap
+this grid. With a single nested-grid pyramid the first same-level
+region is the only one, so the bug was invisible; with several nested
+grids per level, coarse particles underneath any region checked after
+a non-overlapping one were never removed, duplicating mass there.
+A non-overlapping region should only be skipped (continue).
+---
+ src/enzo/Grid_CosmologyInitializeParticles.C | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/enzo/Grid_CosmologyInitializeParticles.C b/src/enzo/Grid_CosmologyInitializeParticles.C
+index e92e7db..53e365d 100644
+--- a/src/enzo/Grid_CosmologyInitializeParticles.C
++++ b/src/enzo/Grid_CosmologyInitializeParticles.C
+@@ -104,7 +104,7 @@ int grid::CosmologyInitializeParticles(
+ 	if (max(StaticRefineRegionLeftEdge[region][dim],  GridLeftEdge[dim]) >=
+ 	    min(StaticRefineRegionRightEdge[region][dim], GridRightEdge[dim]))
+ 	  skip = true;
+-      if (skip) break;
++      if (skip) continue;  // a non-overlapping region must not end the scan
+       for (dim = 0; dim < MAX_DIMENSION; dim++) {
+ 	StartRegion[dim] = (int) nint((StaticRefineRegionLeftEdge[region][dim] - 
+ 				       GridLeftEdge[dim]) / CellWidth[dim][0]);
+-- 
+2.43.0
+

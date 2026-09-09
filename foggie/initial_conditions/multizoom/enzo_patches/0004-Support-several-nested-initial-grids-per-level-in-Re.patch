@@ -1,0 +1,246 @@
+From 6a694e91df0c56e073c47d7ef7e1da4b8b64bbc3 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 25 Aug 2026 15:48:13 +0000
+Subject: [PATCH 4/5] Support several nested initial grids per level in
+ ReInitialize
+
+NestedCosmologySimulationReInitialize walked the hierarchy by
+descending the first-child chain, one grid number per level, so with
+several nested grids on a level every patch was handed grid 0's IC
+files, sibling patches' children were never visited, and the global
+particle-count pass missed them too. Snapshot the whole hierarchy once
+(recursing both links) and match each hierarchy grid to the initial
+grid of the same level whose declared edges contain it, iterating
+grid-number-major so particle-ID assignment stays deterministic and
+the single-pyramid case reproduces the old ordering exactly. The
+per-grid SubgridsAreStatic flag is now derived from the declared grid
+list (any initial grid one level finer contained in this one). The
+end-of-function reparenting pass and NestedRecursivelySetParticleCount
+already handle arbitrary hierarchies and are unchanged.
+---
+ .../NestedCosmologySimulationInitialize.C     | 167 +++++++++++++-----
+ 1 file changed, 120 insertions(+), 47 deletions(-)
+
+diff --git a/src/enzo/NestedCosmologySimulationInitialize.C b/src/enzo/NestedCosmologySimulationInitialize.C
+index d212fd6..8fce761 100644
+--- a/src/enzo/NestedCosmologySimulationInitialize.C
++++ b/src/enzo/NestedCosmologySimulationInitialize.C
+@@ -915,8 +915,30 @@ int NestedCosmologySimulationInitialize(FILE *fptr, FILE *Outfptr,
+  
+  
+ void NestedRecursivelySetParticleCount(HierarchyEntry *GridPoint, PINT *Count);
+- 
+- 
++
++
++// Snapshot the hierarchy into a flat list.  Recurses both hierarchy
++// links because sibling grids on a level hang off different parents
++// once several nested grids share a level.
++
++static void NestedCollectHierarchyGrids(HierarchyEntry *Grid, int level,
++					HierarchyEntry **List, int *Levels,
++					int *Count)
++{
++  while (Grid != NULL) {
++    if (List != NULL) {
++      List[*Count] = Grid;
++      Levels[*Count] = level;
++    }
++    (*Count)++;
++    if (Grid->NextGridNextLevel != NULL)
++      NestedCollectHierarchyGrids(Grid->NextGridNextLevel, level+1,
++				  List, Levels, Count);
++    Grid = Grid->NextGridThisLevel;
++  }
++}
++
++
+ // Re-call the initializer on level zero grids.
+ // Used in case of ParallelRootGridIO.
+  
+@@ -928,7 +950,6 @@ int NestedCosmologySimulationReInitialize(HierarchyEntry *TopGrid,
+  
+   int dim, gridnum = 0;
+ 
+-  HierarchyEntry *CurrentGrid;
+   HierarchyEntry *Temp;
+  
+   char *DensityName = NULL, *TotalEnergyName = NULL, *GasEnergyName = NULL,
+@@ -945,7 +966,22 @@ int NestedCosmologySimulationReInitialize(HierarchyEntry *TopGrid,
+     VelocityNames[dim] = NULL;
+   }
+  
+-  CurrentGrid = TopGrid;
++  /* Snapshot the whole hierarchy once.  With several nested grids per
++     level, sibling patches (and their children) hang off different
++     parents, so a grid's initial-grid number cannot be inferred from
++     its depth in the first-child chain; instead each hierarchy grid is
++     matched to the initial grid of the same level whose declared edges
++     contain it. */
++
++  int NumberOfHierarchyGrids = 0;
++  NestedCollectHierarchyGrids(TopGrid, 0, NULL, NULL,
++			      &NumberOfHierarchyGrids);
++  HierarchyEntry **HierarchyGridList =
++    new HierarchyEntry*[NumberOfHierarchyGrids];
++  int *HierarchyGridLevels = new int[NumberOfHierarchyGrids];
++  int CollectedGrids = 0;
++  NestedCollectHierarchyGrids(TopGrid, 0, HierarchyGridList,
++			      HierarchyGridLevels, &CollectedGrids);
+ 
+   /* Loop over initial grids and reinitialize each one. */
+ 
+@@ -1021,20 +1057,64 @@ int NestedCosmologySimulationReInitialize(HierarchyEntry *TopGrid,
+  
+     }
+  
+-    // If there is a subgrid, use CosmologySimulationSubgridsAreStatic,
+-    // otherwise just set to false
+- 
+-    int SubgridsAreStatic = (CurrentGrid->NextGridNextLevel == NULL) ?
+-      FALSE : CosmologySimulationSubgridsAreStatic;
+- 
++    // Subgrids are static if any initial grid one level finer lies
++    // inside this one
++
++    int i, contained;
++    int SubgridsAreStatic = FALSE;
++    if (CosmologySimulationSubgridsAreStatic == TRUE)
++      for (i = 0; i < CosmologySimulationNumberOfInitialGrids; i++) {
++	if (CosmologySimulationGridLevel[i] !=
++	    CosmologySimulationGridLevel[gridnum]+1)
++	  continue;
++	contained = TRUE;
++	for (dim = 0; dim < MetaData.TopGridRank; dim++)
++	  if (CosmologySimulationGridLeftEdge[i][dim] <
++	      CosmologySimulationGridLeftEdge[gridnum][dim] ||
++	      CosmologySimulationGridRightEdge[i][dim] >
++	      CosmologySimulationGridRightEdge[gridnum][dim]) {
++	    contained = FALSE;
++	    break;
++	  }
++	if (contained == TRUE) {
++	  SubgridsAreStatic = CosmologySimulationSubgridsAreStatic;
++	  break;
++	}
++      }
++
+     // Call grid initializer.  Use TotalRefinement = -1 to flag real read
+- 
++
+     int TotalRefinement = -1;
+- 
+-    // Loop over all grids on this level
+- 
+-    Temp = CurrentGrid;
+-    while (Temp != NULL) {
++
++    // Loop over all hierarchy grids belonging to this initial grid:
++    // same level, and contained in its declared edges (partitioned
++    // pieces are sub-boxes of the initial grid; allow half a cell of
++    // slack for roundoff)
++
++    int gridindex;
++    for (gridindex = 0; gridindex < CollectedGrids; gridindex++) {
++
++      if (HierarchyGridLevels[gridindex] !=
++	  CosmologySimulationGridLevel[gridnum])
++	continue;
++
++      Temp = HierarchyGridList[gridindex];
++      contained = TRUE;
++      for (dim = 0; dim < MetaData.TopGridRank; dim++) {
++	FLOAT eps = 0.5*(DomainRightEdge[dim] - DomainLeftEdge[dim]) /
++	  (FLOAT(MetaData.TopGridDims[dim]) *
++	   POW(FLOAT(RefineBy), CosmologySimulationGridLevel[gridnum]));
++	if (Temp->GridData->GetGridLeftEdge(dim) <
++	    CosmologySimulationGridLeftEdge[gridnum][dim] - eps ||
++	    Temp->GridData->GetGridRightEdge(dim) >
++	    CosmologySimulationGridRightEdge[gridnum][dim] + eps) {
++	  contained = FALSE;
++	  break;
++	}
++      }
++      if (contained == FALSE)
++	continue;
++      {
+       if (Temp->GridData->NestedCosmologySimulationInitializeGrid
+ 	  (gridnum, CosmologySimulationOmegaBaryonNow,
+ 	   CosmologySimulationOmegaCDMNow,
+@@ -1082,14 +1162,10 @@ int NestedCosmologySimulationReInitialize(HierarchyEntry *TopGrid,
+     }
+ 
+  
+-      Temp = Temp->NextGridThisLevel;
+-    } // end: loop over grids on this level
++      } // end: initialize this hierarchy grid
++    } // end: loop over hierarchy grids
+ 
+-    // Go down to the grid(s) on the next level
+- 
+-    CurrentGrid = CurrentGrid->NextGridNextLevel;
+- 
+-  } // end loop over initial grid levels
++  } // end loop over initial grids
+ 
+   // Create tracer particles (on top grid)
+   
+@@ -1118,34 +1194,31 @@ int NestedCosmologySimulationReInitialize(HierarchyEntry *TopGrid,
+  
+   // Get the global particle count
+  
+-  int LocalNumberOfParticles;;
++  int LocalNumberOfParticles;
++  int gridindex;
+   ParticleCount = 0;
+- 
+-  CurrentGrid = TopGrid;
+-  while (CurrentGrid != NULL) {
+- 
+-    Temp = CurrentGrid;
+-    while (Temp != NULL) {
+- 
+-      LocalNumberOfParticles = Temp->GridData->ReturnNumberOfParticles();
+-      // printf("OldLocalParticleCount: %"ISYM"\n", LocalNumberOfParticles );
+- 
++
++  for (gridindex = 0; gridindex < CollectedGrids; gridindex++) {
++
++    Temp = HierarchyGridList[gridindex];
++
++    LocalNumberOfParticles = Temp->GridData->ReturnNumberOfParticles();
++    // printf("OldLocalParticleCount: %"ISYM"\n", LocalNumberOfParticles );
++
+ #ifdef USE_MPI
+-      CommunicationAllReduceValues(&LocalNumberOfParticles, 1, MPI_SUM);
++    CommunicationAllReduceValues(&LocalNumberOfParticles, 1, MPI_SUM);
+ #endif /* USE_MPI */
+-      Temp->GridData->SetNumberOfParticles(LocalNumberOfParticles);
+- 
+-      //LocalNumberOfParticles = Temp->GridData->ReturnNumberOfParticles();
+-      // printf("NewLocalParticleCount: %"ISYM"\n", LocalNumberOfParticles );
+-      ParticleCount += LocalNumberOfParticles;
+- 
+-      Temp = Temp->NextGridThisLevel;
+-    }
+- 
+-    CurrentGrid = CurrentGrid->NextGridNextLevel;
+- 
++    Temp->GridData->SetNumberOfParticles(LocalNumberOfParticles);
++
++    //LocalNumberOfParticles = Temp->GridData->ReturnNumberOfParticles();
++    // printf("NewLocalParticleCount: %"ISYM"\n", LocalNumberOfParticles );
++    ParticleCount += LocalNumberOfParticles;
++
+   }
+- 
++
++  delete [] HierarchyGridList;
++  delete [] HierarchyGridLevels;
++
+   // Loop over grids and set particle ID number.
+   // This is done for ring IO but is not necessary for regular IO
+   //  (particle IDs are set during read and do not depend on grid distribution)
+-- 
+2.43.0
+

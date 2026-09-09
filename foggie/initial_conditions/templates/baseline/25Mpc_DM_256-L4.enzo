@@ -1,0 +1,110 @@
+# AMR PROBLEM DEFINITION FILE: Cosmology Simulation (amr version)
+# For "CGM_bigbox IC regeneration but based on Britton Smith's file for halo 8508, the FOGGIE original! 
+#
+#  define problem
+#
+ProblemType                = 30      // cosmology simulation
+TopGridRank                = 3
+TopGridDimensions          = 256 256 256
+TopGridGravityBoundary     = 0       // Periodic BC for gravity
+LeftFaceBoundaryCondition  = 3 3 3   // same for fluid
+RightFaceBoundaryCondition = 3 3 3
+SelfGravity                = 1       // gravity on
+PotentialIterations        = 10
+
+#
+#  problem parameters
+#
+CosmologySimulationOmegaBaryonNow       = 0.0
+CosmologySimulationOmegaCDMNow          = 0.291
+CosmologyOmegaDarkMatterNow             = 0.291 
+CosmologySimulationCalculatePositions    = 1
+CosmologySimulationParticleVelocity1Name = ParticleVelocities_x
+CosmologySimulationParticleVelocity2Name = ParticleVelocities_y
+CosmologySimulationParticleVelocity3Name = ParticleVelocities_z
+CosmologySimulationParticleDisplacement1Name = ParticleDisplacements_x
+CosmologySimulationParticleDisplacement2Name = ParticleDisplacements_y
+CosmologySimulationParticleDisplacement3Name = ParticleDisplacements_z
+CosmologySimulationNumberOfInitialGrids  = 5
+# These are commented out so they can be replaced in the operating file 
+#CosmologySimulationGridDimension[1]      =               80               72               82
+#CosmologySimulationGridLeftEdge[1]       =         0.421875        0.4296875         0.421875
+#CosmologySimulationGridRightEdge[1]      =         0.578125        0.5703125       0.58203125
+#CosmologySimulationGridLevel[1]          = 1
+
+MustRefineParticlesCreateParticles = 3
+MustRefineParticlesRefineToLevel   = 4
+CosmologySimulationParticleTypeName          = RefinementMask
+
+#
+#  define cosmology parameters
+#
+ComovingCoordinates        = 1       // Expansion ON
+CosmologyOmegaMatterNow    = 0.291
+CosmologyOmegaLambdaNow    = 0.709
+CosmologyHubbleConstantNow = 0.7
+CosmologyComovingBoxSize   = 25     // in Mpc/h = 100 Mpc comoving
+CosmologyMaxExpansionRate  = 0.015   // maximum allowed delta(a)/a
+CosmologyInitialRedshift   = 99
+CosmologyFinalRedshift 	   = 0
+GravitationalConstant      = 1       // this must be true for cosmology
+
+
+#
+#  set I/O and stop/start parameters
+#
+DataDumpDir      = DD
+DataDumpName     = DD
+dtDataDump 	 = 0        // no periodic data dumps; see dtRestartDump below
+dtRestartDump    = 77760  // wallclock checkpoint before the PBS wall
+StopCycle        = 100000
+StopCPUTime      = 3600000
+
+RedshiftDumpName    = RD
+
+NumberOfOutputsBeforeExit=0
+
+CosmologyOutputRedshift[0]  = 99.0
+CosmologyOutputRedshift[1]  = 50.0
+CosmologyOutputRedshift[2]  = 10.0
+CosmologyOutputRedshift[3]  = 9.0
+CosmologyOutputRedshift[4] = 8.0
+CosmologyOutputRedshift[5] = 7.0
+CosmologyOutputRedshift[6] = 6.0
+CosmologyOutputRedshift[7] = 5.0
+CosmologyOutputRedshift[8] = 4.0
+CosmologyOutputRedshift[9] = 3.0
+CosmologyOutputRedshift[10] = 2.0
+CosmologyOutputRedshift[11] = 1.0
+CosmologyOutputRedshift[12] = 0.5
+CosmologyOutputRedshift[13] = 0.2
+CosmologyOutputRedshift[14] = 0.0
+
+#
+#  set grid refinement parameters
+#
+StaticHierarchy                = 0    // dynamic hierarchy
+MaximumRefinementLevel         = 7
+MaximumGravityRefinementLevel  = 7
+MaximumParticleRefinementLevel = 7
+RefineBy                       = 2    // refinement factor
+CellFlaggingMethod             = 4 8   // use DM mass for refinement
+MinimumEfficiency              = 0.4  // fraction efficiency
+MinimumOverDensityForRefinement = 0.001953125 0.001953125 1. 1. 1. 1. 1. 1. 1. 1. // times the initial density refers to top grid: devide by 8 for each additional level
+MinimumMassForRefinementLevelExponent = 0
+CourantSafetyNumber            = 0.5
+ParticleCourantSafetyNumber    = 0.5
+
+#
+#  set some global parameters
+#
+GreensFunctionMaxNumber = 30   // # of greens function at any one time
+PartitionNestedGrids = 1
+ParallelRootGridIO   = 1
+ParallelParticleIO   = 1
+UnigridTranspose     = 2
+
+#
+#  nested grid geometry, written by MUSIC into parameter_file.txt
+#
+

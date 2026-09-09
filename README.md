@@ -43,7 +43,7 @@ with scripts from various FOGGIE analysis projects. A description of their conte
 | `gas_metallicity`    | Scripts for gas phase metallicity analysis (and some stellar metallicity). |
 | `halo_infos`         | Catalog files; see accompanying README. |
 | `halo_tracks`        | Halo tracks used for running the FOGGIE simulations. |
-| `initial_conditions` | Old initial conditions for a 25 Mpc simulation box. |
+| `initial_conditions` | Generating zoom initial conditions for the 25 Mpc box, and the pipeline that runs them through their refinement levels; see accompanying README. |
 | `interns`            | Previous student intern projects. |
 | `movies`             | Scripts for making movies. |
 | `notebooks`          | A folder of Jupyter Notebooks to contain `git` change tracking chaos. |
