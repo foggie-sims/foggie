@@ -358,12 +358,30 @@ BOXES = {
         template_config="25Mpc_DM_512_planck18.conf",
         template_dir="initial_conditions/templates",
         # 4 levels, not 3: halo80181 ran a full L1-L4 ladder successfully.
-        # 4 is also the CEILING, by decision (JT 2026-08-30): the 512 fleet is
-        # not going to L5. L4 already gives 2.76e3 Msun particles, and a 512-L5
-        # would need seed[14] -- levelmin 9 puts it at levelmax 14, past the
-        # last seed the template defines -- so it would be a new realization
-        # rather than another rung. Depth beyond L4 comes from the gas side:
-        # forced refinement and the nref ladder. Do not raise this.
+        # 4 is the CEILING by decision (JT 2026-08-30); depth beyond L4 was to
+        # come from the gas side, forced refinement and the nref ladder.
+        #
+        # CORRECTION 2026-09-09: the reason recorded here for that decision was
+        # wrong. It said a 512-L5 needs seed[14] -- true, levelmin 9 puts it at
+        # levelmax 14 and the template's seeds stop at 13 -- and concluded that
+        # it "would be a new realization rather than another rung". It would
+        # not. Read music/random.cc: a missing seed is not an error
+        # (parse_rand_parameters synthesizes a deterministic negative dummy,
+        # "negative so we know it's not an actual seed and thus should not be
+        # used as a constraint for coarse levels"), and compute_random_numbers
+        # builds the field strictly top-down, level N from level N-1 plus
+        # seed[N]. The only routine that pushes fine information back to coarse
+        # levels is correct_avg, and it is gated on brealspace_tf = !kspace_TF
+        # while main.cc defaults kspace_TF to yes and our confs never set it.
+        # So adding seed[14] leaves levels 5-13 bit-identical: L5 is another
+        # rung on the SAME halo, not a new realization, and no rebuild of the
+        # L1-L4 ladder is implied.
+        #
+        # The real L5 constraints are memory at IC build (the level-14
+        # convolution grid is ~976^3, ~30-60 GB, and that is the step that
+        # OOM'd halo59186 at L4) and contamination, which is why raising this
+        # still needs a per-halo decision on rvir_min rather than a blanket
+        # change. Leave it at 4 until an L5 pathfinder has been built.
         max_level=4,
         omega_b=0.04576,
         omega_m=0.291,
