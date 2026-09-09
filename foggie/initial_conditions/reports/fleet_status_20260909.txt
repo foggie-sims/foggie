@@ -1,0 +1,87 @@
+  halo      logM   cat  L3 DM    L4 DM    L3 gas    L4 gas   L3-9c7f   L3-reion  L3-norad  L3-stoch  QC
+  -----------------------------------------------------------------------------------------------------
+  543386    8.11   1024 z=0 ✓    z=0 ✓    z=0 ✓     z0.7*    z=0 ✓     z=0 ✓     z2.2*     z4.1!     ok
+  491413    8.30   1024 z=0 ✓    z=0 ✓    z=0 ✓     -        -         z=0 ✓     z0.5*     -         ok
+  27158     8.36   1024 z=0 ✓    z=0 ✓    z=0 ✓     -        -         z=0 ✓     z0.7*     -         ok
+  174526    8.39   1024 z=0 ✓    z=0 ✓    z=0 ✓     -        -         z2.0!     z3.1*     z4.1!     ok
+  537545    8.49   1024 z=0 ✓    z=0 ✓    z=0 ✓     -        -         z=0 ✓     z0.8*     z4.1!     ok
+  235659    8.51   1024 z=0 ✓    z=0 ✓    z=0 ✓     z15.0    -         z=0 ✓     z0.8*     z4.1!     ok
+  74411     8.53   1024 z=0 ✓    z=0 ✓    z=0 ✓     -        -         z=0 ✓     z0.7*     -         ok
+  439991    8.53   1024 z=0 ✓    z=0 ✓    z=0 ✓     -        -         z=0 ✓     z1.0*     -         ok
+  331302    8.61   1024 z=0 ✓    z=0 ✓    z=0 ✓     z0.4*    z=0 ✓     z=0 ✓     z0.6*     -         ok
+  489215    8.62   1024 z=0 ✓    z=0 ✓    z=0 ✓     -        -         z=0 ✓     z0.7*     -         ok
+  73721     8.63   1024 z=0 ✓    z=0 ✓    z=0 ✓     -        -         -         -         -         ok
+  486694    8.69   1024 z=0 ✓    z=0 ✓    z=0 ✓     -        -         -         -         -         ok
+  232601    8.70   1024 z=0 ✓    z=0 ✓    z=0 ✓     -        -         -         -         -         ok
+  170570    8.86   1024 z=0 ✓    z=0 ✓    z=0 ✓     -        -         -         -         -         ok
+  57194     8.89   512  z=0 ✓    z=0 ✓    z=0 ✓     -        -         -         -         -         ok
+  21432     8.90   1024 z=0 ✓    z=0 ✓    z=0 ✓     -        -         -         -         -         ok
+  127926    9.08   1024 z=0 ✓    z=0 ✓    -         -        -         -         -         -         ok
+  128153    9.08   1024 z=0 ✓    z=0 ✓    -         -        -         -         -         -         ok
+  675772    9.09   1024 z=0 ✓    z=0 ✓    z1.3*     -        -         -         -         -         ok
+  80181     9.10   512  z=0 ✓    z=0 ✓    z0.7*     z4.7*    -         -         -         -         STALE-run
+  168041    9.10   1024 z=0 ✓    z=0 ✓    z=0 ✓     -        -         -         -         -         ok
+  675758    9.10   1024 -        -        -         -        -         -         -         -         ok
+  19778     9.11   1024 z=0 ✓    z=0 ✓    -         -        -         -         -         -         ok
+  371669    9.12   1024 z=0 ✓    z=0 ✓    z=0 ✓     -        -         -         -         -         ok
+  167188    9.14   1024 z=0 ✓    z=0 ✓    -         -        -         -         -         -         ok
+  532615    9.15   1024 z=0 ✓    z=0 ✓    z=0 ✓     -        -         -         -         -         ok
+  127738    9.17   1024 z=0 ✓    z=0 ✓    z=0 ✓     -        -         -         -         -         ok
+  484454    9.18   1024 -        -        -         -        -         -         -         -         ok
+  48014◆    9.19   512  z=0 ✓    z=0 ✓    z0.2*     -        -         -         -         -         ok
+  588325    9.19   1024 -        -        -         -        -         -         -         -         ok
+  56672◆    9.20   512  z=0 ✓    z=0 ✓    z=0 ✓     -        -         z0.4*     z3.0*     -         ok
+  52675     9.21   512  z=0 ✓    z=0 ✓    z=0 ✓     -        -         z4.4*     z5.2*     -         ok
+  166674    9.22   1024 z=0 ✓    z=0 ✓    z=0 ✓     -        -         -         -         -         ok
+  371051    9.23   1024 z=0 ✓    z=0 ✓    z1.0*     -        -         -         -         -         ok
+  433365    9.24   1024 z=0 ✓    z=0 ✓    -         -        -         -         -         -         ok
+  370913    9.24   1024 z=0 ✓    z=0 ✓    z=0 ✓     -        -         -         -         -         ok
+  21246◆    9.28   512  z=0 ✓    z=0 ✓    z=0 ✓     -        -         z0.7*     z2.3*     -         ok
+  21140     9.31   512  z=0 ✓    z=0 ✓    z2.7*     -        -         -         -         -         STALE-run
+  42784     9.51   512  z=0 ✓    z=0 ✓    z=0 ✓     -        -         z6.3*     z5.2*     -         STALE-run
+  47314     9.51   512  z=0 ✓    z=0 ✓    z=0 ✓     -        z0.6*     z=0 ✓     z3.1*     -         ok
+  31427     9.55   512  z=0 ✓    z=0 ✓    z=0 ✓     -        -         -         -         -         STALE-run
+  24122◆    9.57   512  z=0 ✓    z=0 ✓    z0.6*     -        -         z5.0*     z4.8*     -         STALE-run
+  1703      9.62   512  z=0 ✓    z=0 ✓    z0.5*     -        -         z4.8*     z4.5*     -         STALE-run
+  79186     9.66   512  z=0 ✓    z=0 ✓    z5.5*     -        -         -         -         -         STALE-run
+  31260     9.78   512  z=0 ✓    z=0 ✓    z2.9*     -        -         -         -         -         ok
+  75522     9.78   512  z=0 ✓    z=0 ✓    z2.2*     -        -         -         -         -         STALE-run
+  31208     9.81   512  z=0 ✓    z=0 ✓    z5.0*     -        -         -         -         -         STALE-run
+  15659     9.87   512  z=0 ✓    z=0 ✓    z1.2*     -        -         z5.2*     z5.2*     -         STALE-run
+  71575     9.88   512  z=0 ✓    z=0 ✓    z1.4*     -        -         -         -         -         STALE-run
+  82682     9.93   512  z=0 ✓    z=0 ✓    z5.0*     -        -         -         -         -         STALE-run
+  42502◆    9.97   512  z=0 ✓    z=0 ✓    z1.8*     -        -         -         -         -         STALE-run
+  46615     9.99   512  z=0 ✓    z=0 ✓    z3.0*     -        -         -         -         -         not recentred
+  15516     10.04  512  z=0 ✓    z=0 ✓    z4.4*     -        -         -         -         -         STALE-run
+  51771     10.05  512  z=0 ✓    z=0 ✓    z5.5*     -        -         -         -         -         STALE-run
+  75392◆    10.05  512  z=0 ✓    z=0 ✓    z3.2*     -        -         -         -         -         STALE-run
+  51741     10.08  512  z=0 ✓    z=0 ✓    z6.3*     -        -         -         -         -         not recentred
+  15494     10.10  512  z=0 ✓    z=0 ✓    z5.7*     -        -         -         -         -         STALE-run
+  20121     10.32  512  z=0 ✓    z=0 ✓    z9.0*     -        -         -         -         -         not recentred
+  23679     10.49  512  z=0 ✓    z=0 ✓    z9.0*     -        -         -         -         -         STALE-run
+  23647     10.66  512  z=0 ✓    z=0 ✓    z6.1*     -        -         -         -         -         not recentred
+  42189     10.91  512  z=0 ✓    z1.0*    z10.0*    -        -         -         -         -         not recentred
+
+  * = running    ! = dumps but NO JOB    z=0 ✓ = complete    ◆ = sixpack member    L3-reion = ungated UVB (unmodified HM2012)    L3-norad = no background radiation at all    L3-stoch = norad + stochastic SF, branched at z=12.5, stops at z=4    L3-9c7f = forced run branched off L3-gas at z=6 (nref9 ceiling, nref7 forced box)    enabled 512-box halos: 61
+  stage    complete  running
+  L1          61        0
+  L2          61        0
+  L3          58        0
+  L4          57        1
+  L3-gas      28       25
+  L4-gas       0        4
+  L3-9c7f      2        1
+  L3-reion    10        8
+  L3-norad     0       18
+  L3-stoch     0        4
+  QC: ok=38  STALE-run=18  not recentred=5
+
+  resolution / forced runs (resolution_tests/):
+  halo331302-512-L3-gas-L9c-L7f        z=0 ✓    job:- 
+  halo47314-512-L2-gas-L9              z=0 ✓    job:- 
+  halo47314-512-L3-gas-L9c-L7f         z0.6     job:R 
+  halo47314-512-L4-gas-L9              z=0 ✓    job:- 
+  halo543386-512-L3-gas-L9c-L7f        z=0 ✓    job:- 
+  halo56672-512-L4-gas-L9              z1.4     job:R 
+  halo59186-512-L2-gas-L9              z4.8     job:-    <-- NO JOB
+  halo80181-512-L4-gas-L9              z4.5     job:R 
