@@ -21,37 +21,84 @@ plan, not a code plan.
 
 | study | code | DM particle | baryon resolution | spatial | SF prescription | H2 | radiation | sample |
 |---|---|---|---|---|---|---|---|---|
-| **LYRA ultra-faints** (Brown+ 2025, 2511.21824) | AREPO | 74.7 Msun | **4 Msun** gas cell; 4 Msun min star particle | 5.9–14.8 pc softening | n_H > 1e3 cm^-3 AND T < 100 K, Schmidt eps=0.02 (eps=1 above 1e4) | equilibrium tables (CHIMES/Ploeckinger+25); non-eq only H/He | no RT; **two LW backgrounds** (FG20 vs Incatasciato+23) | **65 halos**, M200c 1e7–5e9, to z=0 |
-| **EDGE2** (Rey+ 2025, 2503.03813) | RAMSES-RT | 950 Msun | ~150 Msun cell target | **3 pc** | rho > 300 m_p cm^-3, T < T*, eps_ff = 10%, 300 Msun particles | **non-equilibrium H2** (Nickerson+18), gas/dust/collisional | **on-the-fly M1 RT, 6 bins incl. 12–13.6 eV H2-dissociating**; FG20 UVB ramped to full at z=6 | 15 halos, M200 1e9–1e10 |
+| **LYRA ultra-faints** (Brown+ 2025, 2511.21824) | AREPO | 74.7 Msun | **4 Msun** gas cell; 4 Msun min star particle | 5.9–14.8 pc softening | n_H > 1e3 cm^-3 AND T < 100 K, Schmidt eps=0.02 (eps=1 above 1e4) | equilibrium tables (CHIMES/Ploeckinger+25); non-eq only H/He — does not gate SF | no RT; **two LW backgrounds** (FG20 vs Incatasciato+23) | **65 halos**, M200c 1e7–5e9, to z=0 |
+| **EDGE2** (Rey+ 2025, 2503.03813) | RAMSES-RT | 950 Msun | ~150 Msun cell target | **3 pc** | rho > 300 m_p cm^-3, T < T*, eps_ff = 10%, 300 Msun particles | **non-equilibrium H2** (Nickerson+18), gas/dust/collisional — **cooling only, does not gate SF** | **on-the-fly M1 RT, 6 bins incl. 12–13.6 eV H2-dissociating**; FG20 UVB ramped to full at z=6 | 15 halos, M200 1e9–1e10 |
 | Wheeler+ 2019 | GIZMO/FIRE-2 | — | **30 Msun** | ~pc | FIRE-2 (self-gravitating, dense) | approximate | local + UVB | ~15 UFDs |
 | Applebaum+ 2021 (Mint DC Justice League) | ChaNGa | ~1e4 Msun | ~1e3 Msun | ~90 pc | density + T threshold | metal-line + H2 approx | UVB | MW-context UFDs |
-| **Kuhlen+ 2012** (1105.2376) — *our prescription's origin* | **Enzo** | 3.1e6 Msun | m_min = **1e4 Msun**, **with stochastic sampling below it** | 76 proper pc at z=4 | H2-regulated, KMT09 analytic f_H2, eps=0.01, **no density threshold** | KMT09 analytic (column + metallicity) | optically thin HM01 UVB; LW background varied J/J_MW = 1–1000 | 12.5 Mpc box, z >= 4 |
-| **this work** | **Enzo** | 2.21e4 (L3) / 2764 (L4) Msun | 10 Msun min star particle; cell mass ~7.6e4 Msun at n_H=100, z=4 | **136 comoving pc / 27 proper pc at z=4** (nref9) | H2-regulated, `star_maker_h2reg`, eps=0.02, **no density threshold, no f_H2 threshold** | **non-equilibrium Grackle H2** (MultiSpecies=2), H2Method=1 | tabulated HM2012, **no RT, no LW model** | **61 halos**, 27 L3-gas to z=0, **+18 reion +18 norad matched arms** |
+| **Kuhlen+ 2012** (1105.2376) — *our prescription's origin* | **Enzo** | 3.1e6 Msun | m_min = **1e4 Msun**, **with stochastic sampling below it** | 76 proper pc at z=4 | H2-regulated, KMT09 analytic f_H2, eps=0.01, **no density threshold** | KMT09 analytic (column + metallicity) — **f_H2 sets the SFR**, but zero at Z=0 | optically thin HM01 UVB; LW background varied J/J_MW = 1–1000 | 12.5 Mpc box, z >= 4 |
+| **Emerick+ 2018** (1807.07182) — *isolated, same code as us* | **Enzo** | none: static Burkert potential, M_vir = 2.48e9, R_vir = 27.4 kpc | **individual stars**, IMF-sampled; ~100 Msun of stars per SF event, M_max = 100 Msun | **1.8 pc** (Jeans length over 8 cells) | n > 200 cm^-3 AND T < 200 K AND M > M_Jeans AND div.v < 0, eps_ff = 0.02, **stochastic** | **non-equilibrium Grackle H2** (9-species with H-; dust channel on Remy-Ruyer+14 low-Z scaling) — **cooling only, does not gate SF** | **adaptive ray-tracing ionizing RT** (with radiation pressure) + **per-star Lyman-Werner** (11.2-13.6 eV, Wolcott-Green self-shielding) + optically-thin FUV; HM2012 UVB with approximate self-shielding | **1 isolated dwarf** (Leo P analog), 500 Myr, **not cosmological** |
+| **this work** | **Enzo** | 2.21e4 (L3) / 2764 (L4) Msun | 10 Msun min star particle; cell mass ~7.6e4 Msun at n_H=100, z=4 | **136 comoving pc / 27 proper pc at z=4** (nref9) | H2-regulated, `star_maker_h2reg`, eps=0.02, **no density threshold, no f_H2 threshold** | **non-equilibrium Grackle H2** (MultiSpecies=2), H2Method=1 — **f_H2 sets the SFR** | tabulated HM2012, **no RT, no LW model** | **61 halos**, 27 L3-gas to z=0, **+18 reion +18 norad matched arms** |
 
 ## 2. Where we sit on resolution — mid-pack, and behind on baryons
 
-- **Spatial**: 27 proper pc at z=4 versus EDGE's 3 pc. At fixed gas density our
-  cell holds ~700x more mass than an EDGE cell and ~2e4x more than a LYRA cell.
-  **We are not a high-resolution study by the standards of this subfield.**
+- **Spatial**: 27 proper pc at z=4 versus EDGE's 3 pc and **Emerick's 1.8 pc**,
+  the finest in the table. At fixed gas density our cell holds ~700x more mass
+  than an EDGE cell, ~3e3x more than an Emerick cell, and ~2e4x more than a LYRA
+  cell. **We are not a high-resolution study by the standards of this
+  subfield.**
 - **Dark matter**: 2.2e4 Msun (L3) sits between EDGE (950) and Kuhlen (3.1e6);
-  our L4 rung at 2764 Msun is competitive with EDGE. This is our better axis.
-- **Star particles**: our 10 Msun floor is the smallest in the table apart from
-  LYRA's 4 Msun — but LYRA's 4 Msun particles are *individual stars* drawn from
-  a sampled IMF, while ours are unresolved populations. Not the same claim.
+  our L4 rung at 2764 Msun is competitive with EDGE. This is our better axis,
+  and it is the one place Emerick+ 2018 cannot follow: their halo is a static
+  analytic Burkert potential with no DM particles, no merger history and no
+  accretion, so nothing about assembly, tidal stripping or the DM-resolution
+  questions we care about can be asked of it.
+- **Star particles**: our 10 Msun floor is the smallest number in the table
+  apart from LYRA's 4 Msun — but LYRA's 4 Msun particles and Emerick's particles
+  are *individual stars* drawn from a sampled IMF, while ours are unresolved
+  populations. Not the same claim, and the distinction is the whole of novelty
+  item 1 below: a 10 Msun population particle is a quantization of a continuous
+  star formation rate, and a 10 Msun star is a star.
 
 The consequence matters for the headline: **R ~ f_H2 * n_H^(3/2) * dx^3**, so
-our gate is 700x more permissive than EDGE's would be at the same density, and
-2e4x more permissive than LYRA's. Any threshold we quote is a threshold at
-nref9. This is the single most important caveat in the study and it is
-quantifiable, which is an opportunity rather than only a weakness.
+our gate is 700x more permissive than EDGE's would be at the same density, 3e3x
+more permissive than Emerick's, and 2e4x more permissive than LYRA's. Any
+threshold we quote is a threshold at nref9. This is the single most important
+caveat in the study and it is quantifiable, which is an opportunity rather than
+only a weakness.
 
-## 3. Where we sit on physics — one clear advantage, two clear gaps
+## 3. Where we sit on physics — one sharp advantage, two clear gaps
 
-**Advantage.** We follow **non-equilibrium H2 in Grackle** and feed the actual
-`H2I + H2II` field to the star maker (`H2StarMakerH2FractionMethod = 1`). LYRA
-takes H2 from *equilibrium* tables. Kuhlen+ 2012 — same star maker — used the
-KMT09 *analytic* column-density model, which returns **exactly zero f_H2 at
-zero metallicity**. Only EDGE2 matches us here, and they add RT on top.
+**Advantage. Locate it precisely: it is the coupling, not the chemistry.**
+
+Following non-equilibrium H2 is *not* what distinguishes us. EDGE2 follows it
+(Nickerson+18: gas-phase, dust and collisional channels) and Emerick+ 2018
+follows it in the same Grackle 9-species network we use, in the same code. What
+distinguishes us is that we **feed the actual `H2I + H2II` field into the star
+formation rate** (`star_maker_h2reg` with `H2StarMakerH2FractionMethod = 1`).
+Nobody else in this table does:
+
+| study | non-eq. H2 followed? | does f_H2 set the SFR? | what actually gates SF |
+|---|---|---|---|
+| EDGE2 | yes (Nickerson+18) | **no** | rho > 300 m_p cm^-3 AND T < 1000 K |
+| Emerick+ 2018 | yes (Grackle, 9-species) | **no** | n > 200 cm^-3 AND T < 200 K AND M > M_Jeans AND div.v < 0 |
+| LYRA | no — equilibrium tables | no | n_H > 1e3 cm^-3 AND T < 100 K |
+| Kuhlen+ 2012 | no — KMT09 analytic | **yes** | f_H2 from a column-density + metallicity fit |
+| **this work** | **yes** (Grackle, 9-species) | **yes** | f_H2 itself, no density or f_H2 floor |
+
+EDGE2 are explicit that their temperature threshold is a *proxy* for molecular
+gas: it exists "to ensure that star-forming gas is cold enough to represent
+(potentially unresolved) molecular gas". Kuhlen+ 2012 regulates on f_H2 as we do
+but computes it from the KMT09 analytic model, which returns **exactly zero at
+zero metallicity**. So we occupy a cell of this table that is otherwise empty:
+non-equilibrium f_H2 driving the star formation rate directly.
+
+That is worth stating carefully rather than loudly, because it cuts both ways.
+It is why our dark halos are dark for a reason nobody else's are — a density
+threshold cannot distinguish pristine gas from enriched gas at the same density,
+and ours can — but it also means our ignition threshold inherits every
+uncertainty in the low-metallicity H2 network, which the others' thresholds do
+not.
+
+**Independent support for the plateau, from the same chemistry used differently.**
+Emerick+ 2018 find f_H2 < 5% throughout their dwarf and state that the H2 forms
+*entirely* through the gas-phase H- channel in self-shielding regions, with
+formation on dust and the three-body reaction both insignificant. That is the
+same conclusion we reached from the electron freeze-out argument behind the
+f_H2 ~ 3-6e-3 ceiling, in a different regime (a 500 Myr isolated disk at
+Z = 4.3e-4), by a group that was not looking for it and for whom the number was
+a diagnostic rather than a result. It is the strongest external support the
+plateau has, and it is strengthened, not weakened, by the fact that their f_H2
+does nothing in their star formation law.
 
 **Gap 1 — no Lyman-Werner treatment at all.** `LWbackground_intensity = 0`,
 no local LW, no LW band. LYRA's headline result is that the early LWB moves the
@@ -61,16 +108,48 @@ EDGE2 carries a 12–13.6 eV dissociating band in its RT. **We cannot currently
 say anything about the dominant uncertainty that the newest paper in the field
 identifies**, and our norad arm is the maximally optimistic LW case.
 
+Emerick+ 2018 makes this gap harder to defend, because they close it **in Enzo**:
+per-star Lyman-Werner flux integrated over 11.2–13.6 eV from the OSTAR2002 grid,
+with Wolcott-Green+11 Sobolev self-shielding applied inside Grackle. The
+machinery exists in a public fork of the code we are already running. Whatever
+we do about Tier A2, we can no longer describe an LW treatment as out of reach
+for this code base.
+
 **Gap 2 — no Pop III enrichment floor.** Our dark halos sit at Z = 7.7e-9 Zsun
 forever. Kuhlen+ 2012 imposed `Z_floor = 1e-3 Zsun at z = 9` *precisely
 because* their H2 model gives nothing at Z = 0, and treated its amplitude and
 timing as a tested parameter. LYRA forms stars at primordial metallicity but
 notes the absence of a Pop III model as a leading uncertainty for exactly the
 single-burst, self-quenching systems we are producing. Our metals->dust->H2
-bootstrap therefore never starts *by construction*, and that is a modelling
+bootstrap therefore never starts *by construction*, and that is a modeling
 choice we have not made deliberately.
 
-Also missing relative to EDGE2: on-the-fly RT of any kind.
+Emerick+ 2018 zeroes their tracked metal fields deliberately, so that the
+abundances they report are only what their own stars made, and say plainly that
+this resembles the first pollution of pristine gas while explicitly excluding
+Pop III and Pop II evolution. That is the same choice we made by accident. The
+difference is that they state it as a scope limit on a chemical-evolution
+experiment, and we are letting it decide whether halos ignite at all.
+
+Also missing relative to EDGE2 and Emerick+ 2018: on-the-fly RT of any kind.
+
+**A matched-mass check we can make now.** Emerick+ 2018's halo is M_vir =
+2.48e9 Msun, which lands inside the narrow band where our own halos still hold
+metals at z = 0. They report that only ~4% of the metals their stars produced
+stay in the disk, ~45% sit inside R_vir but outside the galaxy, and ~50% are
+gone beyond R_vir, with mass loading eta ~ 50 at 0.25 R_vir falling to ~10 at
+R_vir. Our z = 0 measurement of the same quantity (figures_z0/metal_reach)
+brackets that number and scatters hugely across it: halo56672 (1.70e9) and
+halo675758 (9.6e8) have lost 88% and 91% of their gas-phase metals past R200c,
+while halo42784 (3.9e9) and halo31427 (4.0e9) retain 90-94%. So their result
+matches the lower half of our mass range and is strongly violated by the upper
+half -- which is the interesting part, because the flip happens over a factor of
+two in halo mass.
+
+Read carefully, though: their simulation is isolated, non-cosmological, runs for
+500 Myr on a static dark matter potential, and has no accretion. Ours is 13.7
+Gyr of cosmological assembly. The agreement or disagreement is qualitative, and
+the useful comparison is the *direction* of the trend, not the numbers.
 
 ## 4. Novelty assessment
 
@@ -93,6 +172,16 @@ H2-regulated star formation in Enzo (Kuhlen+ 2012 is the same routine);
    from the measured R histories, and measured 7/81/323 after repairing the
    branch. This is a numerical-methods result that applies to every code with
    a minimum star particle mass, and it is the strongest thing we have.
+
+   Emerick+ 2018 is the sharpest illustration of what the alternative looks
+   like *in our own code*: they abandon the single-stellar-population
+   formalism entirely and sample the IMF star by star, on the argument that
+   below 1e4 Msun a star particle is no longer an average of a population and
+   that this "is acutely problematic at low star formation rate densities with
+   star particle masses comparable to or below the mass of the most massive
+   individual star". Our 10 Msun floor sits an order of magnitude below that
+   mass. They and LYRA bracket our result from the other side: they avoid the
+   gate by construction, we measure what it costs when it is left in.
 
 2. **A matched three-arm radiation-exposure ladder on the same halos**:
    fiducial (Enzo's hard-coded `RadiationRedshiftOn = 7` gate), reion
@@ -195,6 +284,7 @@ are exactly our two gaps plus the mass gate, and we can test all three.
 - EDGE2 scaling relations: https://www.alphaxiv.org/abs/2503.03813
 - LYRA III (reionization survivors): https://www.alphaxiv.org/abs/2209.03366
 - Kuhlen+ 2012, H2-regulated SF in Enzo: https://arxiv.org/pdf/1105.2376
+- Emerick+ 2018, isolated dwarf with star-by-star feedback in Enzo: https://arxiv.org/abs/1807.07182
 - Wheeler+ 2019, 30 Msun dwarfs: https://academic.oup.com/mnras/article/490/3/4447/5588613
 - Applebaum+ 2021, Mint DC Justice League: https://arxiv.org/pdf/2008.11207
 - Munshi+ 2019, uncertainty in UFD predictions: https://arxiv.org/pdf/1810.12417
