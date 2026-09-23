@@ -466,24 +466,65 @@ def advance_halo(row, qstat, include_gas=True, dry_run=False, verbose=True):
     return actions
 
 
+# Renders older than this are stale REGARDLESS of level coverage: commit
+# 43c3f1d7 (2026-08-30 06:30) taught the density panel that the gas stage has
+# its own domain shift.  Before it, every gas panel was centered with the DM
+# stage's shift and came out blank or on empty sky -- halo80181's L2-gas panel
+# was solid black.  Bump this whenever the renderer changes in a way that
+# invalidates what is on disk.
+QC_RENDER_EPOCH = 1788207831
+
+
+def _qc_png_mtime(halo_dir):
+    """Newest density render on disk, or 0."""
+    import glob as _glob
+    pngs = _glob.glob(os.path.join(halo_dir, "qc_density_halo*.png"))
+    return max((os.path.getmtime(p) for p in pngs), default=0)
+
+
+def _newest_dump_mtime(halo_dir):
+    """Newest dump across every stage, so a figure tracks a RUNNING run too."""
+    import glob as _glob
+    newest = 0
+    for d in _glob.glob(os.path.join(halo_dir, "25Mpc_DM_*")):
+        dumps = sorted(_glob.glob(os.path.join(d, "RD0*")))
+        if dumps:
+            newest = max(newest, os.path.getmtime(dumps[-1]))
+    return newest
+
+
 def qc_due(halo_dir, done_levels, qstat):
     """Should the density figure be regenerated?  Returns the deepest level, or None.
 
-    The figure is a ladder: one panel per level that has reached z = 0.  So it
-    is stale exactly when a level has finished that the figure on disk does not
-    cover, which the ledger records as `through_level`.  Comparing against that
-    rather than against the file's mtime means a figure that failed to render
-    is retried, while one that succeeded is not rebuilt every sweep.
+    Three ways a figure goes stale, and the original only caught the first:
+
+    1. a LEVEL finished that the figure does not cover (`through_level`);
+    2. the run it depicts has ADVANCED -- gas runs write dumps for weeks, and a
+       figure made at z=6 says nothing about the halo at z=0.  Level coverage
+       never changes while that happens, so the figure sat frozen;
+    3. the RENDERER changed under it (QC_RENDER_EPOCH).  Twelve halos were
+       carrying gas panels centered with the wrong shift, and no amount of
+       waiting would have refreshed them.
+
+    These plots exist to show whether a run has a problem, so they have to be
+    current when the run finishes -- not when somebody thinks to ask.
     """
     if not done_levels:
         return None
     deepest = max(done_levels)
     if ledger.qc_in_flight(halo_dir, "density", qstat):
         return None
+    png = _qc_png_mtime(halo_dir)
+    if png == 0:
+        return deepest                      # nothing rendered yet
+    if png < QC_RENDER_EPOCH:
+        return deepest                      # (3) renderer moved on
+    if png < _newest_dump_mtime(halo_dir):
+        return deepest                      # (2) the run advanced
     record = ledger.last_qc(halo_dir, "density")
     if record and record.get("through_level") is not None:
         if int(record["through_level"]) >= deepest:
-            return None
+            return None                     # (1) covered, current, fresh
     return deepest
 
 
@@ -714,10 +755,10 @@ def cmd_qc(args):
         print(qc.format_density_report(args.halo, rows))
         print("\nWrote %s" % path)
 
-        # One neighbourhood panel per IC set, circling every parent-box
-        # Rockstar halo at its own Rvir and labelling it with its ORIGINAL
+        # One neighborhood panel per IC set, circling every parent-box
+        # Rockstar halo at its own Rvir and labeling it with its ORIGINAL
         # catalog ID.  That numbering is the point: it is what the halo was
-        # selected from, so a neighbour seen here can be looked up in the same
+        # selected from, so a neighbor seen here can be looked up in the same
         # catalog, which a zoom-local AHF id cannot do.  It also shows at a
         # glance whether the zoom refined the halo it was built for -- the
         # question that cost halo79628 three days of compute before anyone
@@ -727,12 +768,12 @@ def cmd_qc(args):
                 npath, note = qc.make_neighbor_projection(
                     box, args.halo, level=lev, phase="DM", rvir_min=rvir_min)
             except Exception as exc:
-                print("  L%d neighbours: skipped (%s)" % (lev, exc))
+                print("  L%d neighbors: skipped (%s)" % (lev, exc))
                 continue
             if npath is None:
-                print("  L%d neighbours: skipped (%s)" % (lev, note))
+                print("  L%d neighbors: skipped (%s)" % (lev, note))
             else:
-                print("  L%d neighbours: %s -> %s" % (lev, note, npath))
+                print("  L%d neighbors: %s -> %s" % (lev, note, npath))
 
         # A panel whose halo has drifted out of frame shows empty sky, which
         # reads as a halo that dissolved under refinement.  The drift is one to
@@ -741,9 +782,21 @@ def cmd_qc(args):
         # companion automatically rather than leaving a figure that has to be
         # interpreted before it can be believed -- both are kept, since the
         # uncentered one is the honest record of how far the halo moved.
-        if not args.recenter and any(r["note"].startswith("OUT OF FRAME") for r in rows):
+        # Trigger on OFF Center as well as OUT OF FRAME.  A halo between half a
+        # frame and a full frame from the center is still in the picture -- sitting
+        # at the edge, easy to find -- but the panel is not showing the halo, it is
+        # showing the halo's outskirts and a lot of neighboring sky.  Nine halos
+        # (79186, 75522, 46615, 15516, 51741, 15494, 23679, 23647, 42189) logged
+        # "halo N kpc off center" and got no re-centered companion at all, which is
+        # the case these figures most need to render properly: they exist to show
+        # whether a run has a problem, and an off-center panel cannot do that.
+        _needs = ("OUT OF FRAME", "plotted; halo")
+        needed = bool(not args.recenter and any(
+            r["note"].startswith(_needs) for r in rows))
+        path2 = None
+        if needed:
             second = (os.path.splitext(path)[0] + "_recentered.png")
-            print("\nSome panels are out of frame; also rendering re-centered:")
+            print("\nSome panels are off center or out of frame; also rendering re-centered:")
             path2, rows2 = qc.make_density_figure(box, args.halo, out_path=second,
                                                   width_rvir=args.width_rvir,
                                                   context_mpc=args.context_mpc,
@@ -751,6 +804,32 @@ def cmd_qc(args):
                                                   recenter=True)
             print(qc.format_density_report(args.halo, rows2))
             print("\nWrote %s" % path2)
+
+        # Sidecar, so the state of these figures is readable without opening
+        # them.  Without it the only signal a reader has is whether a
+        # `_recentered.png` exists, and that cannot distinguish the two cases
+        # that matter: a halo that was in frame and needed no companion (fine)
+        # from a job that was killed before it wrote one (not fine).  The fleet
+        # table read the first as a defect for every in-frame halo, and the
+        # second as healthy for as long as a stale companion from an earlier
+        # run sat next to it.
+        side = os.path.splitext(path)[0] + ".json"
+        try:
+            import json as _json, time as _time
+            with open(side, "w") as fh:
+                _json.dump(dict(
+                    written=_time.time(),
+                    figure=path,
+                    recentered_figure=path2,
+                    needed_recenter=needed,
+                    complete=(not needed) or bool(path2),
+                    include_gas=bool(args.include_gas),
+                    panels=[dict(label=r["label"], snap=r["name"], z=r["z"],
+                                 drift_kpc=r["drift"], note=r["note"])
+                            for r in rows]), fh, indent=1)
+            print("Wrote %s" % side)
+        except Exception as exc:                       # never fail the figure
+            print("  (could not write %s: %s)" % (side, exc))
         return 0
 
     levels = [int(x) for x in args.levels.split(",")] if args.levels else None
@@ -851,6 +930,8 @@ def cmd_build(args):
                     extra.append("--no-submit")
                 if args.no_hook:
                     extra.append("--no-hook")
+                if args.reuse_region:
+                    extra.append("--reuse-region")
                 build.submit_build_job(box, args.halo, args.level, args.phase,
                                        dry_run=args.dry_run, adopt=args.adopt,
                                        extra_args=" ".join(extra))
@@ -862,7 +943,8 @@ def cmd_build(args):
                     rvir_min=row["rvir_min"] if "rvir_min" in row.colnames else None,
                     gas_nref=(int(row["gas_nref"])
                               if "gas_nref" in row.colnames and int(row["gas_nref"]) > 0
-                              else None))
+                              else None),
+                    reuse_region=args.reuse_region)
     except ledger.UnmanagedHaloError as exc:
         print("REFUSED: %s" % exc)
         return 1
@@ -1056,6 +1138,13 @@ def main(argv=None):
     p.add_argument("--as-job", action="store_true",
                    help="submit IC generation as a PBS job instead of running it here "
                         "(required in practice: enzo-mrp-music must not run on a login node)")
+    p.add_argument("--reuse-region", action="store_true",
+                   help="DM only: regenerate the ICs from the level conf as it stands "
+                        "instead of re-tracing the region with enzo-mrp-music.  Use when "
+                        "the conf is already known good -- rebuilding a run deleted for "
+                        "disk, or matching a DM stage to a gas stage built from the same "
+                        "conf.  A re-trace would rewrite region_point_shift and "
+                        "initial_particle_positions-*.dat and lose any hand correction.")
     p.set_defaults(func=cmd_build)
 
     p = sub.add_parser("validate-templates",

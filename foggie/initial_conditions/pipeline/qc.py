@@ -68,7 +68,7 @@ def center_in_run(box, halo_id, level, halo_dir, rvir_min=None, phase="DM"):
     # MUSIC picks the domain shift per run: halo80181's L2 DM is
     # (-212,-69,-250) and its L2 gas is (-201,-96,+250) -- the z component
     # flips sign, half a box apart. Reading the DM conf log for a gas stage
-    # therefore centres the panel on empty sky. It went unnoticed because L3
+    # therefore centers the panel on empty sky. It went unnoticed because L3
     # and L3-gas happen to share a shift, so only the L2-gas panel was blank.
     suffix = "-gas" if str(phase) == "gas" else ""
     conf_log = os.path.join(halo_dir, "%s-L%d%s.conf_log.txt"
@@ -471,7 +471,7 @@ DENSITY_NPIX = 800
 # cannot -- at that width one dwarf looks much like another.
 DENSITY_CONTEXT_MPC = 3.0
 
-# Centring the panels on the mass-weighted centroid of the finest species was
+# Centering the panels on the mass-weighted centroid of the finest species was
 # tried and rejected.  The finest species is the whole Lagrangian region, which
 # by z = 0 is a lopsided Mpc-scale sprawl -- rms 0.6 to 1.8 Mpc for the halos
 # measured -- so its centroid lands 320 to 480 kpc from the halo, further off
@@ -514,8 +514,8 @@ def halocat_target(box, halo_id, level, phase, snap_name):
     entry is for a different dump than the one being drawn.
 
     Why this exists: the shrinking-sphere re-centering below is independent of
-    the catalogs and, for a dwarf with a heavier neighbour inside its search
-    radius, slides onto the neighbour (halo486694: 529 kpc = 26 R200 off,
+    the catalogs and, for a dwarf with a heavier neighbor inside its search
+    radius, slides onto the neighbor (halo486694: 529 kpc = 26 R200 off,
     2026-09-06).  The catalog target is the authority; this lets the panel be
     drawn on it and say so.
     """
@@ -555,10 +555,10 @@ def halocat_target(box, halo_id, level, phase, snap_name):
         m = re.search(r"CosmologyCurrentRedshift\s*=\s*(\S+)", pf)
         if m is None or abs(float(m.group(1))) > 5e-3:
             return None
-        # center_in_run carries the catalog centre into every level's frame
-        # (MUSIC re-centres each level; a shift difference is not enough --
+        # center_in_run carries the catalog center into every level's frame
+        # (MUSIC re-centers each level; a shift difference is not enough --
         # L1's region_point_shift is 0).  The target's offset from that
-        # carried centre at L3 is frame-independent, so apply it at this level.
+        # carried center at L3 is frame-independent, so apply it at this level.
         try:
             c3_run = np.array(center_in_run(box, int(halo_id), 3, hdir, phase=ph3)[0])
             cL_run = np.array(center_in_run(box, int(halo_id), int(level), hdir, phase=phase)[0])
@@ -638,7 +638,7 @@ def _density_panel(box, halo_id, halo_dir, level, phase, stage_dir, width_rvir,
             offset_code = np.asarray(offset) / kpc_per_code
 
     # The halocat target overrides the shrinking spheres when the two disagree
-    # by more than R200: that is the neighbour case, and the picture must be of
+    # by more than R200: that is the neighbor case, and the picture must be of
     # the halo the analysis uses.
     authority = "spheres"
     tgt = halocat_target(box, halo_id, level, phase, snap)
@@ -751,7 +751,7 @@ def make_density_figure(box, halo_id, out_path=None, width_rvir=DENSITY_WIDTH_RV
         elif panel["recentered"]:
             note = "plotted, re-centered %.0f kpc" % drift
             if panel.get("authority") == "halocat":
-                note += " onto the halocat target (shrinking spheres had slid onto a neighbour)"
+                note += " onto the halocat target (shrinking spheres had slid onto a neighbor)"
         elif drift > half_kpc:
             note = ("OUT OF FRAME: halo is %.0f kpc away, frame half-width %.0f kpc"
                     % (drift, half_kpc))
@@ -903,7 +903,7 @@ def check_target_in_region(box, halo_id, level, halo_dir=None, rvir_min=None,
     measures the drift and only draws it.  So a zoom that refines the wrong
     object passes every gate and is caught, if at all, when someone fails to
     find the target in its catalogs -- which for halo79628 was after 3.6 days
-    on 128 ranks, refining an 8.4e9 neighbour 1.9 Mpc/h from the 2.7e9 halo
+    on 128 ranks, refining an 8.4e9 neighbor 1.9 Mpc/h from the 2.7e9 halo
     named in the registry.
 
     The test is the one that separates the fleet cleanly: start at the analytic
@@ -991,7 +991,7 @@ def format_target_check(rows):
 # Projection with the Rockstar catalog overlaid
 # ---------------------------------------------------------------------------
 
-# Panel half-width, in Mpc/h comoving.  Wide enough to show the neighbourhood
+# Panel half-width, in Mpc/h comoving.  Wide enough to show the neighborhood
 # the zoom is embedded in, which is the point of the figure.
 NEIGHBOR_PANEL_MPCH = 1.0
 
@@ -1039,10 +1039,10 @@ def make_neighbor_projection(box, halo_id, level=None, phase="DM", out_path=None
     """DM projection of one IC set with the Rockstar catalog circled on it.
 
     One panel per IC set, showing what the zoom actually refined and what sits
-    around it, with every catalog halo drawn at its own Rvir and labelled by its
-    parent-box Rockstar ID.  The target is labelled larger and its mass printed,
+    around it, with every catalog halo drawn at its own Rvir and labeled by its
+    parent-box Rockstar ID.  The target is labeled larger and its mass printed,
     so the figure answers "did we refine the halo we asked for, and what are its
-    neighbours" without cross-referencing anything by hand.
+    neighbors" without cross-referencing anything by hand.
     """
     import yt
     import matplotlib

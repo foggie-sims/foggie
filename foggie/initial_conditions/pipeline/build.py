@@ -132,9 +132,13 @@ def enzo_keywords(box, level, phase="DM", grid_parameters="", gas_nref=None):
         # the two must come from the same place or the run either stops twice
         # or never stops at all.
         kw["__GAS_STOP_REDSHIFT__"] = _fmt_redshift(box.gas_stop_redshift)
+        # Same depth rule as the output list: see Box.gas_dtdatadump_for.
+        kw["__DT_DATA_DUMP__"] = str(box.gas_dtdatadump_for(level))
     else:
         kw["__MIN_OVERDENSITY__"] = min_overdensity(
             level, "DM", box.overdensity_at_root)
+        # nref9 for L3-L5 DM (JT 2026-09-15; nref7 retired): see Box.dm_refine_level.
+        kw["__DM_MAX_REFINE_LEVEL__"] = str(box.dm_refine_level(level))
     return kw
 
 
@@ -260,7 +264,7 @@ def render_runscript(box, halo_id, level, phase="DM", pipeline_hook=""):
         # simrun.pl needs the walltime in seconds so it knows when to resubmit.
         "__SIMRUN_WALL__": hours * 3600 + minutes * 60 + seconds,
         "__EMAIL__": box.email,
-        "__ENZO_EXE__": box.enzo_exe,
+        "__ENZO_EXE__": box.exe_for(phase),
         "__PARAM_FILE__": box.param_filename(level, phase),
         "__PHASE_TRANSITION__": render_phase_transition(box, phase),
         "__PIPELINE_HOOK__": pipeline_hook,
@@ -290,7 +294,7 @@ _RS1024_CACHE = {}
 
 
 def _rockstar_1024(rs_id):
-    """(centre Mpc/h, Rvir kpc/h) for one halo in the 1024 rockstar catalog.
+    """(center Mpc/h, Rvir kpc/h) for one halo in the 1024 rockstar catalog.
 
     Columns are `id num_p mvir mbound_vir rvir vmax rvmax vrms x y z ...`, so
     id is 0, rvir is 4 and the position is 8:11 -- in Mpc/h, matching the 512
@@ -344,7 +348,7 @@ def halo_center_and_radius(box, halo_id, rvir_min=None):
     id_1024, and their position comes from rockstar.
 
     enzo-mrp-music only needs a position -- taking it from the wrong catalog
-    would silently centre the zoom on a different object, or on noise.
+    would silently center the zoom on a different object, or on noise.
 
     The radius is Rvir from the catalog, raised to a floor if one applies.  The
     floor can come from the box (script256.py used 200 kpc, script512.py used
@@ -528,7 +532,7 @@ def refine_center_from_run(box, halo_id, level, halo_dir, analytic_center,
     """Where the halo actually is in the previous level's run, at z = 0.
 
     enzo-mrp-music traces the Lagrangian region from the parent-box particles
-    inside a sphere at the centre we give it.  Giving it the analytic centre --
+    inside a sphere at the center we give it.  Giving it the analytic center --
     catalog position plus the MUSIC shift -- is wrong by however far the halo
     has drifted by z = 0, which across this fleet is 100 to 200 kpc and is not
     correlated with halo mass.
@@ -541,7 +545,7 @@ def refine_center_from_run(box, halo_id, level, halo_dir, analytic_center,
     the cost of a zoom far bigger than the science needs -- 4.6M cells against
     81k for a comparable halo.
 
-    So locate the halo first.  Returns (centre, drift_kpc), or (analytic, None)
+    So locate the halo first.  Returns (center, drift_kpc), or (analytic, None)
     if the previous level's output cannot be read, since a diagnostic must never
     be the reason a build fails.
     """
@@ -556,26 +560,26 @@ def refine_center_from_run(box, halo_id, level, halo_dir, analytic_center,
 
         snap, name, _, is_final = _qc.last_output(prev_dir)
         if snap is None or not is_final:
-            print("    centre refinement skipped: %s has no final dump"
+            print("    center refinement skipped: %s has no final dump"
                   % os.path.basename(prev_dir))
             return analytic_center, None
         rel, mass, ds = _qc.load_particles(snap, analytic_center, search_kpc)
         if rel is None:
-            print("    centre refinement skipped: no particles near the analytic centre")
+            print("    center refinement skipped: no particles near the analytic center")
             return analytic_center, None
         offset = _qc.locate_halo(rel, mass, guess_radius_kpc=search_kpc, verbose=False)
         if offset is None:
-            print("    centre refinement skipped: halo not located in %s" % name)
+            print("    center refinement skipped: halo not located in %s" % name)
             return analytic_center, None
         kpc_per_code = float(ds.quan(1.0, "code_length").in_units("kpc").d)
         drift = float(np.sqrt((np.asarray(offset) ** 2).sum()))
-        centre = [(c + o / kpc_per_code) % 1.0
+        center = [(c + o / kpc_per_code) % 1.0
                   for c, o in zip(analytic_center, offset)]
-        print("    centre refined using %s: halo is %.0f kpc from the analytic "
+        print("    center refined using %s: halo is %.0f kpc from the analytic "
               "position" % (name, drift))
-        return centre, drift
+        return center, drift
     except Exception as exc:
-        print("    centre refinement skipped (%s); using the analytic centre" % exc)
+        print("    center refinement skipped (%s); using the analytic center" % exc)
         return analytic_center, None
 
 
@@ -597,9 +601,9 @@ def render_mrp_config(box, halo_id, level, halo_dir, rvir_min=None):
     # which is unigrid: every particle has the same mass, so locate_halo's
     # finest-species selection matches all of them and the shrinking spheres
     # converge on the largest object nearby rather than the target.  Doing it
-    # anyway moved halo39829 394 kpc onto a neighbour and produced a 37-million
+    # anyway moved halo39829 394 kpc onto a neighbor and produced a 37-million
     # cell region.  It is also unnecessary -- the catalog position is measured in
-    # the L0 box itself, so the analytic centre there is exact to ~1 kpc.
+    # the L0 box itself, so the analytic center there is exact to ~1 kpc.
     if level >= 2 and getattr(box, "refine_centers", True):
         center, _ = refine_center_from_run(box, halo_id, level, halo_dir, center)
     _, rvir = halo_center_and_radius(box, halo_id, rvir_min)
@@ -705,7 +709,7 @@ def check_region_points(halo_dir, level, dry_run=False):
     """Refuse a zoom whose Lagrangian region was traced from too few particles.
 
     enzo-mrp-music defines the region from the parent-box particles inside a
-    sphere at the halo's ANALYTIC centre -- catalog position plus the MUSIC
+    sphere at the halo's ANALYTIC center -- catalog position plus the MUSIC
     shift.  By z = 0 the halo has drifted from that position, typically 100-200
     kpc, and if the zoom radius is smaller than the drift the sphere misses the
     halo and traces whatever few particles happen to be there.
@@ -722,8 +726,21 @@ def check_region_points(halo_dir, level, dry_run=False):
     that protection.
     """
     import glob
+    # enzo-mrp-music now tags each level's points with -L<level>
+    # (name_region_file_by_level).  Prefer this level's own file; fall back to
+    # the newest untagged one for halos built before that change, where every
+    # level shared a single file.
+    tagged = os.path.join(halo_dir, "initial_particle_positions-*-L%d.dat" % level)
     pattern = os.path.join(halo_dir, "initial_particle_positions-*.dat")
-    files = sorted(glob.glob(pattern), key=os.path.getmtime)
+    files = sorted(glob.glob(tagged), key=os.path.getmtime)
+    if not files:
+        # Legacy fallback: the single shared file.  Exclude ANY level-tagged
+        # name -- a halo part-built before and part-built after the per-level
+        # change has both, and the newest by mtime is whichever level was
+        # traced last, not this one.
+        files = sorted((f for f in glob.glob(pattern)
+                        if not re.search(r"-L\d+\.dat$", f)),
+                       key=os.path.getmtime)
     if not files:
         if dry_run:
             return None
@@ -734,7 +751,7 @@ def check_region_points(halo_dir, level, dry_run=False):
         raise RuntimeError(
             "L%d region traced from only %d particles (%s).\n"
             "That is far below the %d seen for any healthy zoom in this fleet, "
-            "and means the traced sphere missed the halo: it is centred on the "
+            "and means the traced sphere missed the halo: it is centered on the "
             "analytic position, and the halo drifts 100-200 kpc from there by "
             "z = 0.  Raise the zoom radius -- check the registry row's rvir_min, "
             "which overrides the box's Rvir floor -- and rebuild."
@@ -748,8 +765,312 @@ def check_region_points(halo_dir, level, dry_run=False):
     return n
 
 
+# A halo's Lagrangian region is the SAME particle set at every level -- only the
+# resolution it is sampled at changes -- so its comoving hull volume should
+# barely move from L1 to L4.  Measured over the 47 halos on disk, the spread of
+# a halo's hull volume across its own levels is median 1.16x, p90 1.70x, and
+# 4.26x at the very worst for a healthy halo.  halo80181 sat at 27.55x.
+REGION_VOLUME_WARN = 4.0
+REGION_VOLUME_FAIL = 8.0
+# The other direction: a region far smaller than the halo's others may not
+# contain the halo.  Warn only -- check_region_points owns the fatal case.
+REGION_VOLUME_SMALL = 0.25
+# The region's POSITION, as a fraction of its own size.  A hull can be the
+# right size and in the wrong place -- unapplying a shift is a translation, so
+# it moves a region without changing its volume and the volume gate is blind to
+# it.  Measured across the 48 halos on disk, a halo's hull center sits a median
+# 0.053 and at most 0.327 region-sizes from its own across-level median.
+#
+# LIMIT, stated because it matters: one root cell is 48.8 ckpc/h, which is
+# 0.05-0.10 of a typical region and therefore INSIDE the normal scatter.  This
+# gate catches a region that has landed somewhere else entirely; it cannot
+# catch a one- or two-cell frame error, and nothing here should be read as
+# claiming otherwise.
+REGION_OFFSET_WARN = 0.40
+REGION_OFFSET_FAIL = 0.75
+
+_HULL_RE = re.compile(
+    r"bounding box\s+left = \[([\d.eE+-]+),([\d.eE+-]+),([\d.eE+-]+)\]"
+    r"\s+right = \[([\d.eE+-]+),([\d.eE+-]+),([\d.eE+-]+)\]")
+
+
+def hull_box(conf_log):
+    """(center, extent) of the traced region's bounding box, in box units.
+
+    Returns None if the log has no hull line.
+    """
+    try:
+        with open(conf_log, errors="replace") as fh:
+            hits = _HULL_RE.findall(fh.read())
+    except IOError:
+        return None
+    if not hits:
+        return None
+    left = [float(x) for x in hits[-1][:3]]
+    right = [float(x) for x in hits[-1][3:]]
+    edges = [b - a for a, b in zip(left, right)]
+    if min(edges) <= 0:
+        return None
+    center = [0.5 * (a + b) for a, b in zip(left, right)]
+    return center, edges
+
+
+def hull_volume(conf_log):
+    """Comoving volume of the traced region's bounding box, in box units.
+
+    Returns None if the log has no hull line -- a truncated conf_log, which
+    happens when two MUSIC runs race in one halo directory, is not an error
+    here.  See repair_conf_log_shift.py.
+    """
+    try:
+        with open(conf_log, errors="ignore") as fh:
+            hits = _HULL_RE.findall(fh.read())
+    except IOError:
+        return None
+    if not hits:
+        return None
+    left = [float(x) for x in hits[-1][:3]]
+    right = [float(x) for x in hits[-1][3:]]
+    edges = [b - a for a, b in zip(left, right)]
+    if min(edges) <= 0:
+        return None
+    return edges[0] * edges[1] * edges[2]
+
+
+def check_region_geometry(box, halo_dir, level, phase="DM", dry_run=False):
+    """Refuse a zoom whose traced region is far larger than the same halo's others.
+
+    MUSIC "unapplies" region_point_shift to put the region point file back in
+    the unshifted frame before tracing.  If that shift disagrees with the frame
+    the file was actually written in -- even by ONE cell -- the cloud is mapped
+    to the wrong place, the convex hull inflates, and nothing complains.  The
+    ICs generate, Enzo runs, and the science is fine; the run is simply refining
+    a much larger volume than it needs to.
+
+    2026-08-26, halo80181: region_point_shift said (-212,-69,-250) where MUSIC
+    shifted the domain by (-212,-70,-250).  The L2 and L3 hulls inflated to
+    1431 x 3353 x 1790 ckpc/h, 27.5x the volume of the same halo's L1 and L4.
+    L2 took 2.29 h against 0.85-1.23 h for its peers; L3 took 10.58 h against
+    1.5-2.0 h, and wrote 184 GB.  Both ran to z = 0 looking entirely healthy.
+    check_region_points did not catch it -- 251,071 particles were traced, a
+    perfectly normal count.  The COUNT was right and the GEOMETRY was wrong.
+
+    Compares against the other levels of this same halo rather than against a
+    fleet-wide ceiling, because hull volume legitimately varies 17x between
+    halos of different mass but only ~1.2x between levels of one halo.
+    """
+    if dry_run:
+        return None
+    stem = os.path.join(halo_dir, "%s-L%%d%s.conf_log.txt"
+                        % (box.sim_name, "-gas" if phase == "gas" else ""))
+    mine = hull_volume(stem % level)
+    if mine is None:
+        print("    (no hull line in this level's conf_log; geometry unchecked)")
+        return None
+    others = {}
+    for other in range(1, (box.max_level or 4) + 1):
+        if other == level:
+            continue
+        for suffix in ("", "-gas"):
+            path = os.path.join(halo_dir, "%s-L%d%s.conf_log.txt"
+                                % (box.sim_name, other, suffix))
+            v = hull_volume(path)
+            if v is not None:
+                others["L%d%s" % (other, suffix)] = v
+    if not others:
+        print("    region hull %.2e (box units); no other level to compare against"
+              % mine)
+        return mine
+    # MEDIAN of the other levels, not the minimum.  A halo can legitimately
+    # carry one small stage -- halo59186's L2-gas region is a tenth of its L1,
+    # L2, L3 and L3-gas, which all agree to 3% -- and taking the minimum then
+    # makes the healthy majority look inflated.  On the fleet as it stands the
+    # minimum rejects halo59186's L1 and L3 (8.6x and 8.8x) purely on that one
+    # small stage; the median passes both at 0.97x and 1.00x and still rejects
+    # halo80181's L2 at 26.5x.
+    ordered = sorted(others.values())
+    n = len(ordered)
+    ref = ordered[n // 2] if n % 2 else 0.5 * (ordered[n // 2 - 1] + ordered[n // 2])
+    ratio = mine / ref
+    summary = ", ".join("%s %.2e" % kv for kv in sorted(others.items()))
+    if ratio >= REGION_VOLUME_FAIL:
+        raise RuntimeError(
+            "L%d%s region hull is %.1fx the median of this halo's other levels "
+            "(%.2e vs %.2e; %s).\n"
+            "A halo's Lagrangian region is the same particle set at every "
+            "level, so this ratio is 1.16x median and 4.26x at the very worst "
+            "across the 47 halos on disk.  The usual cause is a DETACHED CLUMP "
+            "in the traced cloud that the connectivity trim did not remove -- "
+            "a stale region_point_shift cannot do this, since unapplying a "
+            "shift is a translation and does not change a hull's size.  Check "
+            "the cloud's friends-of-friends grouping before anything else."
+            % (level, "-gas" if phase == "gas" else "", ratio, mine, ref,
+               summary, box.sim_name, level, "-gas" if phase == "gas" else ""))
+    if ratio >= REGION_VOLUME_WARN:
+        print("    WARNING: L%d%s region hull is %.1fx this halo's median "
+              "(%.2e vs %.2e).  Healthy zooms sit under %.1fx; check "
+              "region_point_shift before trusting this stage."
+              % (level, "-gas" if phase == "gas" else "", ratio, mine, ref,
+                 REGION_VOLUME_WARN))
+    elif ratio <= REGION_VOLUME_SMALL:
+        # The opposite failure, and the more dangerous one: a region far
+        # SMALLER than the halo's others may not contain the halo at all.  Not
+        # fatal here -- check_region_points already refuses a region traced
+        # from too few particles -- but worth eyes on.
+        print("    WARNING: L%d%s region hull is only %.2fx this halo's median "
+              "(%.2e vs %.2e).  A region this much smaller than the halo's "
+              "other levels may not contain it; check containment before "
+              "trusting this stage."
+              % (level, "-gas" if phase == "gas" else "", ratio, mine, ref))
+    else:
+        print("    region hull %.2e, %.2fx this halo's median -- ok"
+              % (mine, ratio))
+    check_region_position(box, halo_dir, level, phase)
+    return mine
+
+
+def check_region_position(box, halo_dir, level, phase="DM"):
+    """Is the region the right SIZE but in the wrong PLACE?
+
+    check_region_geometry tests volume, and volume is invariant under the one
+    thing most likely to go wrong here: region_point_shift is unapplied as a
+    translation, so a stale shift moves a region without resizing it and the
+    volume gate cannot see it at all.
+
+    A halo's Lagrangian region is the same particle set at every level, so its
+    hull Center should also barely move between levels.  Measured over the 48
+    halos on disk, the worst across-level offset is a median 0.053 and a
+    maximum 0.327 of the region's own size.
+
+    WHAT THIS CANNOT DO: one root cell is 48.8 ckpc/h, which is 0.05-0.10 of a
+    typical region and therefore inside that scatter.  A one- or two-cell frame
+    error is NOT detectable here, and nothing in this campaign should be read
+    as claiming a shift of that size was ever caught by a geometry test.  This
+    gate is for a region that has landed somewhere else entirely.
+    """
+    import numpy as _np
+    suf = "-gas" if phase == "gas" else ""
+    mine = hull_box(os.path.join(
+        halo_dir, "%s-L%d%s.conf_log.txt" % (box.sim_name, level, suf)))
+    if mine is None:
+        return None
+    others = []
+    for other in range(1, (box.max_level or 4) + 1):
+        if other == level:
+            continue
+        for s2 in ("", "-gas"):
+            v = hull_box(os.path.join(halo_dir, "%s-L%d%s.conf_log.txt"
+                                      % (box.sim_name, other, s2)))
+            if v is not None:
+                others.append(v)
+    if not others:
+        return None
+    cs = _np.array([o[0] for o in others] + [mine[0]])
+    med = _np.median(cs, axis=0)
+    off = _np.asarray(mine[0], dtype=float) - med
+    off -= _np.round(off)                       # periodic
+    dist = float(_np.linalg.norm(off))
+    scale = float(_np.cbrt(_np.prod(_np.asarray(mine[1], dtype=float))))
+    frac = dist / scale if scale > 0 else 0.0
+    kpch = dist * 25000.0
+    if frac >= REGION_OFFSET_FAIL:
+        raise RuntimeError(
+            "L%d%s region center sits %.0f ckpc/h from this halo's across-level "
+            "median, %.2f of its own size (fleet median 0.053, worst healthy "
+            "0.327).\n"
+            "The hull is the right SIZE, so this is a placement error rather "
+            "than a tracing one: check region_point_shift in %s-L%d%s.conf "
+            "against the frame the region point file was actually written in."
+            % (level, suf, kpch, frac, box.sim_name, level, suf))
+    if frac >= REGION_OFFSET_WARN:
+        print("    WARNING: region center is %.0f ckpc/h off this halo's "
+              "across-level median, %.2f of its own size (healthy < %.2f)."
+              % (kpch, frac, REGION_OFFSET_WARN))
+    else:
+        print("    region center %.0f ckpc/h from this halo's median, "
+              "%.2f of its size -- ok" % (kpch, frac))
+    return frac
+    ref = min(others.values())
+    ratio = mine / ref
+    summary = ", ".join("%s %.2e" % kv for kv in sorted(others.items()))
+    if ratio >= REGION_VOLUME_FAIL:
+        raise RuntimeError(
+            "L%d%s region hull is %.1fx the smallest of this halo's other "
+            "levels (%.2e vs %.2e; %s).\n"
+            "A halo's Lagrangian region is the same particle set at every "
+            "level, so this ratio is 1.16x median and 4.26x at the very worst "
+            "across the 47 halos on disk.  The usual cause is a DETACHED CLUMP "
+            "in the traced cloud that the connectivity trim did not remove -- "
+            "a stale region_point_shift cannot do this, since unapplying a "
+            "shift is a translation and does not change a hull's size.  Check "
+            "the cloud's friends-of-friends grouping before anything else."
+            % (level, "-gas" if phase == "gas" else "", ratio, mine, ref,
+               summary, box.sim_name, level, "-gas" if phase == "gas" else ""))
+    if ratio >= REGION_VOLUME_WARN:
+        print("    WARNING: L%d region hull is %.1fx this halo's smallest "
+              "(%.2e vs %.2e).  Healthy zooms here sit under %.1fx; check "
+              "region_point_shift before trusting this stage."
+              % (level, ratio, mine, ref, REGION_VOLUME_WARN))
+    else:
+        print("    region hull %.2e, %.2fx this halo's smallest level -- ok"
+              % (mine, ratio))
+    return mine
+
+
+def region_points_snapshot(box, halo_dir, level, phase="DM"):
+    """Path of this stage's private copy of its region point file."""
+    return os.path.join(halo_dir, "%s-L%d%s.region_points.dat"
+                        % (box.sim_name, level, "-gas" if phase == "gas" else ""))
+
+
+def snapshot_region_points(box, halo_dir, level, phase="DM", dry_run=False):
+    """Pin the region point file this stage was actually built from.
+
+    enzo-mrp-music writes ONE file, initial_particle_positions-0-RD0000.dat,
+    and overwrites it in place every time any level is traced.  A conf's
+    region_point_shift records the frame that file was in WHEN THAT CONF WAS
+    BUILT, so as soon as a deeper level re-traces, every shallower conf's shift
+    silently stops describing the file it names.
+
+    halo80181, 2026-08-29: the L4 build rewrote the point file, so the L3 and
+    L2 confs now name a file neither of them was built against.  That is a
+    REPRODUCIBILITY problem, not a geometry one: measured 2026-09-02, the hull
+    extent is identical under every candidate shift, because unapplying a shift
+    is a pure translation.  (The 25x inflation of halo80181's L2 and L3 hulls
+    was a detached clump in the traced cloud -- see trim_lagrangian_outliers --
+    and was originally and wrongly attributed to the shift.)
+
+    A per-stage snapshot ends the aliasing: conf and points are pinned together
+    at build time, so --reuse-region can reproduce a stage exactly however many
+    levels have been traced since.
+    """
+    import glob
+    if dry_run:
+        return None
+    # If enzo-mrp-music tagged this level's points with -L<level>, no other
+    # level's trace can overwrite them and a snapshot would be a pure duplicate.
+    tagged = sorted(glob.glob(os.path.join(
+        halo_dir, "initial_particle_positions-*-L%d.dat" % level)))
+    if tagged:
+        print("    region points are per-level (%s); no snapshot needed"
+              % os.path.basename(tagged[-1]))
+        return tagged[-1]
+    files = sorted((f for f in glob.glob(os.path.join(
+                        halo_dir, "initial_particle_positions-*.dat"))
+                    if not re.search(r"-L\d+\.dat$", f)),
+                   key=os.path.getmtime)
+    if not files:
+        return None
+    dest = region_points_snapshot(box, halo_dir, level, phase)
+    shutil.copy2(files[-1], dest)
+    print("    pinned region points -> %s   (shared file, legacy halo)"
+          % os.path.basename(dest))
+    return dest
+
+
 def build_stage(box, halo_id, level, phase="DM", dry_run=False, adopt=False,
-                submit=True, hook=True, rvir_min=None, gas_nref=None):
+                submit=True, hook=True, rvir_min=None, gas_nref=None,
+                reuse_region=False):
     """Generate ICs and the run script for one stage, then submit it.
 
     Returns the PBS job id, or None for a dry run.
@@ -768,11 +1089,69 @@ def build_stage(box, halo_id, level, phase="DM", dry_run=False, adopt=False,
         ledger.ensure_managed(halo_dir)
 
     # --- initial conditions -------------------------------------------------
+    music = os.path.join(box.music_exe_dir_path(), "MUSIC")
     if phase == "gas":
         conf_name = "%s-L%d-gas.conf" % (box.sim_name, level)
         write_file(os.path.join(halo_dir, conf_name),
                    render_gas_music_config(box, halo_id, level, halo_dir), dry_run)
-        music = os.path.join(box.music_exe_dir_path(), "MUSIC")
+        run("%s %s" % (music, conf_name), cwd=halo_dir, dry_run=dry_run)
+    elif reuse_region:
+        # Regenerate the ICs from the level conf EXACTLY as it stands on disk.
+        # No re-trace, so region_point_shift and the region point file are left
+        # untouched.  This is the path for rebuilding a level whose conf is
+        # already known good: a run deleted to reclaim disk, a run that must be
+        # made to match an existing gas stage built from the same conf, or one
+        # whose shift has been corrected by hand and would be silently reverted
+        # by a fresh trace.  See check_region_geometry for how that last case
+        # arises and what it costs.
+        conf_name = "%s-L%d.conf" % (box.sim_name, level)
+        conf_path = os.path.join(halo_dir, conf_name)
+        if not os.path.exists(conf_path):
+            raise RuntimeError(
+                "--reuse-region needs an existing %s, and there is none.\n"
+                "Drop the flag to trace the region from scratch."
+                % conf_path)
+        print("  reusing the region in %s (no enzo-mrp-music re-trace)" % conf_name)
+        named = None
+        with open(conf_path) as fh:
+            for line in fh:
+                if line.strip().startswith(("region_point_shift", "region_point_file")):
+                    print("    %s" % line.strip())
+                if line.strip().startswith("region_point_file"):
+                    named = line.split("=", 1)[1].strip()
+        # Three cases, in decreasing order of confidence that the conf's
+        # region_point_shift still describes the points the conf names:
+        #   1. the conf names a per-level file  -> nothing can have touched it
+        #   2. this stage has a pinned snapshot -> build from a conf copy
+        #      pointing at the snapshot instead of the shared file
+        #   3. neither -> the shared file may have been overwritten by any
+        #      later trace; warn, and let the hull check catch the damage
+        per_level = bool(named
+                         and re.search(r"-L%d\.dat$" % level, named)
+                         and os.path.exists(os.path.join(halo_dir, named)))
+        snap = region_points_snapshot(box, halo_dir, level, phase)
+        if per_level:
+            # Nothing further to do.  Only this level's own trace ever writes
+            # the file the conf names, so conf and points cannot have drifted.
+            print("    conf names the per-level %s -- conf and points are a "
+                  "matched pair, building as-is" % named)
+        elif os.path.exists(snap):
+            reuse_conf = "%s-L%d.reuse.conf" % (box.sim_name, level)
+            with open(conf_path) as fh:
+                text = fh.read()
+            text = re.sub(r"(?m)^\s*region_point_file\s*=.*$",
+                          "region_point_file = %s" % os.path.basename(snap), text)
+            write_file(os.path.join(halo_dir, reuse_conf), text, dry_run)
+            print("    building from the pinned %s" % os.path.basename(snap))
+            conf_name = reuse_conf
+        else:
+            print("    WARNING: no pinned %s for this stage, so the build uses the\n"
+                  "             shared initial_particle_positions-*.dat.  That file is\n"
+                  "             overwritten by every later trace, and this conf's\n"
+                  "             region_point_shift may no longer describe it.  The hull\n"
+                  "             check below is what stands between that and a silent\n"
+                  "             25x-inflated region." % os.path.basename(snap))
+        check_region_points(halo_dir, level, dry_run=dry_run)
         run("%s %s" % (music, conf_name), cwd=halo_dir, dry_run=dry_run)
     else:
         conf_name = mrp_config_name(halo_id, level)
@@ -786,6 +1165,14 @@ def build_stage(box, halo_id, level, phase="DM", dry_run=False, adopt=False,
         # Before anything downstream trusts this region, check it was traced
         # from a plausible number of particles.
         check_region_points(halo_dir, level, dry_run=dry_run)
+        # ...and pin it, before any deeper level's trace overwrites the shared
+        # file this conf's region_point_shift describes.
+        snapshot_region_points(box, halo_dir, level, phase, dry_run=dry_run)
+
+    # The region's SIZE, not just its particle count.  The two fail
+    # independently: halo80181's inflated hull was traced from a perfectly
+    # normal 251,071 particles.
+    check_region_geometry(box, halo_dir, level, phase, dry_run=dry_run)
 
     # --- Enzo parameter file ------------------------------------------------
     parameter_file_txt = os.path.join(stage_dir, "parameter_file.txt")
@@ -846,18 +1233,22 @@ def sync_runscript_exe(box, runscript, dry_run=False):
     if not match:
         print("  WARNING: no -exe line in %s; cannot verify the Enzo binary" % runscript)
         return False
+    # DM-only and gas stages run different binaries (Box.exe_for); the stage
+    # directory name says which this is (...-L<N>-gas vs ...-L<N>).
+    phase = "gas" if os.path.basename(os.path.dirname(os.path.abspath(runscript))).endswith("-gas") else "DM"
+    want = box.exe_for(phase)
     current = match.group(2)
-    if current == box.enzo_exe:
+    if current == want:
         return False
     if dry_run:
         print("    [dry-run] would repoint %s\n      %s -> %s"
-              % (runscript, current, box.enzo_exe))
+              % (runscript, current, want))
         return False
     with open(runscript, "w") as f:
-        f.write(text[:match.start()] + match.group(1) + box.enzo_exe + match.group(3)
+        f.write(text[:match.start()] + match.group(1) + want + match.group(3)
                 + text[match.end():])
     print("  repointed Enzo binary in %s\n    was %s\n    now %s"
-          % (runscript, current, box.enzo_exe))
+          % (runscript, current, want))
     return True
 
 

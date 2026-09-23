@@ -196,23 +196,46 @@ def find_lagrangian_region(params):
     return params
 
 
-def trim_lagrangian_outliers(params, max_radius_factor=5.0, max_fraction=0.02):
-    """Drop the handful of far-flung particles that balloon the convex hull.
+def trim_lagrangian_outliers(params, link_factor=6.0, max_fraction=0.10):
+    """Drop Lagrangian material that is not connected to the halo's own region.
 
-    The Lagrangian region is the convex hull of the traced particles, so a
-    single particle far from the rest drags the whole region out to enclose it.
-    Some of the traced particles are unbound or fast-moving: they lie inside the
-    z = 0 sphere but started across the box.
+    The zoom region is the convex hull of the traced particles, so anything far
+    from the rest drags the whole region out to enclose it.  Some traced
+    particles are unbound or fast-moving: they sit inside the z = 0 selection
+    sphere but started across the box.
 
-    halo39829 is the case that motivated this.  963 points, 99% of them within
-    0.017 of the cloud median -- a compact region -- and six points out at 0.34,
-    8.6 Mpc/h away.  Those six produced a 20.7-million-cell zoom for a halo
-    whose real region is smaller than halos that zoom in 41 thousand.
+    CONNECTIVITY, not radius.  The original version of this cut points beyond
+    5x the 99th-percentile radius and refused to drop more than 2% of the
+    cloud.  That works only while the contamination is a handful of points, and
+    it fails silently the moment it is a clump:
 
-    Trims points beyond max_radius_factor times the 99th-percentile radius,
-    measured periodically about the median.  Refuses to trim more than
-    max_fraction of the cloud: if that many points are far out, the region is
-    genuinely extended and quietly discarding it would be wrong.
+      halo80181 L2, 2026-09-01.  5057 traced points, of which 194 (3.84%) form
+      a second clump 2.9 Mpc/h away.  With 3.84% of the cloud out there the
+      99th-percentile radius is 3128 ckpc/h -- ALREADY INSIDE the far clump --
+      so the cut lands at 15638 ckpc/h, past the furthest point, and nothing is
+      trimmed.  The 2% ceiling would have refused as well.  The result was a
+      hull 26.8x too big: a 2.29 h L2 run against 0.85-1.23 h for its peers,
+      and 147 GB, with no complaint from anything.
+
+    Friends-of-friends has no such blind spot, because the linking length is
+    set by the cloud's own local density (6x the median nearest-neighbour
+    separation) rather than by a percentile the outliers themselves shift.
+    Measured on the clouds on disk:
+
+      halo80181 L2   4 groups, largest 96.2%, drops 3.84%, hull shrinks 26.8x
+      halo39829      2 groups, largest 99.99%, drops 1 point, shrinks 4.0x
+      halo59186      1 group,  largest 100.0%, drops 3 points, shrinks 1.00x
+      halo543386     1 group,  100%, unchanged
+      halo47314      1 group,  100%, unchanged
+
+    halo59186 is the case that matters for safety: its region is a genuine
+    4.1 Mpc/h filament, and a radius cut would shred it.  A filament is
+    CONNECTED, so friends-of-friends keeps it whole -- which is exactly the
+    distinction a percentile cannot draw.
+
+    Refuses to drop more than max_fraction of the cloud: if that much material
+    is detached, the region is genuinely multi-component and quietly discarding
+    it would be wrong.
     """
     import numpy as np
 
@@ -221,32 +244,107 @@ def trim_lagrangian_outliers(params, max_radius_factor=5.0, max_fraction=0.02):
         return params
 
     pts = np.loadtxt(path)
-    if pts.ndim != 2 or len(pts) < 20:
+    if pts.ndim != 2 or len(pts) < 50:
+        return params
+
+    try:
+        from scipy.spatial import cKDTree
+        from scipy.sparse import coo_matrix
+        from scipy.sparse.csgraph import connected_components
+    except ImportError:
+        print("  region: scipy unavailable, skipping the connectivity trim")
         return params
 
     med = np.median(pts, axis=0)
     off = pts - med
     off -= np.round(off)                      # periodic, box is [0,1)
-    r = np.sqrt((off ** 2).sum(axis=1))
-    r99 = np.percentile(r, 99.0)
-    cut = max_radius_factor * r99
-    keep = r <= cut
-    n_drop = int((~keep).sum())
 
+    tree = cKDTree(off)
+    nn = tree.query(off, k=2, workers=-1)[0][:, 1]
+    link = link_factor * np.median(nn)
+    pairs = tree.query_pairs(link, output_type="ndarray")
+    if not len(pairs):
+        return params
+
+    n = len(off)
+    graph = coo_matrix((np.ones(len(pairs)), (pairs[:, 0], pairs[:, 1])),
+                       shape=(n, n))
+    ncomp, labels = connected_components(graph, directed=False)
+    if ncomp == 1:
+        return params
+
+    keep = labels == np.argmax(np.bincount(labels))
+    n_drop = int((~keep).sum())
     if n_drop == 0:
         return params
-    if n_drop > max_fraction * len(pts):
-        print("  region: %d of %d points lie beyond %.4f; that is more than %.0f%% "
-              "so the region is genuinely extended -- not trimming"
-              % (n_drop, len(pts), cut, 100 * max_fraction))
+
+    ext_before = (pts.max(axis=0) - pts.min(axis=0))
+    ext_after = (pts[keep].max(axis=0) - pts[keep].min(axis=0))
+    frac = n_drop / float(n)
+    if frac > max_fraction:
+        print("  region: %d of %d points (%.1f%%) are detached from the main "
+              "group; that is more than %.0f%% so the region is genuinely "
+              "multi-component -- NOT trimming.  Check the halo's environment."
+              % (n_drop, n, 100 * frac, 100 * max_fraction))
         return params
 
-    print("  region: trimming %d of %d points beyond %.4f (99th pct %.4f, "
-          "furthest %.4f); hull extent %s -> %s"
-          % (n_drop, len(pts), cut, r99, r.max(),
-             np.round(pts.max(axis=0) - pts.min(axis=0), 4),
-             np.round(pts[keep].max(axis=0) - pts[keep].min(axis=0), 4)))
+    print("  region: %d groups at linking length %.5f; keeping the largest "
+          "(%d points), dropping %d (%.2f%%) detached.  hull %s -> %s, "
+          "volume shrinks %.1fx"
+          % (ncomp, link, int(keep.sum()), n_drop, 100 * frac,
+             np.round(ext_before, 4), np.round(ext_after, 4),
+             np.prod(ext_before) / max(np.prod(ext_after), 1e-30)))
     np.savetxt(path, pts[keep], fmt="%.18e")
+    return params
+
+
+def name_region_file_by_level(params):
+    """Give this level's region point file a name no other level can reuse.
+
+    get_halo_initial_extent writes initial_particle_positions-<halo>-<snap>.dat.
+    That name carries the halo and the snapshot but NOT the level, so every
+    level of a halo writes the same file and each trace silently overwrites the
+    last.  The conf that names it also records region_point_shift -- the frame
+    that file was in at the moment the conf was written -- and MUSIC unapplies
+    that shift before tracing.  So the instant a deeper level re-traces, every
+    shallower conf's shift stops describing the file it names, and MUSIC will
+    unapply a shift that no longer applies.
+
+    halo80181, 2026-08-29: the L4 trace rewrote the shared file, after which
+    the L3 and L2 confs both named a file neither had been built against.  What
+    that costs is REPRODUCIBILITY -- a conf that can no longer be rebuilt into
+    the region it describes.  It does NOT distort the region: measured
+    2026-09-02, a cloud's bounding box is identical under every candidate
+    shift, because unapplying a shift is a pure translation.  (halo80181's
+    hulls really were 25x too big, but that was a detached clump in the traced
+    cloud, removed by trim_lagrangian_outliers; the shift was a red herring and
+    is recorded here so the wrong diagnosis is not made twice.)
+
+    Appending -L<level> means each conf names a file that only that conf's own
+    trace ever writes, so a conf and its points stay a matched pair for the life
+    of the halo directory -- however many deeper levels are built afterwards.
+
+    COPY, not rename.  The shared file has to survive: the 45 halos already on
+    disk have confs that name it, and a fresh trace at one level would
+    otherwise delete the file every other level's conf points at.  Leaving it
+    means those confs are exactly as (un)reliable as they were before -- the
+    shared file still holds whichever trace ran last -- while every conf
+    written from now on names a file nothing else touches.
+    """
+    import shutil
+    path = params.get("lagr_particle_file")
+    if not path or not os.path.exists(path):
+        return params
+    stem, ext = os.path.splitext(path)
+    tag = "-L%d" % params["level"]
+    if stem.endswith(tag):
+        return params
+    dest = "%s%s%s" % (stem, tag, ext)
+    shutil.copy2(path, dest)
+    params["lagr_particle_file"] = dest
+    print("  region: this level's points pinned to %s (the shared %s is kept "
+          "for confs written before per-level naming)"
+          % (os.path.basename(dest), os.path.basename(path)))
     return params
 
 
@@ -342,5 +440,7 @@ if __name__ == "__main__":
     params = get_previous_run_params(params)
     params = find_lagrangian_region(params)
     params = trim_lagrangian_outliers(params)
+    # Pin the name before run_music writes region_point_file into the conf.
+    params = name_region_file_by_level(params)
     if yt.is_root():
         run_music(params)

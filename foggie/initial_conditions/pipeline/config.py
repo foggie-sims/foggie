@@ -167,7 +167,11 @@ class Box:
     enzo_exe: str = "/home1/jtumlins/nobackup/enzo-frozen-binaries/enzo-atp-instr-a9373b37.exe"
     music_exe_dir: str = None       # defaults to FOGGIE_REPO/initial_conditions/music
     email: str = "tumlinson@stsci.edu"
-    group_list: str = "s3128"
+    # s2358 as of 2026-09-09: s3128 was at 89% used with 68.5k SBU left
+    # against s2358's 132.8k, both expiring 09/30/26.  Spend the deeper
+    # allocation first.  Existing RunScripts carry whichever group they
+    # were generated with and pick this up only when regenerated.
+    group_list: str = "s2358"
     # Queue for the Enzo runs.  An explicit queue is now REQUIRED: a bare qsub
     # is refused with "No queue specified" and exit status 32, which is how the
     # poller silently failed to start eight runs on 2026-08-21 -- every IC build
@@ -181,6 +185,21 @@ class Box:
     dm_select: str = "1:ncpus=64:mpiprocs=64:model=mil_ait"
     dm_nranks: int = 64
     dm_walltime: str = "24:00:00"
+    # DM refinement ceiling (MaximumRefinementLevel, MaximumGravityRefinementLevel
+    # and MaximumParticleRefinementLevel, via __DM_MAX_REFINE_LEVEL__).
+    # JT 2026-09-15: nref9 for every L3-L5 DM stage; nref7 was a stepping stone
+    # and is RETIRED.  At nref7 the L3 inner profile was force-limited (softening
+    # 2 x 0.545 kpc), not particle-mass limited; the nref9 L3/L4/L5 ladder matches
+    # L5 to ~10% down to 0.15-0.2 kpc at z=0.  L1/L2 are placement stages for the
+    # zoom region only, so they keep the cheap shallow ceiling.
+    dm_max_refine_level: int = 9
+    dm_shallow_max_refine_level: int = 7
+    dm_deep_level: int = 3
+    # DM-only stages run the frozen perf-on-fcf build (carries the cic_deposit
+    # fix ba788ade), the binary every nref9 L3 DM rerun and every L5 DM run used.
+    # Keeping DM on one binary is what makes the L3/L4/L5 ladder a controlled
+    # comparison; enzo_exe below is the gas binary.
+    dm_enzo_exe: str = "/nobackupnfs1/jtumlins/enzo-frozen-binaries/enzo-perf-on-fcf-69fa1bf4.exe"
     # Full node, 128 ranks.  This is what every completed gas run used:
     # halo15134's L3-gas and halo42189-manual's L3-gas-radius3 both ran -np 128
     # on 1:ncpus=128:mpiprocs=128 to 266 and 258 outputs respectively.
@@ -294,7 +313,17 @@ class Box:
     # A qc job wants a node's worth of memory -- it loads a 134-million-particle
     # snapshot -- but only minutes of it.  Asking for the build job's two hours
     # would queue it behind work that needs them.
-    qc_walltime: str = "00:30:00"
+    #
+    # 30 minutes was enough while the ladder ended at L3 with one gas stage.  It
+    # is not enough for the deep halos: halo74411 now renders L0-L5 plus L3-gas
+    # and L4-gas, two rows each, and then renders the whole thing a SECOND time
+    # re-centered because every panel is out of frame.  Job 25159036 was killed
+    # at 30:36 partway through the re-centered pass, leaving a fresh but useless
+    # uncentered figure next to a stale re-centered one -- which reads as
+    # STALE-run in the fleet table and hides the fact that nothing is wrong with
+    # the run.  An hour covers the deepest halo with margin; the job still only
+    # uses the walltime it needs.
+    qc_walltime: str = "01:00:00"
     # Regenerate the projected-density ladder whenever a DM level finishes.
     # It is one short job per completed level, submitted after the ladder has
     # been advanced so it never delays one, and it costs about a minute per
@@ -335,6 +364,16 @@ class Box:
     def gas_refine_level(self, level):
         """MaximumRefinementLevel for a gas run whose zoom reaches `level`."""
         return int(level) + int(self.gas_refine_offset)
+
+    def dm_refine_level(self, level):
+        """MaximumRefinementLevel for a DM-only stage at zoom `level`: nref9 from L3 up."""
+        if int(level) >= int(self.dm_deep_level):
+            return int(self.dm_max_refine_level)
+        return int(self.dm_shallow_max_refine_level)
+
+    def exe_for(self, phase):
+        """Enzo binary for a stage: DM-only stages pin dm_enzo_exe, gas uses enzo_exe."""
+        return self.enzo_exe if phase == "gas" else self.dm_enzo_exe
 
     def gas_outputs_for(self, level):
         """Which output-redshift list a gas run at this zoom depth should use."""
@@ -381,8 +420,16 @@ BOXES = {
         # convolution grid is ~976^3, ~30-60 GB, and that is the step that
         # OOM'd halo59186 at L4) and contamination, which is why raising this
         # still needs a per-halo decision on rvir_min rather than a blanket
-        # change. Leave it at 4 until an L5 pathfinder has been built.
-        max_level=4,
+        # change.
+        #
+        # Raised to 5 on 2026-09-09 for ONE halo. halo543386 is the L5
+        # pathfinder, opened to answer the memory question above. This value
+        # only makes L5 ELIGIBLE; which halos actually go there is the
+        # registry's final_level column, and every other halo is still at 4.
+        # Do not raise final_level for anything else until the pathfinder
+        # reports and the L4 contamination screen has run. 543386 keeps
+        # gas_max_level = 4, so this opens L5 DM only, not L5 gas.
+        max_level=5,
         omega_b=0.04576,
         omega_m=0.291,
         # Floor the zoom radius at 80 kpc: max(catalog Rvir, 80).  Several of

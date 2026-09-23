@@ -70,9 +70,9 @@ __OUTPUT_REDSHIFTS__
 #  set grid refinement parameters
 #
 StaticHierarchy                = 0    // dynamic hierarchy
-MaximumRefinementLevel         = 7
-MaximumGravityRefinementLevel  = 7
-MaximumParticleRefinementLevel = 7
+MaximumRefinementLevel         = __DM_MAX_REFINE_LEVEL__   // 9 for L3-L5, 7 for L1/L2 placement stages (Box.dm_refine_level)
+MaximumGravityRefinementLevel  = __DM_MAX_REFINE_LEVEL__
+MaximumParticleRefinementLevel = __DM_MAX_REFINE_LEVEL__
 RefineBy                       = 2    // refinement factor
 CellFlaggingMethod             = 4 8   // use DM mass for refinement
 MinimumEfficiency              = 0.4  // fraction efficiency
