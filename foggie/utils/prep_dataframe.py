@@ -105,6 +105,15 @@ def prep_dataframe(cut_region, field_list, categories):
     if (('gas','cell_mass') in field_list) or ('cell_mass' in categories):
         data_frame['cell_mass'] = np.log10(cut_region[('gas','cell_mass')].in_units('Msun')) 
 
+    # Jeans mass against cell mass is the resolution diagnostic: it says how
+    # many cells resolve a collapsing region, and it is the plane on which
+    # FOGGIE's mass resolution can be compared to LYRA (4 Msun cells) and
+    # EDGE2 (~150 Msun).  yt's ('gas','jeans_mass') is in grams; take Msun and
+    # log it here rather than via logfields, so it is handled exactly like
+    # cell_mass and cannot be logged twice.
+    if (('gas','jeans_mass') in field_list) or ('jeans_mass' in categories):
+        data_frame['jeans_mass'] = np.log10(cut_region[('gas','jeans_mass')].in_units('Msun'))
+
     if ( ('gas','entropy') in field_list): data_frame["entropy"] = np.log10(cut_region["entropy"].in_units('cm**2*erg'))              
 
     if ('metal' in categories):
