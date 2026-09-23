@@ -1,0 +1,112 @@
+# 71-redshift gas output list: the FOGGIE 43 plus track cadence where it is
+# actually needed.  Adopted 2026-09-01, superseding outputs_43_foggie.txt.
+#
+# WHY NOT JUST THE 43.  A forced-refinement track is built Lagrangian
+# (make_root_track.py): fix the halo's particle set at z = 0, put the box on
+# that set's centre of mass at every snapshot.  That is smooth by construction,
+# so a coarse list interpolates well -- but only where we have measured it.
+# Subsampling the two fine tracks we own and interpolating back gives, at z < 6
+# against the 50 ckpc/h half-width of a 100 ckpc/h box:
+#
+#                       halo15659      halo80181
+#     43-list           max 3.00       max 5.63   ckpc/h
+#     this 71-list      max 2.00       max 2.56
+#
+# ABOVE z = 7 NOTHING WAS MEASURED.  outputs_266.txt is IDENTICAL to the 43-list
+# above z = 7 (99, 50, 40, 30, 25, 20, 15, 12.5, 10, 9, 8, 7), so the "truth"
+# track carries no more information up there than the list being tested.  What
+# is visible is that consecutive rows step 30-50 ckpc/h -- comparable to the
+# half-width itself.  That is where a track can lose the galaxy.
+#
+# THE DESIGN.  Spend outputs where they are dark or cheap, not where the track
+# is already flat:
+#   z > 7    uniform 1 code time unit (21.14 Myr) proper-time grid.  This is the
+#            unmeasured, fast-moving regime, and z = 99 -> 7 is only 745 Myr of
+#            cosmic time: 28 extra dumps, ~1.1 TB, deletable after the track is
+#            extracted.
+#   z = 5.5, 4.5, 3.75, 3.25   fill the 43-list's worst gap (z = 5 -> 4), where
+#            its entire error lives.  Halves the worst case on both test halos.
+#   z < 3    nothing added.  Already 0.1 ckpc/h; 367 of the 642 dumps a
+#            dtDataDump = 1 run would write land at z < 1 for no gain.
+#
+# WHY NOT dtDataDump = 1.  Every dump here is 38-41 GB regardless of redshift
+# (512^3 root x ~30 baryon fields is ~32 GB before any refinement), so 21 Myr
+# cadence from z = 99 is 642 dumps = 24.4 TB written per run and +7-20% wall in
+# I/O.  See the 2026-08-31 quota crash: 67 jobs died mid-cycle at 450 TB.
+#
+# COST.  71 outputs x ~39 GB = 2.8 TB/run, still BELOW the 3.7 TB the halos
+# running on outputs_266.txt are producing, and a strictly better track.
+#
+# Superset of every integer redshift and of the full FOGGIE 43, so nothing in
+# the existing analysis or in FOGGIE cross-comparison is lost.
+CosmologyOutputRedshift[0]   = 99
+CosmologyOutputRedshift[1]   = 50
+CosmologyOutputRedshift[2]   = 40
+CosmologyOutputRedshift[3]   = 34.7734
+CosmologyOutputRedshift[4]   = 30
+CosmologyOutputRedshift[5]   = 25
+CosmologyOutputRedshift[6]   = 23.3012
+CosmologyOutputRedshift[7]   = 21.1816
+CosmologyOutputRedshift[8]   = 20
+CosmologyOutputRedshift[9]   = 18.0557
+CosmologyOutputRedshift[10]  = 16.8622
+CosmologyOutputRedshift[11]  = 15.8395
+CosmologyOutputRedshift[12]  = 15
+CosmologyOutputRedshift[13]  = 14.1722
+CosmologyOutputRedshift[14]  = 13.4814
+CosmologyOutputRedshift[15]  = 12.8642
+CosmologyOutputRedshift[16]  = 12.5
+CosmologyOutputRedshift[17]  = 11.8059
+CosmologyOutputRedshift[18]  = 11.3479
+CosmologyOutputRedshift[19]  = 10.9287
+CosmologyOutputRedshift[20]  = 10.5434
+CosmologyOutputRedshift[21]  = 10.1877
+CosmologyOutputRedshift[22]  = 10
+CosmologyOutputRedshift[23]  = 9.5519
+CosmologyOutputRedshift[24]  = 9.2663
+CosmologyOutputRedshift[25]  = 9
+CosmologyOutputRedshift[26]  = 8.7488
+CosmologyOutputRedshift[27]  = 8.5136
+CosmologyOutputRedshift[28]  = 8.292
+CosmologyOutputRedshift[29]  = 8
+CosmologyOutputRedshift[30]  = 7.885
+CosmologyOutputRedshift[31]  = 7.6976
+CosmologyOutputRedshift[32]  = 7.5198
+CosmologyOutputRedshift[33]  = 7.3508
+CosmologyOutputRedshift[34]  = 7.1899
+CosmologyOutputRedshift[35]  = 7
+CosmologyOutputRedshift[36]  = 6
+CosmologyOutputRedshift[37]  = 5.5
+CosmologyOutputRedshift[38]  = 5
+CosmologyOutputRedshift[39]  = 4.5
+CosmologyOutputRedshift[40]  = 4
+CosmologyOutputRedshift[41]  = 3.75
+CosmologyOutputRedshift[42]  = 3.5
+CosmologyOutputRedshift[43]  = 3.25
+CosmologyOutputRedshift[44]  = 3
+CosmologyOutputRedshift[45]  = 2.75
+CosmologyOutputRedshift[46]  = 2.5
+CosmologyOutputRedshift[47]  = 2.25
+CosmologyOutputRedshift[48]  = 2
+CosmologyOutputRedshift[49]  = 1.75
+CosmologyOutputRedshift[50]  = 1.5
+CosmologyOutputRedshift[51]  = 1.4
+CosmologyOutputRedshift[52]  = 1.3
+CosmologyOutputRedshift[53]  = 1.2
+CosmologyOutputRedshift[54]  = 1.1
+CosmologyOutputRedshift[55]  = 1
+CosmologyOutputRedshift[56]  = 0.9
+CosmologyOutputRedshift[57]  = 0.8
+CosmologyOutputRedshift[58]  = 0.7
+CosmologyOutputRedshift[59]  = 0.6
+CosmologyOutputRedshift[60]  = 0.5
+CosmologyOutputRedshift[61]  = 0.45
+CosmologyOutputRedshift[62]  = 0.4
+CosmologyOutputRedshift[63]  = 0.35
+CosmologyOutputRedshift[64]  = 0.3
+CosmologyOutputRedshift[65]  = 0.25
+CosmologyOutputRedshift[66]  = 0.2
+CosmologyOutputRedshift[67]  = 0.15
+CosmologyOutputRedshift[68]  = 0.1
+CosmologyOutputRedshift[69]  = 0.05
+CosmologyOutputRedshift[70]  = 0.0
