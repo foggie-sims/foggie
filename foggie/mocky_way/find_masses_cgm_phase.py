@@ -4,7 +4,7 @@ from core_funcs import prepdata
 
 import yt
 yt.add_particle_filter("stars",function=yt_fields._stars, filtered_type='all',requires=["particle_type"])
-yt.add_particle_filter("dm",function=yt_fields._dm, filtered_type='all',requires=["particle_type"])
+yt.add_particle_filter("dm",function=yt_fields._dm, filtered_type='all',requires=["particle_type","particle_mass"])
 
 dd_name = 'DD2175'
 sim_name = 'nref11n_nref10f'

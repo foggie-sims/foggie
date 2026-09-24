@@ -322,7 +322,7 @@ if __name__ == "__main__":
 
     This code is a custom extension of yt's built-in HOP algorithm: 
         "halo_finding_step" wraps the HOP halo finder with a high overdensity threshold (NOT the same as the canonical overdensity defining virialization)
-        "repair_halo_catalog" uses the halo callbacks to generate corrected Rvir for overdensity = 200 
+        "repair_halo_catalog" uses the halo callbacks to generate corrected Rvir for overdensity = 200 x the critical density (R200c) 
     """
 
     parser = argparse.ArgumentParser()

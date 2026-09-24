@@ -4,10 +4,15 @@
 import numpy as np
 import yt
 yt_ver = yt.__version__
+# Import unit symbols explicitly rather than with `import *`: unyt exports a unit
+# named `min` (the minute), which silently shadows the `min` builtin for this whole
+# module and for the ~50 modules that do `from yt_fields import *`.
 if (yt_ver[0]=='3'):
-    from yt.units import *
+    from yt.units import G, Msun
+    from yt.units.yt_array import YTArray as unyt_array
+    from yt.units.yt_array import ucross
 if (yt_ver[0]=='4'):
-    from unyt import *
+    from unyt import G, Msun, ucross, unyt_array
 
 def _static_average_rampressure(field, data):
     bulk_velocity = data.get_field_parameter("bulk_velocity").in_units('km/s')
@@ -78,10 +83,47 @@ def _old_stars(pfilter, data):
     filter = np.logical_or(age.in_units('Myr') >= 10, age < 0)
     return filter
 
+DM_MASS_TOLERANCE = 1.5   # DM mass species are separated by factors of 8 in nested ICs
+
+def finest_dm_particle_mass(ds):
+    """Mass of the finest (lightest) dark matter species in ds, as a YTQuantity.
+
+    Enzo's particle_type does not identify the finest DM species: type 4 means
+    "must-refine", which coincides with the finest species only in zoom ICs that
+    flag the Lagrangian region. Mass is the physical discriminator, so select on
+    that instead. The result is cached on the dataset because a particle filter
+    sees one chunk at a time, and a per-chunk minimum would select a different
+    species in chunks that hold no fine particles."""
+
+    if getattr(ds, '_foggie_finest_dm_mass', None) is not None:
+        return ds._foggie_finest_dm_mass
+
+    # reduce chunk by chunk so we never hold every particle mass in memory at once
+    finest, species = None, np.array([])
+    for chunk in ds.all_data().chunks([], 'io'):
+        mass = chunk['all', 'particle_mass'].in_units('Msun')
+        mass = mass[chunk['all', 'particle_type'] != 2]   # star particles are always type 2
+        if (mass.size == 0): continue
+        chunk_finest = mass.min()
+        if (finest is None) or (chunk_finest < finest): finest = chunk_finest
+        species = np.union1d(species, np.unique(np.round(np.log10(mass.v), 2)))
+
+    if (finest is None): raise ValueError('YT_FIELDS: this dataset has no non-star particles')
+    print('YT_FIELDS: DM species [log Msun] =', species)
+    print('YT_FIELDS: selecting the finest species at %.3e Msun' % float(finest))
+
+    ds._foggie_finest_dm_mass = finest
+    return finest
+
 def _dm(pfilter, data):
-    """Filter dark matter particles
-    To use: yt.add_particle_filter("darkmatter",function=_darkmatter, filtered_type='all',requires=["particle_type"])"""
-    return data[(pfilter.filtered_type, "particle_type")] == 4
+    """Filter the finest dark matter particles, i.e. the zoom-region species.
+    To use: yt.add_particle_filter("dm",function=_dm, filtered_type='all',requires=["particle_type","particle_mass"])"""
+
+    ftype = pfilter.filtered_type
+    finest = finest_dm_particle_mass(data.ds)
+    is_dm = data[(ftype, "particle_type")] != 2
+    mass = data[(ftype, "particle_mass")].in_units('Msun')
+    return np.logical_and(is_dm, mass < finest * DM_MASS_TOLERANCE)
 
 def _cooling_criteria(field,data):
     """adds cooling criteria field
