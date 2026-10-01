@@ -9,11 +9,11 @@ To make a clean Enzo build using the enzo-foggie fork:
         > module load comp-intel/2020.4.304 hdf5/1.8.18_serial
 
 
-2. Install grackle. In the below command line prompts, enter in your own Pleiades username. It may still be possible to do this on Pleiades front ends (pfe) but it has been found to be smoother on the Aitken front ends (afe). From the command line:
+2. Install Britton's foggie-sf branch of grackle. In the below command line prompts, enter in your own Pleiades username. It may still be possible to do this on Pleiades front ends (pfe) but it has been found to be smoother on the Aitken front ends (afe). From the command line:
    ::
 
         > cd /nobackup/<USERNAME>
-        > git clone https://github.com/grackle-project/grackle
+        > git clone --branch foggie-sf https://github.com/brittonsmith/grackle.git
         > cd grackle
         > git submodule update --init
         > cmake -DCMAKE_INSTALL_PREFIX=/nobackup/<USERNAME>/grackle/build -DBUILD_SHARED_LIBS=ON \ 
