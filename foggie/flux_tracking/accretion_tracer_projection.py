@@ -31,6 +31,7 @@ from foggie.utils.get_run_loc_etc import get_run_loc_etc
 from foggie.utils.yt_fields import *
 from foggie.utils.foggie_load import *
 from foggie.utils.analysis_utils import *
+from foggie.clumps.clump_finder import *
 
 # These imports for datashader plots
 import datashader as dshader
@@ -134,6 +135,13 @@ def tracer_density7(field, data):
 def tracer_density8(field, data):
     return data.ds.arr(data['enzo','TracerFluid08'], 'code_density')
 
+def tracer_density_total(field, data):
+    return data[('gas','tracer_density01')] + \
+           data[('gas','tracer_density02')] + \
+           data[('gas','tracer_density03')] + \
+           data[('gas','tracer_density04')] + \
+           data[('gas','tracer_density05')]
+
 def tracer_mass1(field, data):
     return data[('gas','tracer_density01')]*data[('gas','cell_volume')]
 
@@ -157,6 +165,9 @@ def tracer_mass7(field, data):
 
 def tracer_mass8(field, data):
     return data[('gas','tracer_density08')]*data[('gas','cell_volume')]
+
+def tracer_mass_total(field, data):
+    return data[('gas','tracer_density_all')]*data[('gas','cell_volume')]
 
 
 def datashader_tracer_mass(outputs):
@@ -564,7 +575,8 @@ def datashader_tracer_mass_deltat(outputs, deltat):
             print('Saved figure for tracer0' + str(j+1) + ' and snapshot', snap)
 
 def tracer_mass_time_snap(ds, sph, snap):
-    '''Computes tracer masses in radial and temperature bins for a single snapshot using an
+    '''Computes tracer masses in radial and temperature bins, and inside and outside clumps
+    found by the clump findger, for a single snapshot using an
     already-loaded dataset and sphere, and writes one temporary per-snapshot file per tracer.
     Safe to call in parallel because each process writes to its own uniquely named file.
     Requires tinj to be set as a global before calling.'''
@@ -573,50 +585,59 @@ def tracer_mass_time_snap(ds, sph, snap):
     nbins = len(rad_edges) - 1          # 20
     temp_split = 4.5                    # log10(K)
 
-    radius = sph['gas','radius_corrected'].in_units('kpc').v
-    temperature = np.log10(sph['gas','temperature'].in_units('K').v)
-    density = np.log10(sph['gas','density'].in_units('g/cm**3').v)
-    time_since_inj = ds.current_time.in_units('Myr').v - tinj
+    clump_disk_dir = "/nobackup/clochhaa/Outputs/clump_finding/low_z/"
+    clump_file = clump_disk_dir + snap + "_ClumpTree.h5"
+    leaf_clumps = load_all_leaves(ds, clump_file) # This is a cut region with all the highest-density clumps
 
     if (args.cgm_only):
-        # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
-        # with it being 1 at higher redshifts and 0.1 at lower redshifts
-        current_time = ds.current_time.in_units('Myr').v
-        if (current_time<=7091.48):
-            density_cut_factor = 20. - 19.*current_time/7091.48
-        elif (current_time<=8656.88):
-            density_cut_factor = 1.
-        elif (current_time<=10787.12):
-            density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
-        else:
-            density_cut_factor = 0.1
-        cgm_bool = (density < np.log10(density_cut_factor * cgm_density_max))
-    else:
-        cgm_bool = (10**(density) > 0.)
+        disk_file = clump_disk_dir + snap
+        if not (os.path.exists(disk_file + '_Disk.h5')):
+            disk = disk_finder(ds, sph, disk_file)
+        disk_cut = load_clump(ds, disk_file + '_Disk.h5')
+        sph = sph - disk_cut
+
+    sph_clumps = leaf_clumps
+    sph_not_clumps = sph - leaf_clumps
+
+    radius = sph['gas','radius_corrected'].in_units('kpc').v
+    temperature = np.log10(sph['gas','temperature'].in_units('K').v)
+    time_since_inj = ds.current_time.in_units('Myr').v - tinj
 
     for j in range(args.num_tracers):
         tm = sph['gas','tracer_mass0'+str(j+1)].in_units('Msun').v
         tm_den = sph['gas','tracer_density0'+str(j+1)].in_units('g/cm**3').v
         den_cut = (tm_den >= 1e-30)
+        tm_clumps = sph_clumps['gas','tracer_mass0'+str(j+1)].in_units('Msun').v
+        tm_not_clumps = sph_not_clumps['gas','tracer_mass0'+str(j+1)].in_units('Msun').v
 
-        total = np.sum(tm[cgm_bool])
-        total_dencut = np.sum(tm[(cgm_bool) & (den_cut)])
+        total = np.sum(tm)
+        total_dencut = np.sum(tm[(den_cut)])
+        total_clumps = np.sum(tm_clumps)
+        total_not_clumps = np.sum(tm_not_clumps)
         rad_bins = np.zeros(nbins)
         rad_bins_hot = np.zeros(nbins)
         rad_bins_cold = np.zeros(nbins)
+        rad_bins_clumps = np.zeros(nbins)
+        rad_bins_not_clumps = np.zeros(nbins)
         for k in range(nbins):
-            in_bin = (radius >= rad_edges[k]) & (radius < rad_edges[k+1]) & (cgm_bool) & (den_cut)
+            in_bin = (radius >= rad_edges[k]) & (radius < rad_edges[k+1]) & (den_cut)
             rad_bins[k] = np.sum(tm[in_bin])
             rad_bins_hot[k] = np.sum(tm[in_bin & (temperature >= temp_split)])
             rad_bins_cold[k] = np.sum(tm[in_bin & (temperature < temp_split)])
+            rad_bins_clumps[k] = np.sum(tm_clumps[in_bin])
+            rad_bins_not_clumps[k] = np.sum(tm_not_clumps[in_bin])
 
-        row = [snap, '%.2f' % time_since_inj, '%.4e' % total, '%.4e' % total_dencut]
+        row = [snap, '%.2f' % time_since_inj, '%.4e' % total, '%.4e' % total_dencut, '%.4e' % total_clumps, '%.4e' % total_not_clumps]
         for k in range(nbins):
             row.append('%.4e' % rad_bins[k])
         for k in range(nbins):
             row.append('%.4e' % rad_bins_hot[k])
         for k in range(nbins):
             row.append('%.4e' % rad_bins_cold[k])
+        for k in range(nbins):
+            row.append('%.4e' % rad_bins_clumps[k])
+        for k in range(nbins):
+            row.append('%.4e' % rad_bins_not_clumps[k])
 
         tmpfile = table_dir + '/' + snap + '_tracer_mass_tracer0' + str(j+1) + save_suffix + '.dat'
         with open(tmpfile, 'w') as f:
@@ -899,8 +920,12 @@ def datashader_tracer_time(outputs):
 def project_tracer(ds, snap, tracer_number, proj_direction):
     '''Makes the projected images in proj_direction of the tracer field given by tracer_number for the snapshot snap.'''
 
-    tracer_name = 'TracerFluid0' + str(tracer_number)
-    tracden_name = 'tracer_density0' + str(tracer_number)
+    if (tracer_number=='all'):
+        tracden_name = 'tracer_density_all'
+        tracer_file = '_all-tracers'
+    else:
+        tracden_name = 'tracer_density0' + str(tracer_number)
+        tracer_file = '_tracer0' + str(tracer_number)
 
     if ('disk' in proj_direction):
         proj_dict = {'x-disk':ds.x_unit_disk, 'y-disk':ds.y_unit_disk, 'z-disk':ds.z_unit_disk}
@@ -954,7 +979,7 @@ def project_tracer(ds, snap, tracer_number, proj_direction):
     pos_cax = tracer_cax.get_position()
     tracer_cax.text(pos_cax.x1 + 4, pos_cax.y0 + pos_cax.height/2.-0.02, 'Projected Tracer [g/cm$^3$]', fontsize=16, ha='center', va='center', rotation=90, transform=tracer_cax.transAxes)
 
-    plt.savefig(output_dir + '/' + snap + '_tracer0' + str(tracer_number) + '_projection_' + proj_direction + save_suffix + '.png')
+    plt.savefig(output_dir + '/' + snap + tracer_file + '_projection_' + proj_direction + save_suffix + '.png')
     plt.close()
 
     # Plot tracer field overlaid on gas density
@@ -985,7 +1010,7 @@ def project_tracer(ds, snap, tracer_number, proj_direction):
     ax3.plot([-150,-100],[-180,-180], color='white', ls='-', lw=2)
     ax3.text(-125, -177, '50 kpc', fontsize=16, ha='center', va='bottom', color='white')
 
-    plt.savefig(output_dir + '/' + snap + '_tracer0' + str(tracer_number) + '-overlay_projection_' + proj_direction + save_suffix + '.png')
+    plt.savefig(output_dir + '/' + snap + tracer_file + '-overlay_projection_' + proj_direction + save_suffix + '.png')
     plt.close()
 
 
@@ -1044,9 +1069,14 @@ def load_and_calculate(snap):
                  sampling_type='cell')
         ds.add_field(('gas','tracer_mass08'), function=tracer_mass8, units='Msun', take_log=True, \
                  sampling_type='cell')
+    ds.add_field(('gas','tracer_density_all'), function=tracer_density_total, units='g/cm**3', take_log=True, \
+                 sampling_type='cell')
+    ds.add_field(('gas','tracer_mass_all'), function=tracer_mass_total, units='Msun', take_log=True, \
+                     sampling_type='cell')
 
     if ('projection' in args.plot):
         for p in range(len(projections)):
+            project_tracer(ds, snap, 'all', projections[p])
             for i in range(args.num_tracers):
                 project_tracer(ds, snap, i+1, projections[p])
 
