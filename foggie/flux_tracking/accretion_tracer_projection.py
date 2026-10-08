@@ -609,6 +609,10 @@ def tracer_mass_time_snap(ds, sph, snap):
         den_cut = (tm_den >= 1e-30)
         tm_clumps = sph_clumps['gas','tracer_mass0'+str(j+1)].in_units('Msun').v
         tm_not_clumps = sph_not_clumps['gas','tracer_mass0'+str(j+1)].in_units('Msun').v
+        clump_radius = sph_clumps[('gas','radius_corrected')].in_units('kpc').v
+        not_clump_radius = sph_not_clumps[('gas','radius_corrected')].in_units('kpc').v
+        clump_den_cut = (sph_clumps[('gas','tracer_density0'+str(j+1))].in_units('g/cm**3').v >= 1e-30)
+        not_clump_den_cut = (sph_not_clumps[('gas','tracer_density0'+str(j+1))].in_units('g/cm**3').v >= 1e-30)
 
         total = np.sum(tm)
         total_dencut = np.sum(tm[(den_cut)])
@@ -621,11 +625,13 @@ def tracer_mass_time_snap(ds, sph, snap):
         rad_bins_not_clumps = np.zeros(nbins)
         for k in range(nbins):
             in_bin = (radius >= rad_edges[k]) & (radius < rad_edges[k+1]) & (den_cut)
+            clump_bin = (clump_radius >= rad_edges[k]) & (clump_radius < rad_edges[k+1]) & (clump_den_cut)
+            not_clump_bin = (not_clump_radius >= rad_edges[k]) & (not_clump_radius < rad_edges[k+1]) & (not_clump_den_cut)
             rad_bins[k] = np.sum(tm[in_bin])
             rad_bins_hot[k] = np.sum(tm[in_bin & (temperature >= temp_split)])
             rad_bins_cold[k] = np.sum(tm[in_bin & (temperature < temp_split)])
-            rad_bins_clumps[k] = np.sum(tm_clumps[in_bin])
-            rad_bins_not_clumps[k] = np.sum(tm_not_clumps[in_bin])
+            rad_bins_clumps[k] = np.sum(tm_clumps[clump_bin])
+            rad_bins_not_clumps[k] = np.sum(tm_not_clumps[not_clump_bin])
 
         row = [snap, '%.2f' % time_since_inj, '%.4e' % total, '%.4e' % total_dencut, '%.4e' % total_clumps, '%.4e' % total_not_clumps]
         for k in range(nbins):
@@ -653,13 +659,17 @@ def tracer_mass_time_merge(outputs):
     rad_edges = np.arange(0, 210, 10)
     nbins = len(rad_edges) - 1
 
-    header_cols = ['snapshot', 'time_since_injection_Myr', 'total_tracer_mass', 'tracer_mass_above_dencut']
+    header_cols = ['snapshot', 'time_since_injection_Myr', 'total_tracer_mass', 'tracer_mass_above_dencut', 'tracer_in_clumps', 'tracer_not_in_clumps']
     for k in range(nbins):
         header_cols.append('rad_%d_%d_kpc' % (rad_edges[k], rad_edges[k+1]))
     for k in range(nbins):
         header_cols.append('rad_%d_%d_kpc_Tgt4p5' % (rad_edges[k], rad_edges[k+1]))
     for k in range(nbins):
         header_cols.append('rad_%d_%d_kpc_Tlt4p5' % (rad_edges[k], rad_edges[k+1]))
+    for k in range(nbins):
+        header_cols.append('rad_%d_%d_kpc_clumps' % (rad_edges[k], rad_edges[k+1]))
+    for k in range(nbins):
+        header_cols.append('rad_%d_%d_kpc_not_clumps' % (rad_edges[k], rad_edges[k+1]))
 
     for j in range(args.num_tracers):
         outfile = table_dir + '/tracer_mass_vs_time_tracer0' + str(j+1) + save_suffix + '.dat'
@@ -694,12 +704,17 @@ def plot_tracer_mass_time():
         rad_cols     = ['rad_%d_%d_kpc'         % (rad_edges[k], rad_edges[k+1]) for k in range(nbins)]
         rad_hot_cols = ['rad_%d_%d_kpc_Tgt4p5'  % (rad_edges[k], rad_edges[k+1]) for k in range(nbins)]
         rad_cold_cols= ['rad_%d_%d_kpc_Tlt4p5'  % (rad_edges[k], rad_edges[k+1]) for k in range(nbins)]
+        rad_clump_cols= ['rad_%d_%d_kpc_clumps'  % (rad_edges[k], rad_edges[k+1]) for k in range(nbins)]
+        rad_notclump_cols= ['rad_%d_%d_kpc_not_clumps'  % (rad_edges[k], rad_edges[k+1]) for k in range(nbins)]
 
         fig = plt.figure(figsize=(12, 10), dpi=200)
         ax1 = fig.add_subplot(2,2,1)
         ax2 = fig.add_subplot(2,2,2)
         ax3 = fig.add_subplot(2,2,3)
         ax4 = fig.add_subplot(2,2,4)
+
+        fig2 = plt.figure(figsize=(6,5), dpi=250)
+        ax5 = fig2.add_subplot(1,1,1)
 
         # Panel 1: total tracer mass vs time
         ax1.plot(time, total, color='k', lw=2, label='Total tracer')
@@ -757,6 +772,20 @@ def plot_tracer_mass_time():
         plt.savefig(outfile)
         plt.close()
         print('Saved plot for tracer0' + str(j+1) + ' to', outfile)
+
+        # Plot 2: fraction of tracer mass in clumps vs time
+        for k in range(nbins):
+            ax5.plot(time,
+              t[rad_clump_cols[k]].data.astype(float)/(t[rad_clump_cols[k]].data.astype(float) + t[rad_notclump_cols[k]].data.astype(float)),
+              color=colors[k], lw=1.5, ls='-')
+        ax5.set_xlabel(r'$\Delta t_\mathrm{inj}$ [Myr]', fontsize=16)
+        ax5.set_ylabel(r'Fraction of tracer mass in clumps', fontsize=16)
+        ax5.set_yscale('log')
+        ax5.axis([0,1750,1e-3,1])
+        ax5.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14, top=True, right=True)
+        cbar5 = fig.colorbar(sm, ax=ax5, orientation='vertical', pad=0.0)
+        cbar5.set_label('Radius [kpc]', fontsize=16)
+        cbar5.ax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14)
 
 def plot_tracer_mass_in_disk():
     '''Plots the mass of tracer fluids that end up in the disk as a function of time.
@@ -1118,6 +1147,7 @@ if __name__ == "__main__":
     disk_needed = False
     for i in range(len(projections)):
         if ('disk' in projections[i]): disk_needed = True
+    if ('tracer_mass_table' in args.plot): disk_needed = True
 
     # Build outputs list
     outs = make_output_list(args.output, output_step=args.output_step)
@@ -1153,7 +1183,6 @@ if __name__ == "__main__":
             tinj = ds_first.current_time.in_units('Myr').v
             del ds_first
         target_dir = 'projs'
-        all_outs = outs
         if (args.nproc==1):
             for snap in outs:
                 load_and_calculate(snap)
@@ -1202,9 +1231,6 @@ if __name__ == "__main__":
                             skipped_outs.append(snaps[s])
                             shutil.rmtree(snap_dir + snaps[s])
                 outs = skipped_outs
-        if ('tracer_mass_table' in args.plot):
-            output_dir = table_dir
-            tracer_mass_time_merge(all_outs)
 
     end = time.perf_counter()
     elapsed = end - start
